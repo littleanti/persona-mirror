@@ -775,23 +775,30 @@
 
   function buildPersonaFields(obj) {
     const FIELD_LABELS = [
-      ['summary', '요약'],
-      ['communication_style', '소통 방식'],
-      ['tone', '어조'],
-      ['typical_patterns', '말버릇/패턴'],
-      ['emotional_tendencies', '감정 표현'],
-      ['what_they_value', '중요 가치'],
-      ['how_they_seek_response', '원하는 반응'],
-      ['relationship_dynamics', '관계 역학'],
+      ['summary', '요약', false],
+      ['communication_style', '소통 방식', false],
+      ['speech_level', '경어/어미 패턴', false],
+      ['vocabulary_examples', '자주 쓰는 표현', true],   // array
+      ['sentence_style', '문장 스타일', false],
+      ['emoji_symbol_usage', '이모지/특수문자', false],
+      ['emotional_tendencies', '감정 표현', false],
+      ['what_they_value', '중요 가치', false],
+      ['how_they_seek_response', '원하는 반응', false],
+      ['relationship_dynamics', '관계 역학', false],
     ];
     return FIELD_LABELS
-      .filter(([k]) => obj[k])
-      .map(([k, label]) => `
-        <div class="persona-tag">
-          <div class="persona-tag-label">${label}</div>
-          <div class="persona-tag-value">${escHtml(String(obj[k]))}</div>
-        </div>
-      `).join('');
+      .filter(([k]) => obj[k] && (Array.isArray(obj[k]) ? obj[k].length > 0 : true))
+      .map(([k, label, isArray]) => {
+        const val = isArray && Array.isArray(obj[k])
+          ? obj[k].map(v => `<span style="display:inline-block;background:var(--primary-bg);color:var(--primary);border-radius:6px;padding:2px 8px;margin:2px;font-size:13px;">${escHtml(String(v))}</span>`).join('')
+          : `<span>${escHtml(String(obj[k]))}</span>`;
+        return `
+          <div class="persona-tag">
+            <div class="persona-tag-label">${label}</div>
+            <div class="persona-tag-value" style="${isArray ? 'display:flex;flex-wrap:wrap;gap:2px;' : ''}">${val}</div>
+          </div>
+        `;
+      }).join('');
   }
 
   function renderDetail(data) {
