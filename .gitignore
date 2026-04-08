@@ -19,8 +19,8 @@ env/
 .env.local
 *.env
 
-# 사용자 데이터 (페르소나 저장 파일)
-data/personas/*.json
+# 사용자 데이터 (세션별 저장 파일)
+data/sessions/*/
 
 # IDE
 .vscode/
