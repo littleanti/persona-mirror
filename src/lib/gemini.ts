@@ -4,8 +4,6 @@
 import { GoogleGenAI } from '@google/genai';
 import {
   TEXT_MODEL,
-  IMAGE_MODEL,
-  modelSupportsThinkingConfig,
   TEXT_REQUEST_TIMEOUT_MS,
   IMAGE_REQUEST_TIMEOUT_MS,
 } from '@/lib/config';
@@ -14,17 +12,16 @@ import { t } from './i18n';
 import type { InlineImage } from '@/lib/types';
 
 /**
- * 모델·타임아웃에 맞는 요청 설정을 만든다.
- * - thinking 지원 모델(gemini-*)은 thinkingBudget=0으로 추론 토큰을 꺼 지연을 크게 줄인다
- *   (gemini-3.1-flash-lite 기준 ~58s → ~6.5s). gemma는 미지원이므로 보내지 않는다(400 방지).
- * - httpOptions.timeout으로 모델별 타임아웃을 명시해 느린 이미지 경로의 조기 실패를 막는다.
+ * 타임아웃에 맞는 요청 설정을 만든다.
+ * - thinkingBudget=0으로 추론 토큰을 꺼 지연을 크게 줄인다
+ *   (gemini-3.1-flash-lite 기준 ~58s → ~6.5s). 모든 경로가 Gemini flash이므로 항상 적용한다.
+ * - httpOptions.timeout으로 타임아웃을 명시해 무거운 이미지 경로의 조기 실패를 막는다.
  */
-function buildConfig(model: string, timeoutMs: number): Record<string, unknown> {
-  const config: Record<string, unknown> = { httpOptions: { timeout: timeoutMs } };
-  if (modelSupportsThinkingConfig(model)) {
-    config['thinkingConfig'] = { thinkingBudget: 0 };
-  }
-  return config;
+function buildConfig(timeoutMs: number): Record<string, unknown> {
+  return {
+    httpOptions: { timeout: timeoutMs },
+    thinkingConfig: { thinkingBudget: 0 },
+  };
 }
 
 /**
@@ -42,8 +39,7 @@ export async function generate(prompt: string, images?: InlineImage[]): Promise<
 
   const useImages = !!images && images.length > 0;
 
-  // 입력 방식에 따라 모델 분기: 이미지면 비전(gemma), 아니면 빠른 텍스트 모델.
-  const model = useImages ? IMAGE_MODEL : TEXT_MODEL;
+  // 모델은 항상 동일한 Gemini flash(멀티모달). 입력 방식은 contents 구성과 타임아웃만 바꾼다.
   const timeoutMs = useImages ? IMAGE_REQUEST_TIMEOUT_MS : TEXT_REQUEST_TIMEOUT_MS;
 
   // 텍스트 전용이면 문자열 그대로, 이미지가 있으면 parts 배열로 멀티모달 구성.
@@ -63,9 +59,9 @@ export async function generate(prompt: string, images?: InlineImage[]): Promise<
 
   try {
     const response = await ai.models.generateContent({
-      model,
+      model: TEXT_MODEL,
       contents,
-      config: buildConfig(model, timeoutMs),
+      config: buildConfig(timeoutMs),
     });
     return response.text ?? '';
   } catch (err: unknown) {

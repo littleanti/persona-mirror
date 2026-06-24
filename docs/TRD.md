@@ -1,10 +1,11 @@
 # TRD — Persora (Client-First React 아키텍처)
 
-> 문서 버전: 1.4 · 갱신일: 2026-06-09 · 기준: PRD 1.4
+> 문서 버전: 1.5 · 갱신일: 2026-06-24 · 기준: PRD 1.5
 >
+> 1.5 변경: 텍스트·이미지(멀티모달) 입력을 **단일 Gemini flash 모델**(`gemini-3.1-flash-lite`)로 통일. 캡처 이미지 전용 비전 모델과 텍스트/이미지 이중 모델 분기를 제거. Gemini flash가 멀티모달이라 캡처 이미지를 직접 읽으므로 별도 비전 모델 경로가 불필요하다. 모든 호출이 gemini-* 계열이 되어 `thinkingConfig.thinkingBudget=0`을 **항상** 적용(thinking 지원 여부 가드/분기 제거). 텍스트/이미지 타임아웃은 페이로드 무게 차이로 그대로 유지.
 > 1.4 변경: 페르소나 생성 입력을 캡처 이미지 → 카카오톡 대화 파일(.txt) 첨부 + tail 컷으로 변경. `CreatePersonaInput.images` 제거(텍스트 전용), `buildPersonaPrompt`의 이미지 분기 제거. 새 모듈 `src/lib/chatFile.ts`(`parseKakaoChatTail`)와 `config.ts` 상수 `PERSONA_CHAT_TAIL_CHARS` 추가. 분석 경로(`analyzeReply`/`AnalyzeReplyInput.images`/`gemini.generate`의 images 인자/`src/lib/image.ts`/`InlineImage`)는 그대로 유지.
 > 1.3 변경: 메시지 분석(`analyzeReply`)도 캡처 이미지 입력을 받도록 확장. 이미지 모드는 thread 파싱/타겟 검출을 건너뛰고 `generate(prompt, images)`로 멀티모달 호출하며, `buildAnalyzePrompt`가 `useImages` 플래그로 분기한다. `fileToInlineImage`를 `src/lib/image.ts` 공용 모듈로 추출.
-> 1.2 변경: `@google/genai` 2.7.0 업그레이드(런타임 Node 20+), 멀티모달(캡처 이미지) 입력 반영, 텍스트/이미지 이중 모델·thinking budget·요청 타임아웃 명시, API 키 온보딩/관리 흐름 단순화 반영.
+> 1.2 변경: `@google/genai` 2.7.0 업그레이드(런타임 Node 20+), 멀티모달(캡처 이미지) 입력 반영, 단일 Gemini flash 모델·thinking budget·요청 타임아웃 명시, API 키 온보딩/관리 흐름 단순화 반영.
 
 ## 1. 아키텍처 개요
 
@@ -121,14 +122,17 @@ export interface CreatePersonaInput {
 
 ### 3.2 `src/lib/config.ts`
 ```ts
-export const TEXT_MODEL = 'gemini-3.1-flash-lite';   // 텍스트(붙여넣기) 분석 기본 모델
-export const IMAGE_MODEL = 'gemma-4-31b-it';         // 캡처 이미지(비전) 전용 멀티모달 모델
+// 텍스트·이미지(멀티모달) 입력 모두 동일한 Gemini flash 모델을 사용한다.
+// gemini-3.1-flash-lite는 멀티모달이라 한글 채팅 캡처 이미지를 직접 판독하며,
+// thinking을 끌 수 있어 ~6.5s로 빠르다(별도 비전 모델 불필요).
+export const TEXT_MODEL = 'gemini-3.1-flash-lite';   // 분석/키 검증/이미지 판독 공용 모델
+export const IMAGE_MODEL = TEXT_MODEL;               // 이미지(멀티모달) 입력도 동일 모델(하위 호환 별칭)
 
-// gemini-* 계열만 thinking budget 제어 지원. gemma-* 는 보내면 400 → 모델별 판단.
-export function modelSupportsThinkingConfig(model: string): boolean; // model.startsWith('gemini-')
+// 모든 호출이 gemini-* 계열이므로 thinking budget(thinkingBudget:0)을 gemini.ts에서 항상 적용한다.
+// (모델별 분기 가드 불필요.)
 
 export const TEXT_REQUEST_TIMEOUT_MS = 60_000;       // 텍스트 경로
-export const IMAGE_REQUEST_TIMEOUT_MS = 180_000;     // 이미지+gemma 경로(응답 ~60s+ 대비 넉넉히)
+export const IMAGE_REQUEST_TIMEOUT_MS = 180_000;     // 이미지 경로(인라인 이미지 페이로드가 무거워 넉넉히)
 
 export const PERSONA_CHAT_TAIL_CHARS = 16000;        // 페르소나 생성에 사용할 첨부 대화 파일의 말미 글자 수 상한
 
@@ -153,7 +157,8 @@ export function hasApiKey(): boolean;
 ### 3.4 `src/lib/gemini.ts` (Gemini — Wave 1: AI)
 ```ts
 // 원시 텍스트 생성(프롬프트 → 텍스트). 키는 settingsRepo.getApiKey() 사용.
-// images 가 있으면 멀티모달 요청을 구성하고 IMAGE_MODEL(gemma)로 분기, 없으면 TEXT_MODEL.
+// 모델은 항상 Gemini flash(단일). images 가 있으면 멀티모달 contents(inlineData parts)를 구성하고
+// 더 긴 타임아웃(IMAGE_REQUEST_TIMEOUT_MS)을 쓰지만, 모델 분기는 없다.
 export async function generate(prompt: string, images?: InlineImage[]): Promise<string>;
 // LLM 응답에서 JSON 객체 추출(server.py extract_json 이식)
 export function extractJson(text: string): Record<string, unknown>;
@@ -222,7 +227,7 @@ export async function listAnalyses(): Promise<AnalysisRecord[]>;
 export async function removeAnalysis(id: string): Promise<void>;
 ```
 - `analyzeReply`(텍스트): 페르소나 조회 → thread 파싱·타겟 메시지 검출(`thread.ts`) → `buildAnalyzePrompt` → `gemini.generate(prompt)` → `extractJson` → 후보 정규화 → `analysisRepo.put`.
-- `analyzeReply`(이미지): `images`가 있으면 thread 파싱/타겟 검출을 건너뛰고 `buildAnalyzePrompt({…, useImages:true})` → `gemini.generate(prompt, images)`(IMAGE_MODEL 분기)로 호출. 멀티모달 모델이 캡처에서 대화·답장 대상을 직접 판별한다. 기록의 `message`/`target_message`에는 캡처 장수 플레이스홀더를 저장한다.
+- `analyzeReply`(이미지): `images`가 있으면 thread 파싱/타겟 검출을 건너뛰고 `buildAnalyzePrompt({…, useImages:true})` → `gemini.generate(prompt, images)`로 호출(모델은 텍스트와 동일한 Gemini flash, 멀티모달). Gemini flash가 캡처에서 대화·답장 대상을 직접 판별한다. 기록의 `message`/`target_message`에는 캡처 장수 플레이스홀더를 저장한다.
 
 ### 3.9 `src/components/*` + `src/routes/*` (React Wave)
 - `components/Toast.tsx`: Zustand toast queue를 렌더한다. 형제 앱의 bottom-right rounded toast 패턴을 따른다.
@@ -259,8 +264,8 @@ export async function removeAnalysis(id: string): Promise<void>;
 ## 5. Gemini 호출 상세
 - 라이브러리: `@google/genai` 2.7.0. 클라이언트: `new GoogleGenAI({ apiKey })`.
 - 호출: `ai.models.generateContent({ model, contents, config })` → `.text`.
-- 입력별 모델 분기: 텍스트(붙여넣기)는 `TEXT_MODEL`(gemini-3.1-flash-lite), 캡처 이미지는 `IMAGE_MODEL`(gemma-4-31b-it). 이미지 입력 시 `contents`를 `{ role, parts: [{text}, {inlineData:{mimeType,data}}] }` 배열로 구성한다(별도 OCR 불필요).
-- 요청 설정(`buildConfig`): `httpOptions.timeout`으로 모델별 타임아웃(텍스트 60s / 이미지 180s)을 명시한다. gemini 계열은 `thinkingConfig.thinkingBudget=0`으로 추론 토큰을 꺼 지연을 크게 줄인다(~58s → ~6.5s); gemma는 미지원이라 보내지 않는다(400 방지).
+- 단일 모델: 텍스트(붙여넣기)와 캡처 이미지 모두 `gemini-3.1-flash-lite`(Gemini flash, 멀티모달)를 사용한다. 모델 분기는 없다. 이미지 입력 시 `contents`를 `{ role, parts: [{text}, {inlineData:{mimeType,data}}] }` 배열로 구성한다(별도 OCR/비전 모델 불필요 — Gemini flash가 캡처를 직접 읽음).
+- 요청 설정(`buildConfig`): `httpOptions.timeout`으로 입력별 타임아웃(텍스트 60s / 이미지 180s)을 명시한다(이미지는 인라인 페이로드가 무거워 더 길게). 모든 호출이 gemini-* 계열이므로 `thinkingConfig.thinkingBudget=0`을 **항상** 적용해 추론 토큰을 꺼 지연을 크게 줄인다(~58s → ~6.5s).
 - 키 검증: 별도 사전 검증 호출은 두지 않는다. 키 유효성은 첫 분석 호출의 인증 오류(400/403) 처리로 드러난다.
 - 타임아웃/에러: 네트워크/4xx/5xx를 사용자 친화 토스트로 변환. 키 인증 실패(400/403) 시 키 재입력 유도.
 - 2.x 호환: 2.0.0 breaking change는 Interactions API 한정이며, 위 `generateContent` 경로·생성자·`config`·`.text` 게터는 변경 없이 동작한다.

@@ -1,26 +1,17 @@
 // 앱 전역 상수 — 모델/스토리지/DB 설정의 단일 출처(single source of truth).
 
-// 입력 방식에 따라 모델을 분기한다.
-// - 텍스트(붙여넣기): gemini-3.1-flash-lite — thinking을 끌 수 있어 ~6.5s로 가장 빠름.
-// - 캡처 이미지(비전): gemma-4-31b-it — 멀티모달. 한글 채팅 캡처 판독용.
-//   (gemma는 thinking을 끌 수 없어 ~60s까지 느릴 수 있어 별도 타임아웃을 넉넉히 준다.)
-/** 텍스트 분석/키 검증 기본 모델. */
+// 텍스트·이미지 입력 모두 동일한 Gemini flash 모델을 사용한다.
+// gemini-3.1-flash-lite는 멀티모달이라 한글 채팅 캡처 이미지를 직접 판독하며,
+// thinking을 끌 수 있어 ~6.5s로 빠르다(별도 비전 모델 불필요).
+/** 분석/키 검증/이미지 판독 공용 모델. */
 export const TEXT_MODEL = 'gemini-3.1-flash-lite';
-/** 캡처 이미지(비전) 입력 전용 모델. */
-export const IMAGE_MODEL = 'gemma-4-31b-it';
-
-/**
- * 모델이 thinking budget 제어를 지원하는지 여부.
- * gemini-* 계열은 thinkingConfig를 지원하지만 gemma-* 계열은 400을 던진다
- * ("Thinking budget is not supported for this model"). 모델별로 안전하게 판단.
- */
-export function modelSupportsThinkingConfig(model: string): boolean {
-  return model.startsWith('gemini-');
-}
+/** 이미지(멀티모달) 입력도 동일한 Gemini flash 모델을 쓴다(하위 호환 별칭). */
+export const IMAGE_MODEL = TEXT_MODEL;
 
 /**
  * 요청 타임아웃(ms).
- * 이미지+gemma 경로는 응답이 느려(~60s+) 넉넉히 잡아 조기 실패(타임아웃)를 막는다.
+ * 이미지 경로는 inline 이미지 페이로드가 무거워 전송이 더 오래 걸리므로 넉넉히 잡아
+ * 조기 실패(타임아웃)를 막는다.
  */
 export const TEXT_REQUEST_TIMEOUT_MS = 60_000;
 export const IMAGE_REQUEST_TIMEOUT_MS = 180_000;
