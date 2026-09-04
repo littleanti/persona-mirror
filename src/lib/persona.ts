@@ -31,16 +31,16 @@ function splitPersonaRaw(
 }
 
 /**
- * 페르소나를 생성한다.
- * 입력 검증(이름 필수, 텍스트 모드는 대화가 너무 짧으면 거부, 이미지 모드는 0장이면 거부)은
- * 화면(PersonaPage)이 호출 전에 수행한다. 이미지 모드의 conversation은 화면이 미리 채운
- * 표시용 플레이스홀더 문자열이며, 이 함수는 받은 문자열을 그대로 저장할 뿐이다.
+ * 페르소나를 생성한다(텍스트 전용, TRD §3.7).
+ * 입력 검증(이름 필수, 키 있음, 대화가 너무 짧으면 거부)은 화면(PersonaPage)이 호출 전에 수행한다.
+ * conversation에는 붙여넣은 대화 또는 .txt 첨부로 채워진 텍스트가 그대로 들어오고,
+ * 그 문자열이 프롬프트로도 가고 레코드에도 그대로 저장된다.
  */
 export async function createPersona(input: CreatePersonaInput): Promise<PersonaRecord> {
   const myName = input.my_name.trim();
 
   const prompt = buildPersonaPrompt(input, getLang());
-  const text = await generate(prompt, input.images);
+  const text = await generate(prompt);
   const { personaData, myPersonaData } = splitPersonaRaw(extractJson(text), myName);
 
   const record: PersonaRecord = {

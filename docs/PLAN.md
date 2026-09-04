@@ -1,6 +1,6 @@
 # PLAN — Persora 구현 계획
 
-> 문서 버전: 2.2 · 갱신일: 2026-09-05 · 상태: P10 착수 — 페르소나 생성 입력을 캡처 이미지에서 카카오톡 대화 파일(.txt) 첨부로 교체(§3 표·§4 체크리스트가 단일 출처)
+> 문서 버전: 2.3 · 갱신일: 2026-09-05 · 상태: P10 완료 — 다음은 P11 마무리(§3 표·§4 체크리스트가 단일 출처)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -21,6 +21,7 @@
 | 2.0 | 2026-09-05 | P9 착수(분석 이미지 입력): §3 표에 P9 행 추가(진행중)·P8 완료 표기 유지, §4 P9 체크리스트, §6 순서 그림·의존 근거에 P9, §7 리스크에 분석 이미지 경로 가산, §8 미확정 갱신(이미지 모드 타겟 오판율·분석 이미지 지연) |
 | 2.1 | 2026-09-05 | P9 완료 반영(§3 상태·§4 체크) |
 | 2.2 | 2026-09-05 | P10 착수(페르소나 입력 재평가 — 세 번째 피벗): §2 트리에 `chatFile.ts`·`chatFile.test.ts` 추가 및 `image.ts`·`types.ts`·`prompts.ts` 주석 정정, §3 표에 P10 행(진행중), §4 P10 체크리스트, §6 순서 그림·의존 근거에 P10, §7 리스크에 **삭감 리스크**(기능 제거가 분석 탭에 새는 경우) 추가, §8 미확정 갱신(캡처 정확도 종결 → tail 상한 적정성 신규) |
+| 2.3 | 2026-09-05 | P10 완료 반영(§3 상태·§4 체크) |
 
 > 기준 문서: [`./PRD.md`](./PRD.md) 1.5(요구사항·Acceptance), [`./TRD.md`](./TRD.md) 2.0(아키텍처·모듈 계약), [`./DESIGN.md`](./DESIGN.md) 1.6(화면·토큰). 변경 이력은 [`./LOG.md`](./LOG.md)에만 적고, 이 문서는 **현재 계획**만 서술한다. 단계가 끝날 때마다 §3 상태와 §4 체크리스트를 갱신하고 문서 버전을 0.1 올린다(M1에서 1.0에 도달했고, 이후 P5부터 1.1·1.2로 이어간다).
 
@@ -156,7 +157,7 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + P6의 5개(`lib/thread.t
 
 | **P9** 메시지 분석에 캡처 이미지 입력 | 분석 탭도 캡처만으로 답장을 받을 수 있게 한다. 텍스트 붙여넣기는 기본 모드로 남기고 이미지를 **선택 모드로 가산**([PRD §8 부속 결정 5](./PRD.md) / TRD ADR-9) | `lib/types.ts`(`AnalyzeReplyInput.images?`), `lib/analysis.ts`(`analyzeReply` 이미지 분기 — 파싱 생략·`useImages` 전달·플레이스홀더 저장), `lib/prompts.ts`(`buildAnalyzePrompt`에 `useImages?` 플래그와 두 블록 분기), `routes/AnalyzePage.tsx`(입력 모드 세그먼트·드롭존·썸네일 그리드·모드별 검증), `lib/i18n.ts`(`analyze.tabText`·`tabImage`·`imageDropzone`·`imageHint`·`imagePlaceholder`) | 캡처만으로 분석이 끝까지 동작하고 결과가 기록에 남는다. **텍스트 경로 회귀 없음**(`images` 미전달 시 P6~P8과 동일한 요청). 이미지 모드에서는 타겟 칩·피커가 렌더되지 않고, 기록 미리보기에 캡처 장수 플레이스홀더가 보인다. `DB_VERSION` 1 유지 | `npm test`, `tsc`/`build`, UI 스모크(모드 토글·0장 거부·썸네일·텍스트 무회귀), **실제 캡처로 분석 1회 실키 실행**(지연 실측 + 답장 대상 판별 관찰) | **완료** |
 
-| **P10** 페르소나 생성 입력 재평가 | 페르소나 생성의 **캡처 이미지 모드를 제거**하고 대화 텍스트 단일 흐름 + 카카오톡 대화 파일(.txt) 첨부로 교체한다. 정확도를 좌우하는 것은 분량인데 캡처는 적게 담고 무겁다는 계산이 근거다([PRD §8 부속 결정 3 재검토](./PRD.md) / TRD ADR-10). 분석 탭의 캡처 모드(P9)는 **건드리지 않는다** | `lib/chatFile.ts`(신규) + `lib/chatFile.test.ts`(신규), `lib/config.ts`(`PERSONA_CHAT_TAIL_CHARS = 16_000`), `lib/types.ts`(`CreatePersonaInput.images` 제거), `lib/prompts.ts`(`buildPersonaPrompt` 이미지 분기 제거), `lib/persona.ts`(`generate(prompt)` 텍스트 전용), `routes/PersonaPage.tsx`(세그먼트·드롭존·썸네일 제거 → 대화 textarea + .txt 첨부 버튼 + 사용 글자수 안내), `lib/i18n.ts`(`persona.create.attach*` 4키 + `toast.chatFileReadFail` 추가, `persona.create.tab*`·`image*` 5키 제거) | `.txt` 첨부로 입력란이 **대화 첫 줄부터** 채워지고 상한을 넘으면 말미만 남는다(줄 경계 보존). 채운 결과를 편집할 수 있고 사용 글자수 안내가 보인다. 같은 파일을 다시 첨부해도 동작한다. **붙여넣기 경로 무회귀**, **분석 탭 무회귀**(캡처 모드가 그대로). `DB_VERSION` 1 유지, 기존 캡처 레코드는 문자열 그대로 표시 | `npm test`(신규 `chatFile.test.ts` 포함), `tsc`/`build`, UI 스모크(첨부·재첨부·편집·검증 토스트·분석 탭 확인), **실제 `.txt` 1개로 실키 생성 1회**(원본/사용 글자 수·지연 기록) | **진행중** |
+| **P10** 페르소나 생성 입력 재평가 | 페르소나 생성의 **캡처 이미지 모드를 제거**하고 대화 텍스트 단일 흐름 + 카카오톡 대화 파일(.txt) 첨부로 교체한다. 정확도를 좌우하는 것은 분량인데 캡처는 적게 담고 무겁다는 계산이 근거다([PRD §8 부속 결정 3 재검토](./PRD.md) / TRD ADR-10). 분석 탭의 캡처 모드(P9)는 **건드리지 않는다** | `lib/chatFile.ts`(신규) + `lib/chatFile.test.ts`(신규), `lib/config.ts`(`PERSONA_CHAT_TAIL_CHARS = 16_000`), `lib/types.ts`(`CreatePersonaInput.images` 제거), `lib/prompts.ts`(`buildPersonaPrompt` 이미지 분기 제거), `lib/persona.ts`(`generate(prompt)` 텍스트 전용), `routes/PersonaPage.tsx`(세그먼트·드롭존·썸네일 제거 → 대화 textarea + .txt 첨부 버튼 + 사용 글자수 안내), `lib/i18n.ts`(`persona.create.attach*` 4키 + `toast.chatFileReadFail` 추가, `persona.create.tab*`·`image*` 5키 제거) | `.txt` 첨부로 입력란이 **대화 첫 줄부터** 채워지고 상한을 넘으면 말미만 남는다(줄 경계 보존). 채운 결과를 편집할 수 있고 사용 글자수 안내가 보인다. 같은 파일을 다시 첨부해도 동작한다. **붙여넣기 경로 무회귀**, **분석 탭 무회귀**(캡처 모드가 그대로). `DB_VERSION` 1 유지, 기존 캡처 레코드는 문자열 그대로 표시 | `npm test`(신규 `chatFile.test.ts` 포함), `tsc`/`build`, UI 스모크(첨부·재첨부·편집·검증 토스트·분석 탭 확인), **실제 `.txt` 1개로 실키 생성 1회**(원본/사용 글자 수·지연 기록) | **완료** |
 
 **단계 번호 재편.** 1.2까지 P6은 안정화, P7은 보안·배포였다. 분석 재설계를 그 앞에 넣으면서 두 단계를 P7·P8로 한 칸씩 밀었다. 순서를 이렇게 둔 이유는 §6에 적는다. 다른 문서(PRD §10·§11, TRD §10, DESIGN §12)의 단계 참조도 같은 규칙으로 옮겼다.
 
@@ -331,26 +332,26 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + P6의 5개(`lib/thread.t
 - [x] LOG `진행중` 항목 추가 → `docs(p10)` 커밋
 
 **② 구현(대기)**
-- [ ] `lib/chatFile.ts`(신규) — `parseKakaoChatTail(rawText, maxChars)`: ① CRLF/CR → LF ② 선두 머리말 제거(대화 제목·`저장한 날짜`·`Date Saved`·날짜 구분선·빈 줄, **패턴 불일치 시 원문 유지**) ③ 말미 `maxChars` 컷 후 첫 줄바꿈 이후부터(부분 줄 버림) ④ `trim`. 순수 함수, 상수를 직접 읽지 않고 인자로 받는다(TRD §3.15)
-- [ ] `lib/chatFile.test.ts`(신규) — 머리말 제거 / 평문 통과 / 말미 컷의 줄 경계 / `maxChars` 이하 짧은 입력 무변경 / CRLF 정규화(TRD §9.2)
-- [ ] `lib/config.ts` — `PERSONA_CHAT_TAIL_CHARS = 16_000` 추가. `IMAGE_REQUEST_TIMEOUT_MS`는 **그대로 둔다**(분석 탭이 쓴다)
-- [ ] `lib/types.ts` — `CreatePersonaInput.images` 제거. **`InlineImage`와 `AnalyzeReplyInput.images?`는 남긴다**(TRD §3.1)
-- [ ] `lib/prompts.ts` — `buildPersonaPrompt`의 `input.images` 분기 삭제, 입력 소스 블록을 `대화 기록:` 하나로. **`buildAnalyzePrompt`의 `useImages` 분기는 손대지 않는다**(TRD §3.5)
-- [ ] `lib/persona.ts` — `createPersona`가 `generate(prompt)`를 부른다(두 번째 인자 제거). 플레이스홀더 관련 서술·주석 정리(TRD §3.7)
-- [ ] `routes/PersonaPage.tsx` — 입력 모드 세그먼트·드롭존·썸네일 그리드·`fileToInlineImage` import 제거 → 대화 textarea 하나 + **`📎 카카오톡 대화 파일(.txt) 첨부` 버튼**(`<label>` + hidden `input[type=file][accept=".txt,text/plain"]`, `multiple` 없음) + 첨부 안내 문구. 파일 읽기는 `FileReader.readAsText` → `parseKakaoChatTail(raw, PERSONA_CHAT_TAIL_CHARS)` → textarea 교체 + 안내 설정. **textarea 직접 편집 시 안내 제거**, **읽은 직후 `input.value = ''`로 재첨부 보장**, 읽기 실패 → `toast.chatFileReadFail`. 검증은 ① 이름 ② 키 ③ 20자 한 줄기(DESIGN §5.2)
-- [ ] `lib/i18n.ts` — ko/en에 `persona.create.attachFile`·`attachHint`·`attachedInfo`(`{n}`)·`attachedInfoTrimmed`(`{n}`·`{total}`), `toast.chatFileReadFail` 추가. `persona.create.tabText`·`tabImage`·`imageDropzone`·`imageHint`·`imagePlaceholder` 제거. **`analyze.*`의 이미지 키와 `toast.addImage`·`toast.imageLoadFail`은 남긴다**
-- [ ] 미사용 확인 — 위 제거 후 `image.ts`의 import가 `AnalyzePage` 하나인지, 지운 i18n 키를 참조하는 곳이 없는지 grep으로 확인
+- [x] `lib/chatFile.ts`(신규) — `parseKakaoChatTail(rawText, maxChars)`: ① CRLF/CR → LF ② 선두 머리말 제거(대화 제목·`저장한 날짜`·`Date Saved`·날짜 구분선·빈 줄, **패턴 불일치 시 원문 유지**) ③ 말미 `maxChars` 컷 후 첫 줄바꿈 이후부터(부분 줄 버림) ④ `trim`. 순수 함수, 상수를 직접 읽지 않고 인자로 받는다(TRD §3.15)
+- [x] `lib/chatFile.test.ts`(신규) — 머리말 제거 / 평문 통과 / 말미 컷의 줄 경계 / `maxChars` 이하 짧은 입력 무변경 / CRLF 정규화(TRD §9.2)
+- [x] `lib/config.ts` — `PERSONA_CHAT_TAIL_CHARS = 16_000` 추가. `IMAGE_REQUEST_TIMEOUT_MS`는 **그대로 둔다**(분석 탭이 쓴다)
+- [x] `lib/types.ts` — `CreatePersonaInput.images` 제거. **`InlineImage`와 `AnalyzeReplyInput.images?`는 남긴다**(TRD §3.1)
+- [x] `lib/prompts.ts` — `buildPersonaPrompt`의 `input.images` 분기 삭제, 입력 소스 블록을 `대화 기록:` 하나로. **`buildAnalyzePrompt`의 `useImages` 분기는 손대지 않는다**(TRD §3.5)
+- [x] `lib/persona.ts` — `createPersona`가 `generate(prompt)`를 부른다(두 번째 인자 제거). 플레이스홀더 관련 서술·주석 정리(TRD §3.7)
+- [x] `routes/PersonaPage.tsx` — 입력 모드 세그먼트·드롭존·썸네일 그리드·`fileToInlineImage` import 제거 → 대화 textarea 하나 + **`📎 카카오톡 대화 파일(.txt) 첨부` 버튼**(`<label>` + hidden `input[type=file][accept=".txt,text/plain"]`, `multiple` 없음) + 첨부 안내 문구. 파일 읽기는 `FileReader.readAsText` → `parseKakaoChatTail(raw, PERSONA_CHAT_TAIL_CHARS)` → textarea 교체 + 안내 설정. **textarea 직접 편집 시 안내 제거**, **읽은 직후 `input.value = ''`로 재첨부 보장**, 읽기 실패 → `toast.chatFileReadFail`. 검증은 ① 이름 ② 키 ③ 20자 한 줄기(DESIGN §5.2)
+- [x] `lib/i18n.ts` — ko/en에 `persona.create.attachFile`·`attachHint`·`attachedInfo`(`{n}`)·`attachedInfoTrimmed`(`{n}`·`{total}`), `toast.chatFileReadFail` 추가. `persona.create.tabText`·`tabImage`·`imageDropzone`·`imageHint`·`imagePlaceholder` 제거. **`analyze.*`의 이미지 키와 `toast.addImage`·`toast.imageLoadFail`은 남긴다**
+- [x] 미사용 확인 — 위 제거 후 `image.ts`의 import가 `AnalyzePage` 하나인지, 지운 i18n 키를 참조하는 곳이 없는지 grep으로 확인
 
 **③ 검증(대기 — 계획은 TRD §9.9)**
-- [ ] `npm test` 0 실패(신규 `chatFile.test.ts` 포함) / `npx tsc --noEmit` 0 에러 / `npx vite build` 성공
-- [ ] **`.txt` 첨부 실측** — 실제 카카오톡 대화 내보내기 파일을 첨부해 ① 머리말이 사라지고 대화 첫 줄부터 채워지는지 ② 상한을 넘으면 "원본 N자 중 최근 M자" 안내가 뜨고 M ≤ 16,000인지 ③ 채워진 텍스트의 **첫 줄이 온전한 줄**인지. 원본/사용 글자 수를 LOG에 적는다
-- [ ] **같은 파일 재첨부** — 첨부 → 편집 → 같은 파일 재첨부에서 다시 채워지는지(파일 입력 `value` 초기화 확인)
-- [ ] **붙여넣기 무회귀** — 파일 없이 대화를 붙여넣어 생성, 20자 미만 거부 토스트 동작
-- [ ] **분석 탭 무회귀** — 분석 탭의 텍스트/캡처 이미지 세그먼트·드롭존·썸네일·플레이스홀더 저장이 P9와 동일하게 동작(**삭감이 옆 화면으로 새지 않았는지**가 목적)
-- [ ] **실키 생성 1회** — 첨부로 채운 텍스트로 페르소나 생성. 11필드 파싱 성공 여부와 **지연 실측**(Resource Timing), `vocabulary_examples`가 어미·표현 인용으로 채워지는지 **관찰**(표본 1이므로 정확도를 주장하지 않는다)
-- [ ] 기존 레코드 표시 — P5~P9에 캡처로 만든 페르소나 상세에서 플레이스홀더 문자열이 그대로 보이고 화면이 깨지지 않는지
-- [ ] 주석 위생 grep(작업 메모·단계 번호 등) → 없음
-- [ ] LOG `완료`(검증 결과 정정 반영) → `feat(persona)` 커밋
+- [x] `npm test` 0 실패(신규 `chatFile.test.ts` 포함) / `npx tsc --noEmit` 0 에러 / `npx vite build` 성공
+- [x] **`.txt` 첨부 실측** — 실제 카카오톡 대화 내보내기 파일을 첨부해 ① 머리말이 사라지고 대화 첫 줄부터 채워지는지 ② 상한을 넘으면 "원본 N자 중 최근 M자" 안내가 뜨고 M ≤ 16,000인지 ③ 채워진 텍스트의 **첫 줄이 온전한 줄**인지. 원본/사용 글자 수를 LOG에 적는다
+- [x] **같은 파일 재첨부** — 첨부 → 편집 → 같은 파일 재첨부에서 다시 채워지는지(파일 입력 `value` 초기화 확인)
+- [x] **붙여넣기 무회귀** — 파일 없이 대화를 붙여넣어 생성, 20자 미만 거부 토스트 동작
+- [x] **분석 탭 무회귀** — 분석 탭의 텍스트/캡처 이미지 세그먼트·드롭존·썸네일·플레이스홀더 저장이 P9와 동일하게 동작(**삭감이 옆 화면으로 새지 않았는지**가 목적)
+- [x] **실키 생성 1회** — 첨부로 채운 텍스트로 페르소나 생성. 11필드 파싱 성공 여부와 **지연 실측**(Resource Timing), `vocabulary_examples`가 어미·표현 인용으로 채워지는지 **관찰**(표본 1이므로 정확도를 주장하지 않는다)
+- [x] 기존 레코드 표시 — P5~P9에 캡처로 만든 페르소나 상세에서 플레이스홀더 문자열이 그대로 보이고 화면이 깨지지 않는지
+- [x] 주석 위생 grep(작업 메모·단계 번호 등) → 없음
+- [x] LOG `완료`(검증 결과 정정 반영) → `feat(persona)` 커밋
 
 ## 5. 마일스톤 M1 (= P4 완료, MVP)
 

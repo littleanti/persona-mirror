@@ -42,6 +42,7 @@ export interface PersonaSummary {
 /**
  * 멀티모달 입력용 인라인 이미지. Gemini `inlineData` 파트에 그대로 실린다.
  * data는 base64 문자열이며 `data:image/png;base64,` 같은 data URL 접두는 제외한다.
+ * 이 타입을 쓰는 곳은 메시지 분석(AnalyzeReplyInput.images) 하나다.
  */
 export interface InlineImage {
   mimeType: string; // 예: 'image/png', 'image/jpeg'
@@ -49,15 +50,14 @@ export interface InlineImage {
 }
 
 /**
- * 페르소나 생성 입력. 두 모드가 있고 필드로 구분한다.
- * - 텍스트 모드: conversation에 대화 텍스트, images는 비움
- * - 이미지 모드: images에 캡처, conversation은 표시용 플레이스홀더
+ * 페르소나 생성 입력 — 텍스트 전용(TRD §3.1).
+ * conversation에는 붙여넣은 대화 또는 .txt 첨부로 채워진 텍스트가 그대로 들어간다.
+ * 화면이 파일을 읽어 parseKakaoChatTail(chatFile.ts)로 잘라 넣으므로, 이 계약에서 첨부는 보이지 않는다.
  */
 export interface CreatePersonaInput {
   name: string;
   my_name: string;
   conversation: string;
-  images?: InlineImage[];
 }
 
 /** 분석 결과의 답변 후보 1개 */

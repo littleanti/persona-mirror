@@ -42,15 +42,14 @@ const MESSAGES: Record<Lang, Dict> = {
     'persona.create.otherNamePlaceholder': '예) 김민준',
     'persona.create.myName': '나의 이름',
     'persona.create.myNamePlaceholder': '예) 나',
-    'persona.create.tabText': '✍️ 텍스트',
-    'persona.create.tabImage': '🖼️ 캡처 이미지',
     'persona.create.convPlaceholder':
       '김민준: 야 오늘 뭐해?\n나: 집에 있어. 왜?\n김민준: 아 그냥... 오늘 약속 있나 해서\n나: 없는데 왜?\n...',
     'persona.create.textHint': '📋 대화가 많을수록 더 정확한 페르소나가 만들어져요. 최소 10줄 이상 권장합니다.',
-    'persona.create.imageDropzone': '카카오톡·문자 캡처 이미지 선택',
-    'persona.create.imageHint':
-      '🖼️ AI가 캡처에서 대화를 직접 읽어 페르소나를 만들어요. 여러 장을 시간 순서대로 올리면 더 정확해요. 캡처 이미지도 Google로 전송됩니다.',
-    'persona.create.imagePlaceholder': '[채팅 캡처 이미지 {n}장으로 생성된 페르소나]',
+    'persona.create.attachFile': '📎 카카오톡 대화 파일(.txt) 첨부',
+    'persona.create.attachHint':
+      '카카오톡에서 내보낸 .txt를 첨부하면 머리말을 빼고 최근 대화만 자동으로 채워요. 채운 뒤 직접 편집할 수 있어요.',
+    'persona.create.attachedInfo': '✅ 최근 {n}자를 사용했어요',
+    'persona.create.attachedInfoTrimmed': '✅ 원본 {total}자 중 최근 {n}자만 사용했어요',
     'persona.create.loading': '페르소나 생성 중...',
 
     // 페르소나 탭 — 상세 모달
@@ -125,6 +124,7 @@ const MESSAGES: Record<Lang, Dict> = {
     // 토스트 — 페르소나 생성/조회/삭제
     'toast.enterName': '이름을 입력해주세요',
     'toast.convTooShort': '대화 기록이 너무 짧아요',
+    'toast.chatFileReadFail': '대화 파일을 읽지 못했습니다',
     'toast.addImage': '캡처 이미지를 추가해주세요',
     'toast.imageLoadFail': '이미지를 불러오지 못했습니다',
     'toast.personaCreated': '{name} 페르소나 생성 완료!',
@@ -241,15 +241,14 @@ const MESSAGES: Record<Lang, Dict> = {
     'persona.create.otherNamePlaceholder': 'e.g. Alex',
     'persona.create.myName': 'Your name',
     'persona.create.myNamePlaceholder': 'e.g. Me',
-    'persona.create.tabText': '✍️ Text',
-    'persona.create.tabImage': '🖼️ Screenshots',
     'persona.create.convPlaceholder':
       'Alex: Hey, what are you up to today?\nMe: Just home. Why?\nAlex: Oh nothing... just wondering if you’re free\nMe: I am, what’s up?\n...',
     'persona.create.textHint': '📋 The more conversation you paste, the more accurate the persona. At least 10 lines recommended.',
-    'persona.create.imageDropzone': 'Select chat screenshots',
-    'persona.create.imageHint':
-      '🖼️ AI reads the conversation straight from your screenshots. Upload several in time order for better accuracy. Screenshots are also sent to Google.',
-    'persona.create.imagePlaceholder': '[Persona created from {n} chat screenshot(s)]',
+    'persona.create.attachFile': '📎 Attach KakaoTalk chat file (.txt)',
+    'persona.create.attachHint':
+      'Attach a .txt exported from KakaoTalk — the header is stripped and the most recent conversation is filled in automatically. You can edit it afterward.',
+    'persona.create.attachedInfo': '✅ Using the latest {n} characters',
+    'persona.create.attachedInfoTrimmed': '✅ Using only the latest {n} of {total} characters',
     'persona.create.loading': 'Creating persona...',
 
     // Personas tab — detail modal
@@ -324,6 +323,7 @@ const MESSAGES: Record<Lang, Dict> = {
     // Toasts — persona create/view/delete
     'toast.enterName': 'Please enter a name',
     'toast.convTooShort': 'The conversation is too short',
+    'toast.chatFileReadFail': 'Failed to read the chat file',
     'toast.addImage': 'Please add a screenshot',
     'toast.imageLoadFail': 'Failed to load the image',
     'toast.personaCreated': '{name} persona created!',

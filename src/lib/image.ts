@@ -1,5 +1,5 @@
 // File → InlineImage 변환 헬퍼(TRD §3.4.1).
-// 페르소나 생성의 캡처 이미지 입력에서 쓴다.
+// 메시지 분석의 캡처 이미지 입력에서 쓴다.
 // data URL 접두어(`data:image/...;base64,`)를 떼고 순수 base64만 보관한다(Gemini inlineData 계약).
 
 import type { InlineImage } from '@/lib/types';
