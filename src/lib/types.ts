@@ -1,5 +1,6 @@
 // 모든 모듈이 공유하는 타입 계약(single source of truth). TRD §3.1.
 // 변경 시 docs/TRD.md §3 도 함께 갱신할 것.
+// PersonaFields / PersonaRecord / PersonaSummary / CreatePersonaInput / CandidateReply / AnalysisRecord (TRD §3.1).
 
 /** LLM이 생성하는 페르소나 항목. 추가 키를 줄 수 있어 인덱스 시그니처를 둔다(UI는 관대하게 표시). */
 export interface PersonaFields {
@@ -37,6 +38,7 @@ export interface PersonaSummary {
   summary: string; // persona.summary ?? ''
 }
 
+/** 페르소나 생성 입력(텍스트). */
 export interface CreatePersonaInput {
   name: string;
   my_name: string;
@@ -50,6 +52,7 @@ export interface CandidateReply {
   response: string; // 나의 말투로 쓴 실제 답장
 }
 
+/** IndexedDB `analyses` 스토어 레코드. keyPath = id */
 export interface AnalysisRecord {
   id: string;
   persona_id: string;

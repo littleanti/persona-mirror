@@ -1,5 +1,4 @@
-// P3: PERSONA_FIELDS · buildPersonaPrompt.
-// P4: buildAnalyzePrompt(+ speechSummary 헬퍼) — 분석 v1(받은 메시지 1건), 공감 3축 후보.
+// 페르소나·분석 프롬프트 빌더(TRD §3.5). 한국어 프롬프트 텍스트와 JSON 출력 계약을 한 곳에서 관리한다.
 
 import type { CreatePersonaInput, PersonaRecord } from '@/lib/types';
 import type { Lang } from './i18n';
@@ -17,6 +16,7 @@ function outputLangDirective(lang: Lang): string {
 
 /**
  * LLM에게 요청할 페르소나 JSON 필드 스펙.
+ * 페르소나 JSON 필드 목록(TRD §3.5).
  */
 export const PERSONA_FIELDS: string =
   `  "summary": "요약 (2-3문장, 핵심 성격과 관계 특성 포함)",
@@ -34,6 +34,7 @@ export const PERSONA_FIELDS: string =
 /**
  * 페르소나 생성 프롬프트 빌더.
  * my_name 유무에 따라 단일(상대방만) / 이중(other_persona + my_persona) 형식으로 분기.
+ * 페르소나 생성 프롬프트.
  */
 export function buildPersonaPrompt(input: CreatePersonaInput, lang: Lang = 'ko'): string {
   const { name, conversation } = input;
@@ -90,6 +91,7 @@ ${PERSONA_FIELDS}
 
 /**
  * 페르소나 필드에서 말투 요약 문자열을 생성한다.
+ * 페르소나 필드에서 말투 요약 블록을 만든다.
  */
 function speechSummary(p: Record<string, unknown>, personName: string): string {
   const parts: string[] = [];
@@ -99,6 +101,7 @@ function speechSummary(p: Record<string, unknown>, personName: string): string {
   }
 
   const vocab = p['vocabulary_examples'];
+  // 빈 배열([])은 표시하지 않는다.
   if (Array.isArray(vocab) ? vocab.length > 0 : vocab) {
     if (Array.isArray(vocab)) {
       const items = vocab.slice(0, 8).map((v) => String(v));
@@ -126,6 +129,7 @@ function speechSummary(p: Record<string, unknown>, personName: string): string {
 
 /**
  * 메시지 분석 프롬프트 빌더(v1: 받은 메시지 1건).
+ * 메시지 분석 프롬프트(받은 메시지 1건).
  */
 export function buildAnalyzePrompt(input: {
   persona: PersonaRecord;
@@ -164,8 +168,10 @@ ${mySpeech}
     }
   }
 
+  // 말투 섹션 — 있을 때만 앞뒤 줄바꿈 포함
   const otherSpeechBlock = otherSpeech ? `\n${otherSpeech}\n` : '';
 
+  // 조건부 분석 질문
   const speechToneQuestion = otherSpeech
     ? `- ${name}의 말투와 표현 방식을 고려할 때, ${name}이 기대하는 답변의 톤은?`
     : '';

@@ -1,5 +1,6 @@
 // 메시지 분석 도메인 서비스. TRD §3.8.
-// 브라우저 로컬(IndexedDB + Gemini 직접 호출)로 이식한다.
+// 분석 도메인 서비스 — 페르소나 조회 → 프롬프트 → Gemini → JSON 추출 → IndexedDB 저장(TRD §3.8).
+// analyzeMessage(받은 메시지 1건) / listAnalyses / removeAnalysis.
 
 import type { AnalysisRecord, CandidateReply } from '@/lib/types';
 import { uuid } from '@/lib/id';

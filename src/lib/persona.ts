@@ -1,5 +1,6 @@
 // 페르소나 도메인 서비스. TRD §3.7.
-// 브라우저 로컬(IndexedDB + Gemini 직접 호출)로 이식한다.
+// 페르소나 도메인 서비스 — 생성/목록/조회/삭제(TRD §3.7).
+// createPersona / listPersonaSummaries / getPersona / removePersona + splitPersonaRaw.
 
 import type { PersonaRecord, PersonaSummary, CreatePersonaInput, PersonaFields } from '@/lib/types';
 import { uuid } from '@/lib/id';

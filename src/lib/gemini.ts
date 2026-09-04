@@ -48,12 +48,14 @@ export async function generate(prompt: string): Promise<string> {
 
 /**
  * LLM 응답 텍스트에서 JSON 객체를 추출한다.
+ * 추출 순서(TRD §3.4):
  * 1) ```json 펜스 제거
  * 2) 첫 번째 균형 잡힌 {...} 블록 찾기
  * 3) 실패 시 전체 텍스트를 JSON.parse
  * 4) 그것도 실패하면 { raw: text } 반환
  */
 export function extractJson(text: string): Record<string, unknown> {
+  // ``` 펜스 제거(```json 접두 포함)
   const cleaned = text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '').trim();
 
   // 첫 번째 균형 잡힌 {...} 블록 탐색
@@ -81,6 +83,7 @@ export function extractJson(text: string): Record<string, unknown> {
   try {
     return JSON.parse(cleaned) as Record<string, unknown>;
   } catch {
+    // 펜스만 제거한 텍스트(cleaned)를 원문으로 보존한다.
     return { raw: cleaned };
   }
 }

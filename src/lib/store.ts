@@ -1,8 +1,7 @@
 import { create } from 'zustand';
 import { getApiKey, setApiKey as persistApiKey, clearApiKey as clearPersistedApiKey } from '@/lib/repos/settingsRepo';
 
-// P2: apiKey 미러(쿠키 settingsRepo와 동기화)가 추가됐다.
-// P3: selectedPersonaId(페르소나 탭 → 분석 탭 전달값)가 추가됐다(TRD §3.9).
+// apiKey 미러(쿠키 settingsRepo와 동기화) · selectedPersonaId(페르소나 탭 → 분석 탭 전달값) · toasts (TRD §3.9).
 export interface ToastEntry {
   id: number;
   message: string;

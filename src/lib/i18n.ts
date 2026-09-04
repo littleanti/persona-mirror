@@ -3,7 +3,7 @@
 // - t(): 동적으로 생성되는 문자열용 ({param} 보간 지원)
 // - onLangChange(): 동적 뷰가 스스로 다시 렌더링하도록 구독
 //
-// 문구는 키 이름은 DESIGN.md §10.1 영역 규칙을 따른다.
+// 사전 키는 DESIGN.md §10.1 영역 규칙(app/nav/common/status/onboarding/persona/analyze/history/toast/err/parse/btn)을 따른다.
 
 export type Lang = 'ko' | 'en';
 
