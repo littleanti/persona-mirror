@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { getApiKey, setApiKey as persistApiKey, clearApiKey as clearPersistedApiKey } from '@/lib/repos/settingsRepo';
 
-// P2: apiKey 미러(쿠키 settingsRepo와 동기화)가 추가됐다. selectedPersonaId(P3)는 해당 단계에서 추가한다.
+// P2: apiKey 미러(쿠키 settingsRepo와 동기화)가 추가됐다.
+// P3: selectedPersonaId(페르소나 탭 → 분석 탭 전달값)가 추가됐다(TRD §3.9).
 export interface ToastEntry {
   id: number;
   message: string;
@@ -10,10 +11,12 @@ export interface ToastEntry {
 
 interface AppState {
   apiKey: string;
+  selectedPersonaId: string | null;
   toasts: ToastEntry[];
   setApiKey: (key: string) => void;
   clearApiKey: () => void;
   refreshApiKey: () => void;
+  setSelectedPersonaId: (id: string | null) => void;
   pushToast: (message: string, tone?: ToastEntry['tone']) => void;
   dismissToast: (id: number) => void;
 }
@@ -22,6 +25,7 @@ let toastSeq = 1;
 
 export const useApp = create<AppState>((set, get) => ({
   apiKey: getApiKey() ?? '',
+  selectedPersonaId: null,
   toasts: [],
 
   setApiKey: (key) => {
@@ -37,6 +41,8 @@ export const useApp = create<AppState>((set, get) => ({
   refreshApiKey: () => {
     set({ apiKey: getApiKey() ?? '' });
   },
+
+  setSelectedPersonaId: (id) => set({ selectedPersonaId: id }),
 
   pushToast: (message, tone = 'info') => {
     const id = toastSeq++;

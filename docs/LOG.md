@@ -2,12 +2,18 @@
 
 > 규칙(CLAUDE.md 그라운드 룰 2): 최신 항목을 맨 위에 둔다. 각 항목은 태그(`[feat]`/`[fix]`/`[test]`/`[docs]`/`[chore]`), 절대 날짜, 변경 파일, 상태(`진행중`/`완료`/`완료(미검증)`)를 적는다. 코드 변경은 착수 전에 `진행중` 항목을 먼저 추가하고, 검증 후 `완료`로 바꾸며 실제 변경 파일을 정정한다. 검증을 돌리지 않았으면 "검증 비대상" 또는 "미실행"으로 사실대로 적는다. 원인 진단·설계 선택·수치 판단에는 그라운드 룰 1의 3단 사고(1차 사고 / 비판적 재사고 / 종합)를 남긴다.
 
-## 2026-09-05 — [feat] P3 페르소나 생성·목록·상세·삭제 — 진행중
+## 2026-09-05 — [feat] P3 페르소나 생성·목록·상세·삭제 — 완료
 
-- 배경/목적: 첫 도메인 기능. 대화 텍스트(+선택적 나의 이름) → Gemini → 상대/나 페르소나 JSON → IndexedDB 저장, 목록/상세/삭제. 계약: TRD §3.1(types) · §3.5(prompts) · §3.6(db/personaRepo) · §3.7(persona) · §3.9(id/dom) · §3.10(PersonaPage), DESIGN §5.
-- 이번 docs에서 확정한 것: (1) FR-11 — JSON 파싱 실패 시 거부하지 않고 원문 보존 저장(TRD §3.7 3단 사고). (2) 콘텐츠 폭 `max-w-lg` → `max-w-2xl`(하단 탭·시트는 `max-w-lg` 유지) — 항목 카드·대화 입력란 가독성, 모바일 무영향.
-- 변경 예정 파일: `src/lib/types.ts`, `src/lib/db.ts`, `src/lib/repos/personaRepo.ts`, `src/lib/persona.ts`, `src/lib/prompts.ts`(PERSONA_FIELDS·buildPersonaPrompt), `src/lib/id.ts`, `src/lib/dom.ts`, `src/lib/store.ts`(selectedPersonaId), `src/routes/PersonaPage.tsx`(목록·생성 시트·상세 모달), `src/routes/*.tsx`(폭 조정), `src/App.tsx`(initDB 1회), `src/lib/i18n.ts`
-- 검증 계획: `tsc`/`vite build`; UI 스모크(빈 상태 → 생성 시트 → 검증 토스트 순서 → 생성 → 목록 카드 → 상세(나/상대 탭, 태그) → 새로고침 유지 → 삭제); 유효 키로 실제 페르소나 생성 1회(지연·JSON 파싱 결과 기록, TRD §10 #1).
+- 배경/목적: 첫 도메인 기능. 대화 텍스트(+선택적 나의 이름) → Gemini → 상대/나 페르소나 JSON → IndexedDB 저장, 목록/상세/삭제. 계약: TRD §3.1·§3.5·§3.6·§3.7·§3.9·§3.10, DESIGN §5.
+- 변경 파일: `src/lib/types.ts`, `src/lib/db.ts`(initDB/withStore, personas·analyses store + created_at 인덱스), `src/lib/repos/personaRepo.ts`, `src/lib/persona.ts`(createPersona/list/get/remove, `splitPersonaRaw`), `src/lib/prompts.ts`(PERSONA_FIELDS·buildPersonaPrompt), `src/lib/id.ts`(`crypto.randomUUID()` 직접 호출), `src/lib/dom.ts`, `src/lib/store.ts`(selectedPersonaId), `src/App.tsx`(initDB 1회), `src/lib/i18n.ts`(persona.*·toast.*·err.dbOpen), `src/routes/PersonaPage.tsx`(목록·빈 상태·생성 바텀 시트·상세 모달), `src/routes/AnalyzePage.tsx`·`HistoryPage.tsx`(폭 `max-w-2xl`), `docs/TRD.md`(§10 #1 실측 추가), `docs/PLAN.md`
+- 구현 중 결정: i18n 키는 문구를 그대로 두고 DESIGN §10.1의 `persona.*` 영역으로 배치. 헤더 버튼과 빈 상태 CTA는 같은 문구·키를 재사용. 상세 모달의 알 수 없는 키는 속성명을 라벨로 그대로 표시(관대 표시). 오버레이는 페이지 `section` 안에 렌더하고 백드롭 클릭 판정은 `onClick`의 `target === currentTarget`으로 두었다.
+- 검증:
+  - `npx tsc --noEmit` → 0 에러 / `npx vite build` → 성공: index.html 0.81 kB │ gzip: 0.42 kB / index-ChW14u_Y.css 19.06 kB │ gzip: 4.45 kB / index-CcIW1zUA.js 515.73 kB │ gzip: 127.58 kB (76 modules transformed). JS가 500 kB를 넘는 것은 `@google/genai` SDK 번들 때문 — NFR-4 측정값으로 기록, 코드 스플리팅 여부는 M1에서 판단.
+  - UI 스모크(Vite dev, Playwright 390×844, 유효 키): 빈 상태 → `+ 새 페르소나 만들기` → 시트. 제출 검증 순서 확인: 이름 공백 → "이름을 입력해주세요", 대화 12자 → "대화 기록이 너무 짧아요". 카카오톡 export 형식 샘플(두 화자, 38줄, 1,331자)로 생성 → **Gemini 요청 6.57s**(Resource Timing) → "지수 페르소나 생성 완료!" 토스트, 시트 닫힘, 목록 카드(이니셜·이름·"나: 현우" 배지·요약·날짜).
+  - 저장 결과(IndexedDB `persona-mirror` v1, stores analyses/personas): 레코드 1건, `persona`·`my_persona` 모두 11개 필드가 채워짐(`raw` 없음). `vocabulary_examples`는 대화 원문 인용 6개("야", "ㅋㅋ", "ㅠㅠ", "진짜?", "그치??", "홧김"), `sentence_style`에 실제 문장 인용 3개.
+  - 상세 모달: 요약 블록 + 10개 항목 카드 + 태그, 나/상대 탭 전환(나의 페르소나 11필드 표시), 원본 대화 토글, "이 페르소나로 분석" → `#/analyze` 이동. 전체 새로고침 후 목록 유지(A4). 삭제 → confirm → 빈 상태 + "지수 삭제 완료" 토스트. 콘솔 에러 0.
+- 관찰(미조사): 상세 모달 스크린샷에서 어두운 백드롭이 최상단 약 20px(헤더 윗부분)를 덮지 않고 그 아래에서 시작하는 것처럼 보인다. 닫기·조작에는 영향이 없어 이번 단계에서 원인을 추적하지 않았다 — **미확정, P6 안정화에서 진단**.
+- 관찰(M1 표시명 판단용): 390px 폭 헤더에서 앱명 "Persona Mirror"(112px)와 "Gemini 준비됨" 인디케이터(91px) 사이 여백이 21px로 빡빡하다. 더 좁은 기기(360px)에서는 넘칠 가능성 — M1에서 확인.
 
 ## 2026-09-05 — [feat] P2 Gemini API 키 온보딩(쿠키)과 클라이언트 — 완료
 

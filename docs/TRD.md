@@ -1,6 +1,6 @@
 # TRD — Persona Mirror (코드네임) 기술 요구사항·설계
 
-> 문서 버전: 0.4 · 갱신일: 2026-09-05 · 상태: P3 착수 — §3.7 JSON 파싱 실패 처리 확정(원문 보존), splitPersonaRaw 명시. 기준: [PRD 0.1](./PRD.md) / [PLAN 0.1](./PLAN.md) / [DESIGN 0.1](./DESIGN.md)
+> 문서 버전: 0.5 · 갱신일: 2026-09-05 · 상태: P3 완료 — 페르소나 프롬프트 지연 1회 실측 반영. 기준: [PRD 0.1](./PRD.md) / [PLAN 0.1](./PLAN.md) / [DESIGN 0.1](./DESIGN.md)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -9,6 +9,7 @@
 | 0.2 | 2026-09-05 | P2 착수: `@google/genai` ^2.7.0 고정(§2), 브라우저→Gemini CORS·오류 형태 확인 방법 확정(§10 #3) |
 | 0.3 | 2026-09-05 | P2 완료: §10 #3 CORS·오류 형태 확인됨, #1에 소형 프롬프트 지연 실측 1회 추가 |
 | 0.4 | 2026-09-05 | P3 착수: §3.7 파싱 실패 시 원문 보존 저장 확정, `splitPersonaRaw` 헬퍼 명시, §10 #6 종결 |
+| 0.5 | 2026-09-05 | P3 완료: §10 #1에 페르소나 프롬프트 지연 실측(6.57s) 추가 |
 
 > 이 문서는 **현재 확정된 설계**를 서술한다. 변경 이력은 [`LOG.md`](./LOG.md)에만 적는다. §3의 시그니처는 모든 구현 작업이 따라야 하는 **계약**이며, 계약을 바꿀 때는 코드보다 이 문서를 먼저 갱신한다(CLAUDE.md 그라운드 룰 2). 아직 코드가 없으므로 아래 식별자는 모두 "해당 단계(P1~P4)에서 만들 예정"인 것이다.
 
@@ -423,7 +424,7 @@ return response.text ?? '';
 | 순서 | 신호 | 분류 | 메시지 키 | 화면 동작 |
 |---|---|---|---|---|
 | 0 | 호출 전 `getApiKey()`가 null | 키 없음 | `err.keyNotSet` | 온보딩 게이트가 이미 열려 있어야 정상 |
-| 1 | 메시지에 `API key`/`API_KEY_INVALID`/`PERMISSION_DENIED`/`unauthorized`/`forbidden`, 또는 `status === 403`/`403` 포함 | **인증(403 또는 키 관련 메시지)** | `err.invalidKey` | 토스트 문구(`err.invalidKey`)로 헤더에서 키를 바꾸라고 안내 — 편집 상태를 자동으로 열지는 않음(`generate`는 plain `Error`만 던져 화면이 종류를 식별하지 않는다) — P2 실측: 소형 프롬프트(한 문장, JSON-only) 1회 1.94s. 페르소나 프롬프트(수천 자) 지연은 P3에서 |
+| 1 | 메시지에 `API key`/`API_KEY_INVALID`/`PERMISSION_DENIED`/`unauthorized`/`forbidden`, 또는 `status === 403`/`403` 포함 | **인증(403 또는 키 관련 메시지)** | `err.invalidKey` | 토스트 문구(`err.invalidKey`)로 헤더에서 키를 바꾸라고 안내 — 편집 상태를 자동으로 열지는 않음(`generate`는 plain `Error`만 던져 화면이 종류를 식별하지 않는다) — P2 실측: 소형 프롬프트(한 문장, JSON-only) 1회 1.94s. 페르소나 프롬프트(수천 자) 지연은 P3에서; P3 실측: 페르소나 프롬프트(대화 1,331자, 나/상대 동시) 1회 6.57s, 11필드 JSON 파싱 성공 |
 | 2 | `Failed to fetch`/`network` | 네트워크 | `err.network` | 토스트 |
 | 3 | `name === 'AbortError'`/`timeout`/`timed out`/`aborted` | 타임아웃(60s) | `err.timeout` | 토스트 |
 | 4 | `429`/`quota`/`rate limit` | 요청 과다(할당량) | `err.rateLimit` | 토스트 |

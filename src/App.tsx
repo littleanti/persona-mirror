@@ -7,6 +7,7 @@ import ToastContainer from '@/components/Toast';
 import AnalyzePage from '@/routes/AnalyzePage';
 import HistoryPage from '@/routes/HistoryPage';
 import PersonaPage from '@/routes/PersonaPage';
+import { initDB } from '@/lib/db';
 import { useApp } from '@/lib/store';
 import { useT } from '@/lib/useI18n';
 
@@ -48,6 +49,7 @@ const tabs = [
 
 export default function App() {
   const apiKey = useApp((s) => s.apiKey);
+  const pushToast = useApp((s) => s.pushToast);
   const t = useT();
   const location = useLocation();
 
@@ -59,6 +61,12 @@ export default function App() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
+
+  // IndexedDB 연결은 앱 전체에서 1회만 연다(TRD §3.10). 실패 시 토스트로 알린다(TRD §3.6).
+  useEffect(() => {
+    initDB().catch(() => pushToast(t('err.dbOpen'), 'error'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-dvh flex flex-col bg-slate-50 text-slate-900">

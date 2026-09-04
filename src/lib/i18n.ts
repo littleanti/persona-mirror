@@ -27,6 +27,62 @@ const MESSAGES: Record<Lang, Dict> = {
 
     // 헤더 — 키 상태(ApiKeyStatus)
     'status.ready': 'Gemini 준비됨',
+    'status.noKey': 'API 키 미등록',
+
+    // 페르소나 탭 — 목록/빈 상태
+    'persona.summaryFallback': '페르소나 분석 완료',
+    'persona.empty.title': '저장된 페르소나 없음',
+    'persona.empty.desc': '대화 기록을 입력하면 AI가 상대방의 페르소나를 분석해요',
+    'persona.createCta': '새 페르소나 만들기',
+
+    // 페르소나 탭 — 생성 바텀 시트
+    'persona.create.title': '새 페르소나 만들기',
+    'persona.create.otherName': '상대방 이름',
+    'persona.create.otherNamePlaceholder': '예) 김민준',
+    'persona.create.myName': '나의 이름',
+    'persona.create.myNamePlaceholder': '예) 나',
+    'persona.create.convPlaceholder':
+      '김민준: 야 오늘 뭐해?\n나: 집에 있어. 왜?\n김민준: 아 그냥... 오늘 약속 있나 해서\n나: 없는데 왜?\n...',
+    'persona.create.textHint': '📋 대화가 많을수록 더 정확한 페르소나가 만들어져요. 최소 10줄 이상 권장합니다.',
+    'persona.create.loading': '페르소나 생성 중...',
+
+    // 페르소나 탭 — 상세 모달
+    'persona.detail.title': '페르소나 상세',
+    'persona.detail.useForAnalysis': '이 페르소나로 분석',
+    'persona.detail.convToggle': '📝 원본 대화 기록 보기',
+    'persona.detail.tabMe': '🙋 나 ({my})',
+    'persona.detail.createdAt': '생성일 {date}',
+    'persona.detail.myLabel': '나: {my}',
+    'persona.detail.confirmDelete': '"{name}" 페르소나를 삭제할까요?',
+
+    // 페르소나 필드 라벨 (PersonaFields 속성명과 동일 — DESIGN §10.1)
+    'persona.field.communication_style': '소통 방식',
+    'persona.field.speech_level': '경어/어미 패턴',
+    'persona.field.vocabulary_examples': '자주 쓰는 표현',
+    'persona.field.sentence_style': '문장 스타일',
+    'persona.field.emoji_symbol_usage': '이모지/특수문자',
+    'persona.field.texting_habits': '메시징 습관',
+    'persona.field.emotional_tendencies': '감정 표현',
+    'persona.field.what_they_value': '중요 가치',
+    'persona.field.how_they_seek_response': '원하는 반응',
+    'persona.field.relationship_dynamics': '관계 역학',
+
+    // 공용
+    'common.loading': '불러오는 중...',
+
+    // 토스트 — 페르소나 생성/조회/삭제
+    'toast.enterName': '이름을 입력해주세요',
+    'toast.convTooShort': '대화 기록이 너무 짧아요',
+    'toast.personaCreated': '{name} 페르소나 생성 완료!',
+    'toast.personaCreateFail': '페르소나 생성에 실패했습니다',
+    'toast.loadPersonaFail': '페르소나를 불러오지 못했습니다',
+    'toast.loadDetailFail': '상세 정보를 불러오지 못했습니다',
+    'toast.personaSelected': '{name} 페르소나 선택됨',
+    'toast.deleteFail': '삭제에 실패했습니다',
+    'toast.personaDeleted': '{name} 삭제 완료',
+
+    // DB 오류(TRD §3.6 — App.tsx가 initDB 실패를 잡아 사용)
+    'err.dbOpen': '브라우저 저장소를 여는 데 실패했습니다.',
 
     // 온보딩(OnboardingModal)
     'onboarding.title': 'Gemini API 키 설정',
@@ -75,6 +131,62 @@ const MESSAGES: Record<Lang, Dict> = {
 
     // Header — key status (ApiKeyStatus)
     'status.ready': 'Gemini ready',
+    'status.noKey': 'No API key',
+
+    // Personas tab — list/empty state
+    'persona.summaryFallback': 'Persona analysis complete',
+    'persona.empty.title': 'No saved personas',
+    'persona.empty.desc': 'Paste a conversation and AI will analyze the other person’s persona',
+    'persona.createCta': 'Create persona',
+
+    // Personas tab — create bottom sheet
+    'persona.create.title': 'Create persona',
+    'persona.create.otherName': 'Their name',
+    'persona.create.otherNamePlaceholder': 'e.g. Alex',
+    'persona.create.myName': 'Your name',
+    'persona.create.myNamePlaceholder': 'e.g. Me',
+    'persona.create.convPlaceholder':
+      'Alex: Hey, what are you up to today?\nMe: Just home. Why?\nAlex: Oh nothing... just wondering if you’re free\nMe: I am, what’s up?\n...',
+    'persona.create.textHint': '📋 The more conversation you paste, the more accurate the persona. At least 10 lines recommended.',
+    'persona.create.loading': 'Creating persona...',
+
+    // Personas tab — detail modal
+    'persona.detail.title': 'Persona details',
+    'persona.detail.useForAnalysis': 'Analyze with this persona',
+    'persona.detail.convToggle': '📝 View original conversation',
+    'persona.detail.tabMe': '🙋 Me ({my})',
+    'persona.detail.createdAt': 'Created {date}',
+    'persona.detail.myLabel': 'Me: {my}',
+    'persona.detail.confirmDelete': 'Delete the "{name}" persona?',
+
+    // Persona field labels (must match PersonaFields property names — DESIGN §10.1)
+    'persona.field.communication_style': 'Communication style',
+    'persona.field.speech_level': 'Politeness / endings',
+    'persona.field.vocabulary_examples': 'Frequent expressions',
+    'persona.field.sentence_style': 'Sentence style',
+    'persona.field.emoji_symbol_usage': 'Emoji / symbols',
+    'persona.field.texting_habits': 'Texting habits',
+    'persona.field.emotional_tendencies': 'Emotional expression',
+    'persona.field.what_they_value': 'What they value',
+    'persona.field.how_they_seek_response': 'Desired response',
+    'persona.field.relationship_dynamics': 'Relationship dynamics',
+
+    // Common
+    'common.loading': 'Loading...',
+
+    // Toasts — persona create/view/delete
+    'toast.enterName': 'Please enter a name',
+    'toast.convTooShort': 'The conversation is too short',
+    'toast.personaCreated': '{name} persona created!',
+    'toast.personaCreateFail': 'Failed to create the persona',
+    'toast.loadPersonaFail': 'Failed to load personas',
+    'toast.loadDetailFail': 'Failed to load the details',
+    'toast.personaSelected': '{name} persona selected',
+    'toast.deleteFail': 'Failed to delete',
+    'toast.personaDeleted': '{name} deleted',
+
+    // DB error (TRD §3.6 — used by App.tsx when initDB fails)
+    'err.dbOpen': 'Failed to open browser storage.',
 
     // Onboarding (OnboardingModal)
     'onboarding.title': 'Gemini API key',

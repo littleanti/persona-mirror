@@ -1,11 +1,12 @@
 # PLAN — Persona Mirror (코드네임) 구현 계획
 
-> 문서 버전: 0.1 · 갱신일: 2026-09-05 · 상태: P0 초안 — 코드 0줄 시점의 단계 계획, P1 착수 기준
+> 문서 버전: 0.2 · 갱신일: 2026-09-05 · 상태: 진행 중 — 단계별 상태는 §3 표와 §4 체크리스트가 단일 출처(P3 완료, P4 대기)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
 |---|---|---|
 | 0.1 | 2026-09-05 | 초안 |
+| 0.2 | 2026-09-05 | P1~P3 완료 반영(§3 상태·§4 체크), 상태 문구 갱신 |
 
 > 기준 문서: [`./PRD.md`](./PRD.md) 0.1(요구사항·Acceptance), [`./TRD.md`](./TRD.md) 0.1(아키텍처·모듈 계약), [`./DESIGN.md`](./DESIGN.md) 0.1(화면·토큰). 변경 이력은 [`./LOG.md`](./LOG.md)에만 적고, 이 문서는 **현재 계획**만 서술한다. 단계가 끝날 때마다 §3 상태와 §4 체크리스트를 갱신하고 문서 버전을 0.1 올린다(M1에서 1.0).
 
@@ -111,7 +112,7 @@ P0 시점에 M1(P4 완료)까지 만들 파일이다. 괄호는 생성 단계. P
 | **P0** 초기화·문서 초안 | 코드 0줄에서 제품·기술·화면·계획을 먼저 고정 | `LICENSE`, `CLAUDE.md`, `.gitignore`, `docs/LOG.md`(완료), `docs/PRD.md`·`TRD.md`·`DESIGN.md`·`PLAN.md` 0.1 | 4문서가 서로 모순 없이 P1~P4 계약을 제공. Client-First 결정과 기각 대안이 3단 사고로 기록됨 | 비대상(문서만) | **완료** |
 | **P1** 스캐폴드·앱 셸 | 빈 페이지라도 배포 가능한 골격 | `package.json`(persona-mirror 0.1.0, engines.node >= 20), Vite+React 18+TS strict+Tailwind 설정, `index.html`, `main.tsx`, `App.tsx`(상단바: 로고+앱명+언어 토글 / 하단 탭 3개), `index.css`, `i18n.ts`·`useI18n.ts`, `store.ts`, `Toast.tsx`, `LanguageToggle.tsx`, 라우트 3개 placeholder, `server/index.js` + `npm start`, `README.md` 초안 | `npm run dev`로 셸이 뜨고 탭 전환·언어 토글이 동작. `npm run build` 무에러, `npm start`로 dist 서빙 | `tsc --noEmit`, `vite build`, 브라우저 육안(PC) | **완료** |
 | **P2** API 키 온보딩·Gemini 클라이언트 | 키 없으면 앱을 잠그고, 있으면 Gemini를 부를 준비 | `config.ts`, `repos/settingsRepo.ts`(쿠키 1년, SameSite=Lax), `gemini.ts`(generate/extractJson/에러 변환), `OnboardingModal.tsx`, `ApiKeyStatus.tsx`, `App.tsx` 온보딩 게이트, `store.ts` apiKey 상태 | 키 미등록 시 모달이 화면 점유(A1). 키+동의 저장 → 모달 닫힘 → 헤더 "● Gemini 준비됨". 새로고침 후 유지. 인디케이터로 변경/삭제, 삭제 시 모달 재등장 | `tsc`/`build`, UI 스모크(모달 → 저장 → 인디케이터 → 새로고침). **임의(무효) 키로 `generate` 1회 호출** → CORS 통과 여부·SDK 오류 객체 형태 확인(기대: 인증 오류가 SDK 오류로 도착; 결과를 LOG에, 미실행이면 미실행으로). **실키 실호출(품질·지연)은 키 부재 시 미확정** | **완료** |
-| **P3** 페르소나 생성·목록·상세·삭제 | 대화 텍스트 → 상대/나 페르소나 JSON → IndexedDB | `types.ts`, `db.ts`, `repos/personaRepo.ts`, `persona.ts`, `prompts.ts`(PERSONA_FIELDS, buildPersonaPrompt), `id.ts`, `dom.ts`, `store.ts`(`selectedPersonaId` 추가), `PersonaPage.tsx`(목록·생성 바텀 시트·상세 모달) | **키 불필요(필수)**: 생성 시트 열림·닫힘, 빈 이름·키 없음·짧은 대화(trim < 20)가 순서대로 토스트로 거부됨, 빈 목록 상태, `tsc`/`build` 통과. **키 필요(미확정 허용)**: 생성 → 목록 카드 → 상세(나/상대 탭, PERSONA_FIELDS 11항목) → 삭제, 재방문 시 목록 유지(A4) — 실키가 없으면 "미확정"으로 LOG에 기재하고 단계를 닫는다 | `tsc`/`build`, UI 스모크(시트 열림·닫힘, 빈 목록 상태, 유효성 토스트). **생성 품질·지연은 키 필요, 미확정** | **진행중** |
+| **P3** 페르소나 생성·목록·상세·삭제 | 대화 텍스트 → 상대/나 페르소나 JSON → IndexedDB | `types.ts`, `db.ts`, `repos/personaRepo.ts`, `persona.ts`, `prompts.ts`(PERSONA_FIELDS, buildPersonaPrompt), `id.ts`, `dom.ts`, `store.ts`(`selectedPersonaId` 추가), `PersonaPage.tsx`(목록·생성 바텀 시트·상세 모달) | **키 불필요(필수)**: 생성 시트 열림·닫힘, 빈 이름·키 없음·짧은 대화(trim < 20)가 순서대로 토스트로 거부됨, 빈 목록 상태, `tsc`/`build` 통과. **키 필요(미확정 허용)**: 생성 → 목록 카드 → 상세(나/상대 탭, PERSONA_FIELDS 11항목) → 삭제, 재방문 시 목록 유지(A4) — 실키가 없으면 "미확정"으로 LOG에 기재하고 단계를 닫는다 | `tsc`/`build`, UI 스모크(시트 열림·닫힘, 빈 목록 상태, 유효성 토스트). **생성 품질·지연은 키 필요, 미확정** | **완료** |
 | **P4** 메시지 분석 v1·기록 → **M1** | 페르소나 선택 + 받은 메시지 1건 → 심리 분석 + 답변 후보 3개, 기록 저장 | `analysis.ts`, `repos/analysisRepo.ts`, `prompts.ts`(buildAnalyzePrompt), `types.ts`(CandidateReply·AnalysisRecord), `AnalyzePage.tsx`(페르소나 칩 + textarea + 결과·후보 복사), `HistoryPage.tsx`(목록·펼치기·삭제) | **키 불필요(필수)**: `buildAnalyzePrompt`가 3축 정식 라벨("깊은 공감·수용형" / "공감 + 함께 해결형" / "공감 + 분위기 전환형", PRD FR-13)·말투 보존 지시·JSON-only 지시를 포함(코드 리뷰), `analyzeMessage`가 `{ raw }` 폴백 시 후보 1개로 정규화(코드 리뷰), AnalyzePage 검증 토스트 3종·복사 토스트 동작, 기록 탭 빈 상태·펼치기 UI(UI 스모크). **키 필요(미확정 허용)**: 실제 분석 → 기록 저장·펼치기·삭제, 라벨·말투 준수율 관찰. **M1 출구(§5)**: 문서 1.0, 표시명 확정, package 1.0.0 | `tsc`/`build`, UI 스모크(전 탭), LAN 휴대폰 접속(A6), DevTools Network(A3). **분석 품질·라벨·말투 준수율은 키 필요, 미확정** | 대기 |
 | **P5** 캡처 이미지로 페르소나 생성(멀티모달) | 대화 캡처 이미지 n장으로도 페르소나 생성 | 이미지 → inline base64 변환 헬퍼(파일명 P5 docs에서 확정), `CreatePersonaInput` 이미지 선택 필드, `gemini.generate` 이미지 인자 + 이미지 전용 타임아웃(값 미확정), `buildPersonaPrompt` 이미지 분기, `PersonaPage.tsx` 텍스트/이미지 입력 토글·드롭존·썸네일 | 텍스트 없이 이미지만으로 생성 가능. 텍스트 경로는 회귀 없음 | `tsc`/`build`, UI 스모크(토글·썸네일). **이미지 판독 품질·지연 미확정** | 대기 |
 | **P6** 안정화 | 실사용(PC·LAN 휴대폰)에서 드러난 버그 수정 | 재현된 버그별 `fix` 커밋(파일은 버그마다), 필요 시 `*.test.ts` | 알려진 재현 버그 0. 각 fix에 원인 가설·반증·종합이 LOG와 커밋 본문에 있음 | `tsc`/`build`, (도입 시) `vitest`, 버그별 재현 스모크 | 대기 |
@@ -153,13 +154,13 @@ P0 시점에 M1(P4 완료)까지 만들 파일이다. 괄호는 생성 단계. P
 
 ### P3 — 페르소나 생성·목록·상세·삭제
 - [x] docs: TRD 타입 계약(`PersonaFields`/`PersonaRecord`/`PersonaSummary`/`CreatePersonaInput`), `db.ts`/`personaRepo.ts`/`persona.ts`/`prompts.ts` 계약, DESIGN 페르소나 화면·생성 바텀 시트·상세 모달, LOG `진행중` → `docs(p3)` 커밋
-- [ ] `lib/types.ts`, `lib/db.ts`(`initDB` — `onupgradeneeded`에서 `personas`/`analyses` store + `created_at` 인덱스, `withStore`), `lib/repos/personaRepo.ts`(`put/get/list/remove`, list는 `created_at` 내림차순)
-- [ ] `lib/prompts.ts` — `PERSONA_FIELDS`(summary, communication_style, speech_level, vocabulary_examples[], sentence_style, emoji_symbol_usage, texting_habits, emotional_tendencies, what_they_value, how_they_seek_response, relationship_dynamics), `buildPersonaPrompt(input, lang)`(JSON-only 지시, 나의 이름이 있으면 나/상대 분리)
-- [ ] `lib/persona.ts` — `createPersona`(프롬프트 → `generate` → `extractJson` → 상대/나 분리 정규화 → `personaRepo.put`), `listPersonaSummaries`, `getPersona`, `removePersona`
-- [ ] `lib/id.ts`(uuid), `lib/dom.ts`(`formatDate`, `getInitial`), `lib/store.ts`에 `selectedPersonaId`/`setSelectedPersonaId` 추가(TRD §3.9)
-- [ ] `routes/PersonaPage.tsx` — 목록 카드(아바타 이니셜·이름·날짜·요약) · 빈 상태 CTA · 생성 바텀 시트(slide-up; 제출 전 검증: 이름 공백 → 키 없음 → 대화 trim < 20, 순서대로 토스트 — TRD §3.7, DESIGN §5.2) · 상세 모달(나/상대 탭, "이 페르소나로 분석" → `setSelectedPersonaId` + `#/analyze`) · 삭제 확인
-- [ ] 검증: `tsc`/`build`, UI 스모크(시트 열림·닫힘, 유효성 토스트, 빈 목록). 생성 실호출은 키 있을 때 수동
-- [ ] LOG `완료` → `feat: 페르소나 생성·목록·상세·삭제` 커밋
+- [x] `lib/types.ts`, `lib/db.ts`(`initDB` — `onupgradeneeded`에서 `personas`/`analyses` store + `created_at` 인덱스, `withStore`), `lib/repos/personaRepo.ts`(`put/get/list/remove`, list는 `created_at` 내림차순)
+- [x] `lib/prompts.ts` — `PERSONA_FIELDS`(summary, communication_style, speech_level, vocabulary_examples[], sentence_style, emoji_symbol_usage, texting_habits, emotional_tendencies, what_they_value, how_they_seek_response, relationship_dynamics), `buildPersonaPrompt(input, lang)`(JSON-only 지시, 나의 이름이 있으면 나/상대 분리)
+- [x] `lib/persona.ts` — `createPersona`(프롬프트 → `generate` → `extractJson` → 상대/나 분리 정규화 → `personaRepo.put`), `listPersonaSummaries`, `getPersona`, `removePersona`
+- [x] `lib/id.ts`(uuid), `lib/dom.ts`(`formatDate`, `getInitial`), `lib/store.ts`에 `selectedPersonaId`/`setSelectedPersonaId` 추가(TRD §3.9)
+- [x] `routes/PersonaPage.tsx` — 목록 카드(아바타 이니셜·이름·날짜·요약) · 빈 상태 CTA · 생성 바텀 시트(slide-up; 제출 전 검증: 이름 공백 → 키 없음 → 대화 trim < 20, 순서대로 토스트 — TRD §3.7, DESIGN §5.2) · 상세 모달(나/상대 탭, "이 페르소나로 분석" → `setSelectedPersonaId` + `#/analyze`) · 삭제 확인
+- [x] 검증: `tsc`/`build`, UI 스모크(시트 열림·닫힘, 유효성 토스트, 빈 목록). 생성 실호출은 키 있을 때 수동
+- [x] LOG `완료` → `feat: 페르소나 생성·목록·상세·삭제` 커밋
 
 ### P4 — 메시지 분석 v1·기록 → M1
 - [ ] docs: TRD 계약(`analyzeMessage(personaId, message)`, `AnalysisRecord{id, persona_id, persona_name, message, analysis, candidates, created_at}`, `CandidateReply{label, reason, response}`, `buildAnalyzePrompt({persona, message}, lang)`), DESIGN 분석·기록 화면, LOG `진행중` → `docs(p4)` 커밋
