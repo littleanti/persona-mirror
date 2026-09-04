@@ -20,7 +20,7 @@
 - 변경 예정 파일: `src/lib/id.ts`, `src/lib/id.test.ts`(신규), `docs/TRD.md` §3.9
 - 검증 계획: `npm test`(id 테스트), LAN IP 재접속 후 `uuid()`가 v4 형식 문자열을 반환, tsc/build.
 
-## 2026-09-05 — [fix] P7-1 모달 안에서 텍스트를 드래그하다 백드롭에서 손을 떼면 모달이 닫힘 (+ ErrorBoundary) — 진행중
+## 2026-09-05 — [fix] P7-1 모달 안에서 텍스트를 드래그하다 백드롭에서 손을 떼면 모달이 닫힘 (+ ErrorBoundary) — 완료
 
 - 증상/재현(실측): 생성 시트의 대화 textarea에서 mousedown → 텍스트를 선택하며 포인터를 시트 바깥(백드롭)으로 이동 → mouseup. mouseup 지점의 요소 = 백드롭 div(`fixed inset-0 bg-slate-900/40 …`), 결과: **시트가 닫히고 입력이 사라짐**(Playwright 마우스 이벤트로 재현).
 - 1차 사고: 백드롭은 `onClick`에서 `target === currentTarget`일 때만 닫는다. 드래그는 클릭이 아니니 관련이 없을 것이다.
@@ -28,6 +28,9 @@
 - 종합: ②를 생성 시트·상세 모달 양쪽에 적용. 아울러 "UI가 통째로 사라진다"는 증상은 렌더 예외로도 생길 수 있어 `ErrorBoundary`를 `main.tsx`에 안전망으로 둔다(현재 렌더 예외가 발생한 증거는 없음 — 예방 조치임을 명시).
 - 변경 예정 파일: `src/routes/PersonaPage.tsx`, `src/components/ErrorBoundary.tsx`(신규), `src/main.tsx`, `docs/DESIGN.md` §9, `docs/TRD.md` §3.10
 - 검증 계획: 같은 드래그 시나리오 재실행 → 시트 유지·입력 보존; 백드롭에서 누르고 떼기 → 닫힘; X 닫기 정상; tsc/build/test.
+- 변경 파일(실제): `src/routes/PersonaPage.tsx`(생성 시트·상세 모달 백드롭에 `onMouseDown` 플래그 + `onClick` 판정), `src/components/ErrorBoundary.tsx`(신규), `src/main.tsx`
+- 검증: `npm test` → 4 files, 30/30 통과 / `npx tsc --noEmit` → 0 에러 / `npx vite build` → js 544.36 kB(gzip 136.33 kB), 83 modules. 브라우저(Vite dev, Playwright)에서 재현 시나리오 재실행: textarea에서 mousedown → 텍스트 선택 → 백드롭에서 mouseup → **시트 유지, 입력 27자 보존**. 백드롭에서 누르고 뗌 → 닫힘. X 닫기 정상. `main.tsx`에 ErrorBoundary 연결 확인(인위적 렌더 예외 주입 테스트는 하지 않아 실제 복구 UI 동작은 미확정).
+- 남은 미확정: ErrorBoundary 문구는 ko 고정 문자열(DESIGN §10.1에 오류 화면 영역이 없어 키를 새로 만들지 않음) — i18n 키로 뺄지 P8 이후 판단.
 
 ## 2026-09-05 — [feat] P6-2 분석 단계 재설계(2/2) — 스레드 드래프트·타겟 수동 교정·페르소나 추가 대화 업데이트 — 완료
 

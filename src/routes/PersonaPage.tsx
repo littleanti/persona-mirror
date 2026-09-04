@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { InlineImage, PersonaFields, PersonaRecord, PersonaSummary } from '@/lib/types';
 import { formatDate, getInitial } from '@/lib/dom';
@@ -93,6 +93,10 @@ function CreatePersonaDialog({
   const [mode, setMode] = useState<InputMode>('text');
   const [images, setImages] = useState<InlineImage[]>([]);
   const [saving, setSaving] = useState(false);
+  // 백드롭에서 누름이 시작됐는지 기록한다(DESIGN §9). textarea 안에서 드래그로 선택한 뒤
+  // 백드롭 위에서 손을 떼면 click의 target은 백드롭이 되어 target===currentTarget만으로는
+  // 오탐(선택 해제인데 닫힘)이 생긴다 — 누름 시작 지점까지 함께 봐야 한다.
+  const pressedOnBackdropRef = useRef(false);
 
   if (!open) return null;
 
@@ -166,9 +170,14 @@ function CreatePersonaDialog({
   return (
     <div
       className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-end justify-center"
+      onMouseDown={(e) => {
+        pressedOnBackdropRef.current = e.target === e.currentTarget;
+      }}
       onClick={(e) => {
-        // 백드롭 자체를 눌렀을 때만 닫는다(카드 내부 클릭 전파로 닫히지 않게).
-        if (e.target === e.currentTarget) onClose();
+        // 누름이 백드롭에서 시작했고 click도 백드롭 자체에서 발생했을 때만 닫는다.
+        const shouldClose = pressedOnBackdropRef.current && e.target === e.currentTarget;
+        pressedOnBackdropRef.current = false;
+        if (shouldClose) onClose();
       }}
     >
       <div className="w-full max-w-lg h-[92dvh] flex flex-col bg-white border border-slate-200 rounded-t-3xl shadow-soft-lg animate-slide-up">
@@ -291,6 +300,8 @@ function PersonaDetailDialog({
   const [showConversation, setShowConversation] = useState(false);
   const [updateText, setUpdateText] = useState('');
   const [updating, setUpdating] = useState(false);
+  // CreatePersonaDialog와 같은 이유로 누름 시작 지점을 별도로 추적한다(DESIGN §9).
+  const pressedOnBackdropRef = useRef(false);
 
   useEffect(() => {
     setTab('other');
@@ -353,8 +364,13 @@ function PersonaDetailDialog({
   return (
     <div
       className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-end justify-center"
+      onMouseDown={(e) => {
+        pressedOnBackdropRef.current = e.target === e.currentTarget;
+      }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        const shouldClose = pressedOnBackdropRef.current && e.target === e.currentTarget;
+        pressedOnBackdropRef.current = false;
+        if (shouldClose) onClose();
       }}
     >
       <div className="w-full max-w-lg max-h-[92dvh] overflow-y-auto bg-white border border-slate-200 rounded-t-3xl shadow-soft-lg animate-slide-up">
