@@ -1,6 +1,6 @@
 # TRD — Persora 기술 요구사항·설계
 
-> 문서 버전: 1.7 · 갱신일: 2026-09-05 · 상태: P8 완료 — 쿠키 프로브 재실측 0/5, CSP dev 충돌 없음, npm audit 기록. 기준: [PRD 1.3](./PRD.md) / [PLAN 1.8](./PLAN.md) / [DESIGN 1.4](./DESIGN.md)
+> 문서 버전: 1.8 · 갱신일: 2026-09-05 · 상태: P9 착수 — 메시지 분석에 캡처 이미지 입력 계약 확정(ADR-9). 기준: [PRD 1.4](./PRD.md) / [PLAN 2.0](./PLAN.md) / [DESIGN 1.5](./DESIGN.md)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -20,8 +20,9 @@
 | 1.5 | 2026-09-05 | P7 착수: §3.9 uuid 폴백, §3.10 ErrorBoundary·포털 오버레이·pointer-down 닫기, §10 #13 원인 확정 |
 | 1.6 | 2026-09-05 | P8 착수(보안 점검·배포): **키 저장소 재결정**(ADR-8, ADR-3 종결) — §3.2 `API_KEY_STORAGE_KEY`·`LEGACY_COOKIE_KEY_NAME`, §3.3 settingsRepo를 localStorage + 레거시 쿠키 1회 이전으로 재작성, §1.1 그림·§1.2 데이터 평면·§1.3·§2 스택 정정. 신규 §3.13 `dataManagement.ts`·§3.14 `assets.ts`, §3.12 드래프트 백업 헬퍼 3종 가산, §3.9 store, §3.10 `SettingsPage`·탭 4개. §2.1·§6 배포(Pages `base '/persora/'`·workflow·헤더 불가 → meta), §8 보안(CSP 정책 문자열·referrer·고지·키 취급 정정), §9.4·§9.7, §10 갱신 |
 | 1.7 | 2026-09-05 | P8 완료: §10 #22 확인(충돌 없음), npm audit 결과 행, §6 로컬 서버 base 마운트 |
+| 1.8 | 2026-09-05 | P9 착수(분석 이미지 입력): §3.1 `AnalyzeReplyInput.images?`, §3.4.1 `image.ts` 사용처 확대, §3.5 `buildAnalyzePrompt`에 `useImages?` 플래그 + 이미지 분기 계약, §3.8 `analyzeReply` 이미지 분기(파싱 생략·플레이스홀더 저장), §3.9 i18n 신규 키 영역, §3.10 `AnalyzePage` 입력 모드 토글, **ADR-9**, 신규 §9.8 P9 검증 계획, §10 #27·#28 추가 |
 
-> **1.6에서 추가한 P8 계약(`dataManagement.ts`, `assets.ts`, `SettingsPage`, `drafts.ts`의 백업 헬퍼 3종, `config.ts`의 저장소 키 상수 교체, localStorage 기반 `settingsRepo`)은 P8에서 만들 것이며 아직 코드에 없다** — 해당 자리마다 그 사실을 밝혀 둔다.
+> **1.8에서 추가한 P9 계약(`AnalyzeReplyInput.images?`, `buildAnalyzePrompt`의 `useImages` 분기, `analyzeReply`의 이미지 경로와 플레이스홀더 저장, `AnalyzePage`의 입력 모드 토글)은 P9에서 만들 것이며 아직 코드에 없다** — 해당 자리마다 그 사실을 밝혀 둔다. 1.6에서 추가한 P8 계약(`dataManagement.ts`, `assets.ts`, `SettingsPage`, `drafts.ts`의 백업 헬퍼 3종, `config.ts`의 저장소 키 상수 교체, localStorage 기반 `settingsRepo`)은 P8에서 구현돼 코드에 실재한다.
 >
 > 이 문서는 **현재 확정된 설계**를 서술한다. 변경 이력은 [`LOG.md`](./LOG.md)에만 적는다. §3의 시그니처는 모든 구현 작업이 따라야 하는 **계약**이며, 계약을 바꿀 때는 코드보다 이 문서를 먼저 갱신한다(CLAUDE.md 그라운드 룰 2). M1(P4 완료) 시점에 §3의 식별자는 모두 `src/` 아래에 실재하며, 1.0에서 코드와 한 줄씩 대조해 어긋난 서술을 코드 기준으로 정정했다. 1.1에서 추가한 멀티모달 계약(`InlineImage`, `image.ts`, `IMAGE_REQUEST_TIMEOUT_MS`, `generate`의 두 번째 인자)은 P5에서 구현돼 코드에 실재한다. **1.3에서 추가한 분석 재설계 계약(`thread.ts`, `drafts.ts`, `analyzeReply`, `updatePersona`, `buildAnalyzePrompt` v2, `AnalysisRecord`의 선택 필드 3개, `ReplyIntentKey`·`REPLY_INTENTS`·`AnalyzeReplyInput`, `PersonaRecord.updated_at`)은 P6에서 만들 것이며 아직 코드에 없다** — 해당 자리마다 그 사실을 밝혀 둔다.
 
@@ -192,6 +193,7 @@ export interface PersonaSummary {
 /**
  * 멀티모달 입력용 인라인 이미지(P5에서 추가). Gemini `inlineData` 파트에 그대로 실린다.
  * data는 base64 문자열이며 `data:image/png;base64,` 같은 data URL 접두는 제외한다.
+ * 페르소나 생성(CreatePersonaInput.images)과 메시지 분석(AnalyzeReplyInput.images)이 함께 쓴다.
  */
 export interface InlineImage {
   mimeType: string;           // 예: 'image/png', 'image/jpeg'
@@ -252,16 +254,24 @@ export const REPLY_INTENTS: ReadonlyArray<{ key: ReplyIntentKey; labelKey: strin
   { key: 'persuade', labelKey: 'intent.persuade' },
 ];
 
-/** 분석(답장 생성) 입력(P6에서 추가). */
+/**
+ * 분석(답장 생성) 입력(P6에서 추가).
+ * 두 모드가 있고 필드로 구분한다(PRD FR-39).
+ * - 텍스트 모드: thread에 스레드 원문, images는 비움. 파싱·타겟 검출·수동 교정이 모두 여기서만 동작
+ * - 이미지 모드: images에 캡처, thread는 ''. 답장 대상은 모델이 캡처에서 직접 판별한다
+ */
 export interface AnalyzeReplyInput {
   personaId: string;
-  thread: string;             // 붙여넣은 최근 대화 원문
+  thread: string;             // 붙여넣은 최근 대화 원문(이미지 모드는 '')
   intent: string;             // 프리셋 키 · 자유 텍스트 · '' (미지정)
-  targetOverride?: string;    // 사용자가 직접 고른 답장 대상. 비면 자동 검출을 쓴다
+  targetOverride?: string;    // 사용자가 직접 고른 답장 대상. 비면 자동 검출을 쓴다(텍스트 모드 전용)
+  images?: InlineImage[];     // P9에서 추가. 있으면 이미지 모드
 }
 ```
 
 P6의 타입 변경은 **모두 가산**이다. `AnalysisRecord`의 세 필드와 `PersonaRecord.updated_at`은 선택 필드이므로 v1·P5에서 만든 레코드가 그대로 읽히고, **스토어·인덱스가 늘지 않으므로 `DB_VERSION`은 1 그대로다**(PLAN §7의 IndexedDB 가산 원칙). `message`라는 이름은 v2에서 의미가 "답장 대상 메시지"로 좁아졌지만 **필드명을 바꾸지 않는다** — 이름을 바꾸면 기록 탭이 구 레코드를 읽지 못하고, 되돌릴 때도 마이그레이션이 필요해진다. 새 이름은 `target_message`로 따로 두고 두 곳에 같은 값을 넣는다.
+
+P9의 타입 변경도 가산 하나뿐이다 — `AnalyzeReplyInput.images?`. 선택 필드이므로 P6~P8의 호출부(`AnalyzePage`)는 그대로 컴파일되고, `AnalysisRecord`는 손대지 않으므로 `DB_VERSION`도 1 그대로다. 이미지 모드가 저장하는 것은 **기존 필드에 들어가는 다른 문자열**(플레이스홀더)일 뿐 새 필드가 아니다(§3.8).
 
 `REPLY_INTENTS`는 `types.ts`에 들어가는 **첫 런타임 값**이다(그전까지 이 파일은 타입만 담았다). 프리셋 키와 UI 라벨 키가 항상 짝을 이뤄야 하고, 그 짝을 화면(칩 목록)과 프롬프트(디렉티브 매핑)가 함께 보기 때문에 타입 계약과 같은 파일에 둔다. 프리셋 키 → 프롬프트 문장 매핑은 `prompts.ts` 안에만 있다(§3.5).
 
@@ -335,7 +345,7 @@ export function extractJson(text: string): Record<string, unknown>;
 
 호출 상세(멀티모달 `contents` 구성 포함)·에러 변환은 §4. 오류 분류는 두 경로가 같은 규칙을 쓴다(§4.1) — 이미지 전용 오류 코드를 새로 두지 않는다.
 
-#### 3.4.1 `src/lib/image.ts` — File → InlineImage (P5에서 생성)
+#### 3.4.1 `src/lib/image.ts` — File → InlineImage (P5에서 생성, P9부터 분석 탭도 사용)
 
 ```ts
 /** 선택한 이미지 파일을 Gemini inlineData 파트에 실을 수 있는 형태로 바꾼다. */
@@ -346,6 +356,7 @@ export function fileToInlineImage(file: File): Promise<InlineImage>;
 - `mimeType`은 `file.type`을 쓰고, 브라우저가 비워 두면 `'image/png'`로 둔다.
 - 읽기 실패(`reader.onerror`)는 reject한다. 화면이 잡아 `toast.imageLoadFail`을 띄운다(§3.10).
 - 이 모듈은 DOM API(`FileReader`)에 의존하므로 Node 단위 테스트 대상이 아니다(§9.2).
+- **P9에서 호출부가 하나 늘어난다**(`AnalyzePage`). 함수는 바뀌지 않는다 — 두 화면이 같은 변환기를 그대로 쓴다.
 
 ### 3.5 `src/lib/prompts.ts` — 프롬프트
 
@@ -357,7 +368,13 @@ export const PERSONA_FIELDS: string;
 
 export function buildPersonaPrompt(input: CreatePersonaInput, lang?: Lang): string;
 export function buildAnalyzePrompt(
-  input: { persona: PersonaRecord; thread: string; targetMessage: string; intent: string },
+  input: {
+    persona: PersonaRecord;
+    thread: string;
+    targetMessage: string;
+    intent: string;
+    useImages?: boolean;      // P9에서 추가. true면 캡처 이미지 모드 문구로 분기
+  },
   lang?: Lang,
 ): string;
 ```
@@ -377,6 +394,10 @@ v1은 `{ persona, message }`를 받아 "…가 다음 메시지를 보냈습니�
 - 입력 블록(순서 고정): 상대 페르소나 JSON → 상대 말투 요약(`speech_level`, `vocabulary_examples` 앞 8개, `sentence_style`, `emoji_symbol_usage`, `texting_habits`가 있을 때만) → 나의 페르소나 JSON과 말투 지시(있을 때만) → **최근 대화 흐름 블록** → **답장 대상 지시**.
 - **최근 대화 흐름 블록**: `[최근 대화 흐름] (시간 순서, 맨 아래가 최신):` 다음에 `thread`를 **원문 그대로** 붙인다. 파싱 결과가 아니라 붙여넣은 텍스트를 넣는다 — 파서는 타겟을 고르기 위한 것이고, 모델에게는 사람이 읽는 형태가 더 나은 맥락이기 때문이다. `thread`가 비어 있으면 블록 전체를 생략한다.
 - **답장 대상 지시**: "위 대화에서 «상대»가 «나»에게 보낸 **마지막 메시지(= 답장할 대상)**는 다음과 같습니다:" 뒤에 `targetMessage`를 따옴표로 감싸 넣는다. 스레드 안에 이미 있는 문장을 한 번 더 못 박는 것이며, 이것이 v1에서 빠져 있던 "앱이 무엇에 답하는지 아는" 부분이다.
+- **`useImages`가 참이면 위 두 블록만 갈아 끼운다**(P9에서 추가 — PRD FR-39 / ADR-9). 나머지 블록(페르소나 JSON·말투 요약·말투 지시·분석 질문·공감 가이드라인·의도 디렉티브·후보 3축·JSON 형식·언어 지시)은 두 모드가 **완전히 같다**. 출력 계약을 하나로 유지해 `analysis.ts`의 정규화·저장 코드가 분기하지 않게 하기 위함이며, 이는 `buildPersonaPrompt`의 이미지 분기와 같은 원칙이다.
+  - 최근 대화 흐름 블록: `thread` 대신 **"대화는 첨부된 채팅 캡처 이미지에 들어 있으니 이미지를 꼼꼼히 읽어 파악하라"** 는 지시를 넣고 둘을 덧붙인다 — ① 말풍선의 좌/우 위치와 이름표를 근거로 각 발화가 누구의 것인지 판별할 것, ② 여러 장이면 위→아래, 앞→뒤 순서로 시간 흐름을 이어서 해석할 것.
+  - 답장 대상 지시: 클라이언트가 타겟 문장을 모르므로 값을 넣을 수 없다. 대신 **"위 캡처 이미지 속 대화에서 «상대»가 «나»에게 보낸 마지막 메시지(= 답장할 대상)를 찾아내라"** 로 바꿔 **모델이 직접 고르게** 한다. 이 모드에서 `targetMessage`는 `''`이며 프롬프트에 등장하지 않는다.
+  - 이 교체가 ADR-9에서 감수한 기능 후퇴의 실체다 — 텍스트 모드에서는 앱이 타겟을 정해 못 박고, 이미지 모드에서는 모델에게 위임한다. 위임의 적중률은 **미확정**(§10 #27).
 - **의도 디렉티브(`intentDirective`)**: `intent`를 프롬프트 문장으로 바꾸는 모듈 내부 함수다. 공백이면 `null`(= 의도 미지정), 프리셋 키면 아래 매핑, 그 밖의 문자열은 사용자의 자유 입력으로 보고 **그대로** 쓴다.
 
   | 키 | 디렉티브 문장 |
@@ -474,10 +495,10 @@ export function removePersona(id: string): Promise<void>;
 ### 3.8 `src/lib/analysis.ts` — 메시지 분석 유스케이스
 
 ```ts
-/** P6 주 경로: 최근 대화 스레드 + 답장 의도로 맞춤 답장 후보를 만든다. */
+/** P6 주 경로: 최근 대화 스레드 + 답장 의도로 맞춤 답장 후보를 만든다. P9에서 images? 가산. */
 export async function analyzeReply(
   personaId: string,
-  input: { thread: string; intent: string; targetOverride?: string },
+  input: { thread: string; intent: string; targetOverride?: string; images?: InlineImage[] },
 ): Promise<AnalysisRecord>;
 
 /** v1 하위 호환 래퍼 — 메시지 1건을 thread이자 targetMessage로 넘긴다. */
@@ -489,13 +510,19 @@ export function removeAnalysis(id: string): Promise<void>;
 
 `analyzeReply` 흐름:
 1. `personaRepo.get(personaId)` — 없으면 throw
-2. **타겟 결정**: `input.targetOverride`가 비어 있지 않으면 그것을 쓰고, 아니면 `detectTarget(parseThread(input.thread, { name: persona.name, myName: persona.my_name }))`(§3.11). 수동 지정이 항상 자동 검출을 이긴다
-3. `buildAnalyzePrompt({ persona, thread: input.thread, targetMessage, intent: input.intent }, getLang())` → `generate(prompt)` → `extractJson(text)`
-4. `'raw' in result`면 파싱 실패 폴백: `analysis = t('parse.failAnalysis')`, `candidates = [{ label: t('parse.failLabel'), reason: t('parse.failReason'), response: raw }]` — 사용자가 원문을 볼 수 있게 한다
-5. 정상이면 `analysis`(string 아니면 ''), `candidates`(배열 아니면 [])로 정규화
-6. `{ id: uuid(), persona_id, persona_name, message: targetMessage, analysis, candidates, created_at, thread, target_message: targetMessage, intent }` → `analysisRepo.put` → 반환
+2. **모드 판정**: `useImages = !!input.images && input.images.length > 0`
+3. **타겟 결정**: 이미지 모드면 `targetMessage = ''`(파싱할 텍스트가 없으므로 `parseThread`·`detectTarget`을 **아예 호출하지 않는다**). 텍스트 모드면 `input.targetOverride`가 비어 있지 않을 때 그것을, 아니면 `detectTarget(parseThread(input.thread, { name: persona.name, myName: persona.my_name }))`(§3.11). 수동 지정이 항상 자동 검출을 이긴다
+4. `buildAnalyzePrompt({ persona, thread: input.thread, targetMessage, intent: input.intent, useImages }, getLang())` → `generate(prompt, input.images)` → `extractJson(text)`. `images`가 `undefined`면 `generate`는 P6~P8과 **완전히 같은** 텍스트 요청을 만든다(§3.4)
+5. `'raw' in result`면 파싱 실패 폴백: `analysis = t('parse.failAnalysis')`, `candidates = [{ label: t('parse.failLabel'), reason: t('parse.failReason'), response: raw }]` — 사용자가 원문을 볼 수 있게 한다
+6. 정상이면 `analysis`(string 아니면 ''), `candidates`(배열 아니면 [])로 정규화
+7. **저장 값 결정**: `storedTarget = useImages ? t('analyze.imagePlaceholder', { n: images.length }) : targetMessage`
+8. `{ id: uuid(), persona_id, persona_name, message: storedTarget, analysis, candidates, created_at, thread: useImages ? '' : input.thread, target_message: storedTarget, intent }` → `analysisRepo.put` → 반환
 
 `message`에 **타겟 메시지를 넣는 것이 구 스키마 호환의 핵심**이다. 기록 탭은 `message`로 미리보기를 그리므로, 새 레코드도 이 필드를 채워야 v1 레코드와 같은 코드로 렌더된다. `target_message`에는 같은 값을 한 번 더 넣어 새 이름으로도 읽을 수 있게 한다.
+
+**이미지 모드의 플레이스홀더**(P9 — PRD FR-40): 이 모드에는 앱이 아는 타겟 문장이 없어 `message`·`target_message`가 둘 다 빈 문자열이 되고, 그러면 기록 목록의 미리보기가 통째로 빈다. 그래서 캡처 장수를 담은 문자열을 같은 두 자리에 넣는다. `t()`를 **저장 시점에** 부르므로 그 언어로 굳고 나중에 UI 언어를 바꿔도 번역되지 않는다 — 저장 데이터는 생성 당시 언어를 유지한다는 PRD FR-27의 규칙이며, `persona.create.imagePlaceholder`(§3.7)와 같은 취급이다. `thread`에는 `''`을 넣는다(붙여넣은 원문이 없으므로). **레코드 스키마는 바뀌지 않는다** — 기존 필드에 다른 문자열이 들어갈 뿐이라 기록 탭 코드도 `DB_VERSION`도 손대지 않는다.
+
+`generate(prompt, images)`가 이미지 요청에 `IMAGE_REQUEST_TIMEOUT_MS`(180초)를 적용하는 것은 §3.4·§4가 이미 정한 동작이며, 분석 경로도 같은 상수를 그대로 쓴다. **다만 그 값이 분석 프롬프트에 적정한지는 재 본 적이 없다** — P5의 4.95s는 페르소나 생성 프롬프트에서 잰 값이다(§10 #28).
 
 `analyzeMessage`는 **하위 호환 래퍼로만 남긴다** — `analyzeReply(personaId, { thread: message, intent: '' })`를 부르는 한 줄이다. 화면이 전부 `analyzeReply`로 옮겨 가면 호출부가 없어지므로, 그때 제거 여부를 판단한다(§10 #18).
 
@@ -544,6 +571,7 @@ export function getInitial(name: string): string;       // 아바타용 첫 글�
 - P6의 신규 키 영역은 `intent.*`(답장 의도 라벨)이며, 나머지 신규 문구는 기존 영역(`analyze.*`, `persona.detail.*`, `toast.*`)에 들어간다. 키 목록의 단일 출처는 `i18n.ts`이고 표는 [DESIGN §10.1](./DESIGN.md)에 있다. `intent.*`만 영역을 새로 만드는 이유는 `REPLY_INTENTS`(§3.1)가 라벨 키를 **데이터로 들고 있어서** 화면 소속이 아니라 프리셋 자체의 이름이기 때문이다.
 - 스레드 드래프트는 화면 밖으로 나가지 않는 임시 입력이라 **스토어에 올리지 않는다.** `AnalyzePage`의 로컬 상태와 `drafts.ts`(§3.12)만으로 다룬다.
 - P8의 신규 키 영역은 `settings.*`(설정 화면 전체)이며, 나머지는 기존 영역(`nav.settings`, `common.*`)에 들어간다. 표는 [DESIGN §10.1](./DESIGN.md).
+- **P9은 새 영역을 만들지 않는다.** 신규 키(`analyze.tabText`·`analyze.tabImage`·`analyze.imageDropzone`·`analyze.imageHint`·`analyze.imagePlaceholder`)는 모두 분석 탭 소속이므로 기존 `analyze.*`에 들어간다. 저장되는 문자열인 `analyze.imagePlaceholder`도 마찬가지다 — 이 값을 만드는 곳이 분석 경로 하나뿐이라, `persona.create.imagePlaceholder`를 생성 시트 영역에 둔 것과 같은 판단이다(§3.8, [DESIGN §10.1](./DESIGN.md)). 재사용하는 키는 `toast.addImage`·`toast.imageLoadFail`(P5에서 이미 만들었다).
 - `refreshApiKey()`는 P8에서 **실제 호출부가 생긴다.** 설정 탭의 전체 삭제가 `settingsRepo.clearApiKey()`를 거쳐 저장소를 비운 뒤 미러를 다시 맞춰야 온보딩 게이트가 즉시 다시 열린다(§3.13).
 
 ### 3.10 `components/` · `routes/` · `App.tsx` · `main.tsx` 책임
@@ -557,7 +585,7 @@ export function getInitial(name: string): string;       // 아바타용 첫 글�
 | `LanguageToggle` | `한`/`EN` 세그먼트 필 | `setLang`, `useLocale` |
 | `Toast` | `toasts` 큐 렌더, 클릭 시 dismiss. 위치·톤 색은 DESIGN.md | `useApp` |
 | `PersonaPage` | 목록(`listPersonaSummaries`) · 생성 바텀 시트(이름·나의 이름 + **텍스트/이미지 입력 토글** → 제출 전 검증(§3.7) → `createPersona`) · 상세 모달(`PERSONA_FIELDS` 11항목 = summary 블록 + 10 카드, 추가 키는 관대 표시, 나/상대 탭 → `getPersona`, **"추가 대화로 업데이트" 입력 + 버튼 → `updatePersona`**) · 삭제(`removePersona`) · "분석하기로" 진입(`setSelectedPersonaId`) | `lib/persona.ts`, `lib/image.ts` |
-| `AnalyzePage` | 페르소나 칩 선택(초기값: `useApp.selectedPersonaId`가 목록에 있으면 그것, 없으면 첫 번째) + **최근 대화 스레드 textarea**(입력할 때마다 `setThreadDraft`) + **자동 타겟 칩·수동 타겟 피커**(`parseThread`/`detectTarget`) + **답장 의도 칩 6종 + 직접 입력** → `analyzeReply` → 분석문 + 후보 3장(복사 버튼 `navigator.clipboard.writeText`) | `lib/analysis.ts`, `lib/persona.ts`, `lib/thread.ts`, `lib/drafts.ts`, `useApp` |
+| `AnalyzePage` | 페르소나 칩 선택(초기값: `useApp.selectedPersonaId`가 목록에 있으면 그것, 없으면 첫 번째) + **입력 모드 토글(텍스트/캡처 이미지)** + 텍스트 모드는 **최근 대화 스레드 textarea**(입력할 때마다 `setThreadDraft`)·**자동 타겟 칩·수동 타겟 피커**(`parseThread`/`detectTarget`), 이미지 모드는 **드롭존·썸네일 그리드**(`fileToInlineImage`) + **답장 의도 칩 6종 + 직접 입력**(두 모드 공통) → `analyzeReply` → 분석문 + 후보 3장(복사 버튼 `navigator.clipboard.writeText`) | `lib/analysis.ts`, `lib/persona.ts`, `lib/thread.ts`, `lib/drafts.ts`, `lib/image.ts`, `useApp` |
 | `HistoryPage` | `listAnalyses` 목록 · 카드 펼치기 · 삭제(`removeAnalysis`) | `lib/analysis.ts` |
 | `SettingsPage` (P8) | 백업 내보내기(`exportAppData` → `downloadBackup`) · 백업 가져오기(hidden `input[type=file]` → `JSON.parse` → `importAppData`) · 전체 삭제(`window.confirm` → `clearAllLocalAppData` → `setSelectedPersonaId(null)` + `refreshApiKey()`) · 개인정보·면책 고지 카드. 세 동작은 `busy` 상태 하나로 서로를 잠근다 | `lib/dataManagement.ts`, `useApp` |
 
@@ -565,6 +593,7 @@ export function getInitial(name: string): string;       // 아바타용 첫 글�
 - 모든 사용자/LLM 문자열은 JSX 텍스트 노드로만 렌더한다. `dangerouslySetInnerHTML` 사용 금지(§8). 썸네일은 사용자가 방금 고른 파일을 `data:` URL로 되돌려 `<img>`에 넣는 것이라 이 규칙과 무관하다.
 - 비동기 실패는 각 화면이 `catch`해 `pushToast(err.message, 'error')`로 표시한다. 유스케이스는 이미 사용자 언어의 메시지를 담은 `Error`를 던진다(§4).
 - `AnalyzePage`의 P6 상태는 모두 화면 로컬이다: 스레드 텍스트, 수동 타겟(`targetOverride`), 피커 열림 여부, 의도 키(`'' | ReplyIntentKey | '__custom__'`), 직접 입력 문자열. 페르소나 칩을 바꾸면 스레드를 그 페르소나의 드래프트로 갈아 끼우고 **수동 타겟과 피커는 초기화**한다 — 다른 대화의 문장을 타겟으로 들고 갈 이유가 없다. 스레드를 편집할 때도 수동 타겟을 비운다(자동 검출로 복귀).
+- **`AnalyzePage`의 P9 상태도 화면 로컬이다**: 입력 모드(`'text' | 'image'`)와 선택한 `InlineImage[]`. `PersonaPage`의 이미지 모드와 같은 한 방향 흐름이다 — 파일 선택 → `fileToInlineImage`(§3.4.1) 변환 → 썸네일 표시 → 제출 시 `analyzeReply`의 `images`로 전달. **전역 스토어에도, `drafts.ts`에도 이미지를 올리지 않는다.** 드래프트는 스레드 텍스트 전용이며(§3.12), 캡처는 페르소나 칩을 바꿀 때 스레드·수동 타겟과 함께 비운다 — 다른 상대의 대화 캡처를 들고 갈 이유가 없다. 두 모드의 입력값은 모드 전환만으로는 지우지 않는다(잘못 누른 사용자가 입력을 잃지 않도록 — [DESIGN §6.1](./DESIGN.md)).
 
 ### 3.11 `src/lib/thread.ts` — 최근 대화 스레드 파서 (P6에서 생성)
 
@@ -735,6 +764,7 @@ return response.text ?? '';
 | ADR-6 | **캡처 이미지 입력을 선택 모드로 가산** (`CreatePersonaInput.images?` + `generate(prompt, images?)` + 이미지 타임아웃 180s, 모델은 그대로 하나) | 텍스트로는 아예 넣을 수 없는 대화가 있다 — 타인 기기의 화면, 복사가 막혔거나 이미 지운 대화, 캡처만 떠 둔 대화. 모델이 멀티모달이라 별도 OCR·별도 모델 없이 같은 호출 경로에 이미지를 얹을 수 있다 | ① 스크린샷은 텍스트 프롬프트보다 훨씬 크고 인라인 base64로 실으면 원본 바이트보다 약 4/3로 더 늘어나, 요청이 무겁고 느릴 수 있다(장당 실제 크기 미측정) → 이미지 경로에만 180초 타임아웃(값은 실측 근거 없는 여유값, §10 #15). ② **캡처 한 장은 화면 한 장 분량의 발화만 담아 붙여넣기보다 인용 재료가 적을 수 있다 — 반증하지 못했다.** 정확도 비교 표본이 없다(§10 #16). ③ 캡처에는 프로필 사진·표시 이름 같은 부수 정보가 함께 실려 Google로 나간다 → 고지(PRD DR-4). ④ 텍스트를 대체하는 안은 ②가 미확정인 이상 검증된 경로를 버릴 근거가 없어 기각 | 텍스트를 **기본**, 이미지를 **선택 모드**로 둔다. 계약은 **가산**만 한다(선택 필드·선택 인자·타임아웃 상수 1개) — 텍스트 호출부는 손대지 않고, 실패하면 이미지 코드만 되돌리면 M1 동작이 남는다. 정확도·지연은 관찰 항목(요약 — 정본은 [PRD §8 부속 결정 3](./PRD.md#8-아키텍처-방향-결정-3단-사고)) |
 | ADR-7 | **분석 입력 계약 재설계** (`analyzeReply(personaId, { thread, intent, targetOverride? })` + `thread.ts` 파서 + `buildAnalyzePrompt` v2, 레코드는 선택 필드 3개만 가산) | 제품 의도는 "장기 페르소나 → 최근 맥락 → 마지막 메시지에 내 의도대로 답장"인데 v1 계약에는 최근 맥락과 답장 의도가 없다. `AnalysisRecord.message: string` 하나와 "…가 다음 메시지를 보냈습니다" 프롬프트가 단발 메시지를 전제한다 | ① "textarea에 스레드를 통째로 붙이면 모델이 알아서 읽는다"를 **실측으로 확인했다** — 상대 발화로 끝나는 6줄 스레드 3.52s, 마지막 줄이 내 발화인 변형 3.84s, 둘 다 분석·후보가 상대의 고민에 정확히 답했다. **"품질이 무너진다"는 공격은 표본 2건에서 반증됐다.** ② 그래도 남는 것 셋: 앱이 답장 대상을 모르고(내 발화까지 "받은 메시지"로 저장·표시), 답장 의도 슬롯이 없어 후보가 공감 3축에 고정되며, 프롬프트가 여러 화자 스레드에 단발 메시지 전제를 씌우는 계약 위반 상태다 — 지금 통하는 것은 모델의 관대함이지 설계가 아니다. ③ 파서를 두면 오검출이라는 새 실패 표면이 생긴다 → 자동 검출 결과를 **화면에 보여 주고 수동 교정**을 두는 것으로 완화(적중률은 미확정, §10 #19) | 재설계한다. 다만 근거는 "품질"이 아니라 **계약의 정직성**이다. 의도를 비우면 v1과 같은 공감 3축이 나오게 해 무회귀를 보장하고(§3.5), 레코드는 선택 필드 3개만 더해 `DB_VERSION`을 1로 유지한다. `analyzeMessage`는 하위 호환 래퍼로 남긴다. 정본은 [PRD §8 부속 결정 4](./PRD.md) |
 | ADR-8 | **API 키 저장소를 localStorage로 재결정** (`API_KEY_STORAGE_KEY` + 레거시 쿠키 1회 이전, §3.3) | ADR-3의 결론 그대로 — 쿠키는 구현이 단순하고 XSS 노출면이 localStorage와 같으니 배포를 앞두고도 바꿀 이유가 없다 | **반증을 실측했다(2026-09-05).** 정적 서버에 요청별 `Cookie` 헤더 로깅을 붙이고 새 프로필로 접속해 키를 저장한 뒤 새로고침·자산 요청을 냈다 — **키 저장 전 4건 중 0건, 저장 후 5건 중 5건**(`/`, JS, CSS, 로고 2회)이 키 쿠키를 실어 보냈다. 즉 GitHub Pages 같은 제3자 정적 호스트가 매 요청마다 키를 수신하며 접근 로그에 남을 수 있다. ADR-3의 재사고가 세운 축은 "localStorage와의 비교"뿐이었고, 쿠키가 **스스로 하는 일**은 검토 대상에 없었다. 막을 수단도 없다 — `SameSite`는 교차 사이트 요청만 막고 같은 사이트 자산 요청은 그대로 통과하며, `HttpOnly`는 JS가 키를 읽어야 해서 불가 | localStorage로 전환한다. XSS 노출면은 동등한데 쿠키에만 자동 전송 경로가 붙어 있고 끌 수 없다는 비대칭이 근거다. 키 이름은 `pm_gemini_key` 그대로 두고, 잔존 쿠키는 최초 읽기에서 1회 옮긴 뒤 만료시킨다. 온보딩·설정 고지 문구도 사실에 맞게 정정한다(정본은 [PRD §8 부속 결정 1](./PRD.md#8-아키텍처-방향-결정-3단-사고)) |
+| ADR-9 | **분석 입력에도 캡처 이미지를 선택 모드로 가산** (`AnalyzeReplyInput.images?` + `buildAnalyzePrompt`의 `useImages` 분기 + 기록에 캡처 장수 플레이스홀더. 모델·타임아웃 상수·레코드 스키마는 그대로) | 분석 탭은 최근 대화를 **텍스트로만** 받는다. 같은 사용자가 같은 대화 앱에서 같은 제약을 만나는데 페르소나 생성에만 캡처 우회로가 있다(ADR-6). 멀티모달 모델·`generate(prompt, images?)`·`fileToInlineImage`가 이미 있으므로 새 인프라 없이 붙는다 | ① "분석은 몇 줄이라 붙여넣기로 충분하다"는 전제를 공격했다 — 모바일 카카오톡에서 여러 말풍선을 가져오려면 길게 눌러 선택 모드로 들어가 하나씩 체크해야 하고, 캡처는 버튼 한 번이다. **전제가 깨졌다.** ② ADR-6에서 반증하지 못한 "캡처는 분량이 적다"는 지적이 여기서는 같은 무게가 아니다 — 분석이 필요로 하는 단기 맥락이 정확히 화면 한 장 분량이다(논리적 근거이며 표본은 없다). ③ **반증하지 못한 것**: 이미지 모드에서는 `thread.ts` 파싱을 할 수 없어 앱이 답장 대상을 모르고, 타겟 칩(FR-29)도 수동 교정(FR-30)도 렌더할 수 없다. 모델이 말풍선 좌/우 위치와 순서로 판별해야 하며 **오판해도 사용자가 고칠 수단이 없다** — ADR-7이 v1에서 되찾은 성질을 이 모드에서만 다시 내려놓는 것이다(§10 #27). ④ 지연: P5 실측(캡처 1장 페르소나 생성 4.95s)과 같은 자리수를 기대하지만 **분석 프롬프트의 이미지 요청은 재 본 적이 없다**(§10 #28). ⑤ 텍스트 대체안은 ③이 미확정인 이상 기각 — 답장 대상을 앱이 알고 고칠 수 있는 경로가 하나는 남아야 한다 | 텍스트를 **기본**, 이미지를 **선택 모드**로 둔다. 계약은 **가산**만 한다 — 선택 필드 1개(`images?`)와 프롬프트 분기 플래그 1개. `AnalysisRecord`·`DB_VERSION`·모델·타임아웃 상수는 손대지 않고, `images`를 넘기지 않으면 P6~P8과 완전히 같은 요청이 나간다. 실패하면 이미지 관련 코드만 되돌리면 텍스트 경로가 그대로 남는다. 타겟 칩·수동 교정·스레드 드래프트는 **텍스트 모드 전용**으로 못 박고, 오판율은 관찰 항목으로 남긴다(정본은 [PRD §8 부속 결정 5](./PRD.md#8-아키텍처-방향-결정-3단-사고)) |
 
 ---
 
@@ -944,6 +974,19 @@ P7에서 `src/lib/id.test.ts`가, P8에서 `drafts.test.ts`의 케이스가 더�
 
 7번은 `main` push 이후에만 가능하므로 이 단계에서 **미확정으로 남을 수 있다.**
 
+### 9.8 P9에서 수행할 검증(계획 — 아직 미실행)
+
+| # | 항목 | 방법 | 통과 기준 |
+|---|---|---|---|
+| 1 | 게이트 | `npm test` · `npx tsc --noEmit` · `npx vite build` | 0 실패 / 0 에러 / 성공 |
+| 2 | **텍스트 경로 무회귀** | 이미지 모드를 건드리지 않고 P6~P8과 같은 스레드로 분석 | 타겟 칩·수동 교정·드래프트 복원·의도 칩이 그대로 동작하고, `images`를 넘기지 않은 요청이 텍스트 요청으로 나간다 |
+| 3 | UI 스모크(이미지 모드) | 모드 토글 → 0장 제출 → 캡처 첨부 → 썸네일 추가·개별 제거 → 모드 왕복 | 0장 제출이 `toast.addImage`로 거부되고, 이미지 모드에서 타겟 칩·피커가 렌더되지 않으며, 모드를 오가도 양쪽 입력값이 남는다 |
+| 4 | **실키 이미지 분석 1회** | 실제 카카오톡 대화 캡처로 분석 실행 | 후보 3개 JSON 파싱 성공. **지연을 Resource Timing으로 실측**해 기록한다(§10 #28) |
+| 5 | **답장 대상 판별 관찰** | 4번과 같은 호출에서, 캡처의 맨 아래 상대 메시지에 답했는지 눈으로 확인 | 표본 1건의 **관찰 기록**이다. 맞아도 적중률을 주장하지 않고 §10 #27에 사실만 적는다 |
+| 6 | 기록 저장 | 4번 결과를 기록 탭에서 확인 | 목록 미리보기가 비지 않고 캡처 장수 플레이스홀더가 보인다. 기존 텍스트 기록도 그대로 렌더된다 |
+
+단위 테스트는 늘리지 않는다. P9이 건드리는 것은 화면 상태와 프롬프트 문자열 분기이고, 순수 모듈(`thread.ts`·`drafts.ts`·`gemini.ts`·`id.ts`)의 동작은 바뀌지 않는다. 프롬프트 빌더를 테스트 대상에서 뺀 이유는 §9.2에 적은 그대로다.
+
 ---
 
 ## 10. 미확정 항목
@@ -976,3 +1019,5 @@ P7에서 `src/lib/id.test.ts`가, P8에서 `drafts.test.ts`의 케이스가 더�
 | 24 | 배포 후 Acceptance A1~A4 재확인 | **미실행.** Pages URL은 `base '/persora/'` 하위 경로라 자산 경로·HashRouter·저장소 origin이 로컬과 달라지는 첫 환경이다. `main` push 이후에만 확인할 수 있다(§9.7 7번) |
 | 25 | 백업 스키마 `version`을 올릴 기준 | 미확정 — 지금은 1. 레코드 필드는 계속 선택 필드로 가산되므로 구 백업이 그대로 읽힌다. 읽을 수 없게 되는 변경이 생길 때만 올리고, 그때 마이그레이션을 어떻게 할지 정한다 |
 | 26 | 의존성 취약점(npm audit) | **P8 기록**: `npm audit fix`(비강제) 후 12건 → 7건(모두 moderate, major 업그레이드 필요: vite/esbuild, express/qs, react-router). express/qs는 로컬 미리보기 서버 전용(번들 미포함), react-router 건은 HashRouter·고정 경로·SSR 없음으로 미사용 경로 → 수용. 다음 major 업그레이드 시 재점검 | 수용(재점검 예정 시점: 의존성 major 업그레이드) |
+| 27 | **이미지 모드 분석의 답장 대상 판별 정확도**(§3.5·ADR-9) | **미확정.** 캡처만 넣으면 앱이 타겟을 모르고 프롬프트가 모델에게 "맨 아래(최신) 상대 메시지를 찾아라"고 위임한다. 말풍선 좌/우 위치와 순서만으로 얼마나 맞히는지 표본이 없고, 틀려도 사용자가 고칠 수단이 없다(`targetOverride`는 텍스트 모드 전용). 완화책은 텍스트 모드를 기본으로 남겨 두는 것과 화면 힌트뿐이다. P9 검증에서 1회 관찰하고 판단은 실사용으로 넘긴다 |
+| 28 | **분석 경로 이미지 요청의 지연**과 `IMAGE_REQUEST_TIMEOUT_MS`(180초)의 적정성 | **미실측.** #15의 4.95s는 **페르소나 생성** 프롬프트에서 잰 값이라 그대로 옮겨 쓸 수 없다 — 분석 프롬프트는 페르소나 JSON·말투 요약·말투 지시가 붙어 구성이 다르다. 상수는 같은 것을 쓰되, P9 검증에서 실제 캡처로 1회 재고 값이 과하거나 모자라면 `config.ts` 한 곳을 고친다 |
