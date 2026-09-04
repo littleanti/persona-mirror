@@ -1,6 +1,6 @@
 # TRD — Persona Mirror (코드네임) 기술 요구사항·설계
 
-> 문서 버전: 0.3 · 갱신일: 2026-09-05 · 상태: P2 완료 — CORS·오류 형태 확인됨, 소형 프롬프트 지연 1회 실측. 기준: [PRD 0.1](./PRD.md) / [PLAN 0.1](./PLAN.md) / [DESIGN 0.1](./DESIGN.md)
+> 문서 버전: 0.4 · 갱신일: 2026-09-05 · 상태: P3 착수 — §3.7 JSON 파싱 실패 처리 확정(원문 보존), splitPersonaRaw 명시. 기준: [PRD 0.1](./PRD.md) / [PLAN 0.1](./PLAN.md) / [DESIGN 0.1](./DESIGN.md)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -8,6 +8,7 @@
 | 0.1 | 2026-09-05 | 초안 |
 | 0.2 | 2026-09-05 | P2 착수: `@google/genai` ^2.7.0 고정(§2), 브라우저→Gemini CORS·오류 형태 확인 방법 확정(§10 #3) |
 | 0.3 | 2026-09-05 | P2 완료: §10 #3 CORS·오류 형태 확인됨, #1에 소형 프롬프트 지연 실측 1회 추가 |
+| 0.4 | 2026-09-05 | P3 착수: §3.7 파싱 실패 시 원문 보존 저장 확정, `splitPersonaRaw` 헬퍼 명시, §10 #6 종결 |
 
 > 이 문서는 **현재 확정된 설계**를 서술한다. 변경 이력은 [`LOG.md`](./LOG.md)에만 적는다. §3의 시그니처는 모든 구현 작업이 따라야 하는 **계약**이며, 계약을 바꿀 때는 코드보다 이 문서를 먼저 갱신한다(CLAUDE.md 그라운드 룰 2). 아직 코드가 없으므로 아래 식별자는 모두 "해당 단계(P1~P4)에서 만들 예정"인 것이다.
 
@@ -313,7 +314,7 @@ export function removePersona(id: string): Promise<void>;
 `createPersona` 흐름:
 1. `buildPersonaPrompt(input, getLang())`
 2. `generate(prompt)` — 실패는 §4의 사용자 친화 Error로 그대로 전파(화면이 토스트)
-3. `extractJson(text)` → `my_name`이 있으면 `raw.other_persona`/`raw.my_persona`로 분리(없으면 `raw` 전체를 상대 페르소나, `my_persona = {}`). `'raw' in result`(JSON 파싱 실패)인 경우의 처리 — 오류로 거부 vs 원문 보존 저장 — 는 §10 #6, P3 docs에서 확정(PRD FR-11)
+3. `extractJson(text)` → `my_name`이 있으면 `raw.other_persona`/`raw.my_persona`로 분리(없으면 `raw` 전체를 상대 페르소나, `my_persona = {}`). 분리 헬퍼는 `splitPersonaRaw(raw, myName)`로 두어 이후 재분석 경로와 공유한다. **JSON 파싱 실패(`'raw' in result`)는 거부하지 않고 원문을 보존해 저장한다** — 상대 페르소나가 `{ raw: text }`가 되고, `PersonaFields`의 인덱스 시그니처 덕에 상세 화면이 알 수 없는 키를 관대하게 표시하므로 사용자는 원문을 보고 삭제 후 재시도할 수 있다. (3단 사고: 1차 — 거부가 깔끔하다 / 2차 — 거부하면 사용자가 얻는 것이 없고 실패 원인을 볼 수도 없다, 반대로 저장하면 쓰레기 레코드가 남지만 삭제 한 번으로 정리된다 / 종합 — 원문 보존 저장. 실패율은 실호출에서 관찰해 `responseMimeType` 도입 여부(§10 #2)의 근거로 쓴다.)
 4. `{ id: uuid(), name, my_name(trim), created_at: now ISO, conversation, persona, my_persona }` 구성
 5. `personaRepo.put(record)` → 반환
 
@@ -557,7 +558,7 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 | 3 | ~~브라우저 직접 호출(CORS) 통과 여부, 오류 객체 형태~~ **확인됨(P2)**: 브라우저→`generativelanguage.googleapis.com` 직접 호출 CORS 통과. 무효 키는 HTTP 400 + `error.code=400/status=INVALID_ARGUMENT/reason=API_KEY_INVALID`로 도착하고 SDK 오류 메시지에 그 JSON이 포함된다 → §4.1 분류 규칙(메시지 "api key" 포함 → 인증 오류) 유효. 방법·수치는 LOG P2 | P2 완료 |
 | 4 | P5 이미지 경로의 타임아웃 값과 `generate` 시그니처 확장 방식 | P5 설계 |
 | 5 | GitHub Pages `base` 경로·workflow·CSP 정확한 정책 | P7 |
-| 6 | 페르소나 생성에서 JSON 파싱 실패(`raw`) 시 처리 — 오류로 거부 vs 원문 보존 저장(PRD FR-11) | P3 docs에서 확정 |
+| 6 | ~~페르소나 생성에서 JSON 파싱 실패(`raw`) 시 처리~~ **확정(P3)**: 원문 보존 저장(§3.7) | P3 docs |
 | 7 | IndexedDB `list()`의 메모리 정렬 → 인덱스 커서 전환 기준 | 데이터 규모 문제 발생 시 |
 | 8 | 데이터 전송(DR-4)·휘발성(DR-6) 고지의 노출 위치(기본안 온보딩 모달)·문구 수준 | P2 온보딩 문구 작성 시 PRD/DESIGN과 맞춤 |
 | 9 | 표시명(코드네임 "Persona Mirror" → 정식명) | M1 전 확정. `DB_NAME`은 유지 |

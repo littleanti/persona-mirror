@@ -2,6 +2,13 @@
 
 > 규칙(CLAUDE.md 그라운드 룰 2): 최신 항목을 맨 위에 둔다. 각 항목은 태그(`[feat]`/`[fix]`/`[test]`/`[docs]`/`[chore]`), 절대 날짜, 변경 파일, 상태(`진행중`/`완료`/`완료(미검증)`)를 적는다. 코드 변경은 착수 전에 `진행중` 항목을 먼저 추가하고, 검증 후 `완료`로 바꾸며 실제 변경 파일을 정정한다. 검증을 돌리지 않았으면 "검증 비대상" 또는 "미실행"으로 사실대로 적는다. 원인 진단·설계 선택·수치 판단에는 그라운드 룰 1의 3단 사고(1차 사고 / 비판적 재사고 / 종합)를 남긴다.
 
+## 2026-09-05 — [feat] P3 페르소나 생성·목록·상세·삭제 — 진행중
+
+- 배경/목적: 첫 도메인 기능. 대화 텍스트(+선택적 나의 이름) → Gemini → 상대/나 페르소나 JSON → IndexedDB 저장, 목록/상세/삭제. 계약: TRD §3.1(types) · §3.5(prompts) · §3.6(db/personaRepo) · §3.7(persona) · §3.9(id/dom) · §3.10(PersonaPage), DESIGN §5.
+- 이번 docs에서 확정한 것: (1) FR-11 — JSON 파싱 실패 시 거부하지 않고 원문 보존 저장(TRD §3.7 3단 사고). (2) 콘텐츠 폭 `max-w-lg` → `max-w-2xl`(하단 탭·시트는 `max-w-lg` 유지) — 항목 카드·대화 입력란 가독성, 모바일 무영향.
+- 변경 예정 파일: `src/lib/types.ts`, `src/lib/db.ts`, `src/lib/repos/personaRepo.ts`, `src/lib/persona.ts`, `src/lib/prompts.ts`(PERSONA_FIELDS·buildPersonaPrompt), `src/lib/id.ts`, `src/lib/dom.ts`, `src/lib/store.ts`(selectedPersonaId), `src/routes/PersonaPage.tsx`(목록·생성 시트·상세 모달), `src/routes/*.tsx`(폭 조정), `src/App.tsx`(initDB 1회), `src/lib/i18n.ts`
+- 검증 계획: `tsc`/`vite build`; UI 스모크(빈 상태 → 생성 시트 → 검증 토스트 순서 → 생성 → 목록 카드 → 상세(나/상대 탭, 태그) → 새로고침 유지 → 삭제); 유효 키로 실제 페르소나 생성 1회(지연·JSON 파싱 결과 기록, TRD §10 #1).
+
 ## 2026-09-05 — [feat] P2 Gemini API 키 온보딩(쿠키)과 클라이언트 — 완료
 
 - 배경/목적: 모든 도메인 기능이 사용자 소유 Gemini 키에 의존하므로 페르소나보다 먼저 키 온보딩과 호출 모듈을 만든다(PLAN §6). 계약: TRD §3.2·§3.3·§3.4·§3.9·§3.10·§4, DESIGN §4.

@@ -1,11 +1,12 @@
 # DESIGN — Persona Mirror (코드네임) 화면·인터랙션 설계
 
-> 문서 버전: 0.1 · 갱신일: 2026-09-05 · 상태: 초안(P0) — 코드 작성 전 화면·토큰·인터랙션 규칙을 고정한다
+> 문서 버전: 0.2 · 갱신일: 2026-09-05 · 상태: P3 착수 — 콘텐츠 폭 `max-w-2xl`, 페르소나 생성 파싱 실패 표시 확정
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
 |---|---|---|
 | 0.1 | 2026-09-05 | 초안 |
+| 0.2 | 2026-09-05 | P3 착수: 콘텐츠 폭 `max-w-2xl`(D1·§3), 생성 실패 행에 원문 보존 저장 반영(§5.2) |
 
 관련 문서: 제품 요구는 [`./PRD.md`](./PRD.md), 모듈 계약·저장·LLM 호출은 [`./TRD.md`](./TRD.md), 단계 계획은 [`./PLAN.md`](./PLAN.md), 변경 이력은 [`./LOG.md`](./LOG.md). 이 문서는 **현재 시점의 설계 상태**만 서술하고, 변경 사유·이력은 LOG에 남긴다.
 
@@ -17,7 +18,7 @@
 
 | # | 원칙 | 구체적 규칙 |
 |---|---|---|
-| D1 | **모바일 우선** | 기준 뷰포트 390×844(iPhone 급). 콘텐츠는 `max-w-lg`(512px) 중앙 정렬, 데스크톱에서도 같은 레이아웃을 가운데 두고 여백만 넓힌다. 주 행동 버튼은 엄지 영역(하단·우측)에 둔다. |
+| D1 | **모바일 우선** | 기준 뷰포트 390×844(iPhone 급). 콘텐츠는 `max-w-2xl`(672px) 중앙 정렬, 하단 탭바와 시트는 `max-w-lg`(512px). 모바일에서는 셋이 모두 화면 폭과 같고, 데스크톱에서만 콘텐츠가 탭바보다 조금 넓다(항목 카드·대화 입력란 가독성). 주 행동 버튼은 엄지 영역(하단·우측)에 둔다. |
 | D2 | **한 화면 한 작업** | 탭 하나 = 작업 하나(페르소나 관리 / 메시지 분석 / 기록 조회). 보조 작업(생성·상세)은 오버레이(시트·모달)로 열고 닫으면 원래 화면으로 돌아간다. 화면 간 중첩 내비게이션(깊이 2 이상)은 두지 않는다. |
 | D3 | **대화 입력은 크게** | 대화 기록·받은 메시지 textarea는 카드 폭 100%, 최소 5행(분석)·시트 남은 높이 전체(생성). 입력이 이 앱의 핵심 행위이므로 입력창을 절대 접지 않는다. |
 | D4 | **결과는 카드** | LLM 결과는 "분석 1장 + 후보 3장" 카드로 고정. 후보 카드는 번호·라벨·이유·답변·복사 버튼의 순서를 항상 같게 둔다. 결과가 길어도 카드 밖으로 넘치지 않게 `whitespace-pre-wrap`으로 접는다. |
@@ -157,7 +158,7 @@ export default {
 │                                            │
 │                                            │
 │           <Route content>                  │  ← main: flex-1, pb-20
-│        max-w-lg mx-auto px-4 py-6          │     (하단 탭 높이만큼 여백)
+│        max-w-2xl mx-auto px-4 py-6         │     (하단 탭 높이만큼 여백)
 │                                            │
 │                                            │
 ├────────────────────────────────────────────┤
@@ -172,7 +173,7 @@ export default {
 | 상단바 | `px-5 py-3 flex items-center justify-between gap-4 sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200`. 좌: 로고 `h-8 w-8 rounded-lg`(장식, `alt=""`) + 앱명 `font-semibold tracking-tight truncate`. 우: `ApiKeyStatus` + `LanguageToggle`(`gap-3 flex-shrink-0`) |
 | 키 상태 인디케이터 | 키가 있을 때만 렌더. `● Gemini 준비됨` — 점 `w-2 h-2 rounded-full bg-emerald-500`, 문구 `text-xs text-slate-500 font-medium whitespace-nowrap`. 클릭 → 인라인 편집 상태(§4.2) |
 | 언어 토글 | `rounded-full border border-slate-200 bg-white p-0.5 shadow-soft-sm` 안에 `한` / `EN` 두 버튼. 활성 `bg-brand-gradient text-white`, 비활성 `text-slate-400`. `role="group"`, 각 버튼 `aria-pressed` |
-| 콘텐츠 | 각 라우트 `section`은 `max-w-lg mx-auto px-4 py-6 space-y-5`. `main`은 `flex-1 pb-20` |
+| 콘텐츠 | 각 라우트 `section`은 `max-w-2xl mx-auto px-4 py-6 space-y-5`. `main`은 `flex-1 pb-20`. (0.1의 `max-w-lg`는 P3에서 실제 콘텐츠를 붙이며 `max-w-2xl`로 조정 — 모바일 무영향) |
 | 하단 탭 | `fixed bottom-0 inset-x-0 z-30 bg-white/90 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,.06)]`, 내부 `flex items-stretch max-w-lg mx-auto`. 각 탭 `flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium` (아이콘 24px 스트로크 SVG + 라벨). 활성 `text-indigo-600` + 아이콘 `scale-110`, 비활성 `text-slate-400 hover:text-slate-600`. 전환 `transition-all` |
 | 라우팅 | HashRouter. `#/` → `#/personas`로 redirect. 탭 경로 `#/personas` `#/analyze` `#/history` |
 | 온보딩 게이트 | 키가 없으면 셸 위에 `OnboardingModal`을 렌더(§4). 셸 자체는 뒤에 그대로 있어 흐릿하게 보인다 |
@@ -306,7 +307,7 @@ export default {
 | 검증(제출 시, 순서대로 토스트) | ① 이름 공백 → `toast.enterName` ② 키 없음 → `status.noKey` ③ 대화 trim 길이 < 20(PRD FR-7의 임시값) → `toast.convTooShort`. 힌트의 "10줄 이상 권장"은 안내이고 거부 기준은 20자다 — 둘은 다른 개념 |
 | 로딩 | 버튼 `disabled` + 라벨 `페르소나 생성 중...`. 시트는 열린 채 유지, 백드롭 닫기 비활성(§1.1 A) |
 | 성공 | 토스트 `toast.personaCreated {name}`(성공) → 폼 초기화 → 시트 닫힘 → 목록 재조회 |
-| 실패 | 토스트에 `Error.message`(TRD `gemini.ts`가 만든 사용자 문구) 그대로. 없으면 `toast.personaCreateFail`. 시트와 입력은 **유지**(재시도 가능). LLM 응답 JSON 파싱 실패 시 처리(거부 vs 원문 저장)는 TRD §10 #6 미확정 |
+| 실패 | 토스트에 `Error.message`(TRD `gemini.ts`가 만든 사용자 문구) 그대로. 없으면 `toast.personaCreateFail`. 시트와 입력은 **유지**(재시도 가능). LLM 응답이 JSON이 아니면 실패로 보지 않고 원문을 보존해 저장한다(PRD FR-11) — 목록 요약은 비고, 상세 모달이 `raw` 항목으로 원문을 보여 준다 |
 | 취소 | 닫기(X)·백드롭·ESC → 입력 폐기 |
 | 확장 예정 | P5에서 캡처 이미지(멀티모달) 입력을 이 시트에 추가할 계획(PLAN 참조). 0.1 화면에는 없으며, 그때 이 절을 갱신한다 |
 
