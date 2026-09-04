@@ -1,0 +1,30 @@
+# Node
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# 환경변수
+.env
+.env.local
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 로컬 도구 상태
+.omc
+.claude
+
+# 로그
+*.log
+npm-debug.log*
