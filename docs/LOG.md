@@ -2,15 +2,17 @@
 
 > 규칙(CLAUDE.md 그라운드 룰 2): 최신 항목을 맨 위에 둔다. 각 항목은 태그(`[feat]`/`[fix]`/`[test]`/`[docs]`/`[chore]`), 절대 날짜, 변경 파일, 상태(`진행중`/`완료`/`완료(미검증)`)를 적는다. 코드 변경은 착수 전에 `진행중` 항목을 먼저 추가하고, 검증 후 `완료`로 바꾸며 실제 변경 파일을 정정한다. 검증을 돌리지 않았으면 "검증 비대상" 또는 "미실행"으로 사실대로 적는다. 원인 진단·설계 선택·수치 판단에는 그라운드 룰 1의 3단 사고(1차 사고 / 비판적 재사고 / 종합)를 남긴다.
 
-## 2026-09-05 — [feat] P5 캡처 이미지로 페르소나 생성(멀티모달) — 진행중
+## 2026-09-05 — [feat] P5 캡처 이미지로 페르소나 생성(멀티모달) — 완료
 
-- 배경/목적: 텍스트 붙여넣기로는 아예 넣을 수 없는 대화가 있다 — 타인 기기에 떠 있는 화면, 복사가 막혔거나 이미 지운 대화, 캡처만 떠 둔 대화. 모델이 이미 멀티모달(`gemini-3.1-flash-lite`)이라 별도 OCR·별도 비전 모델 없이 같은 호출 경로에 이미지를 얹을 수 있다. 페르소나 생성 시트에 "텍스트 / 캡처 이미지" 입력 토글을 더한다. 계약: PRD FR-7·FR-9·DR-4·NFR-3, TRD §3.1·§3.2·§3.4·§3.4.1·§3.5·§3.7·§3.10·§4·ADR-6, DESIGN §5.2·§5.3·§10.1.
-- 1차 사고: 캡처는 사용자가 이미 습관적으로 만드는 산출물이고 붙여넣기보다 입력 마찰이 낮다. 멀티모달 모델을 이미 고른 이상 이미지 입력을 안 넣을 이유가 없다.
-- 비판적 재사고(공격): ① **페이로드가 무겁다** — 스크린샷은 텍스트 프롬프트와 비교가 안 되게 크고, 인라인 base64로 실으면 원본 바이트보다 약 4/3로 더 늘어난다(인코딩 특성). 요청이 커지고 느려질 수 있다. → 이미지가 붙은 요청에만 타임아웃 180초(`IMAGE_REQUEST_TIMEOUT_MS`)를 두되, **장당 크기도 지연도 아직 재지 않았다.** 180초는 근거 없는 여유값이며 이번 단계 검증에서 실측한다. ② **정보량이 텍스트보다 적을 수 있다** — 캡처 한 장은 화면 한 장 분량의 발화만 담는데, 페르소나 품질은 인용할 발화가 얼마나 많은지에 좌우된다(PRD FR-8). 이 지적은 **반증하지 못했다.** 같은 대화를 두 모드로 만들어 비교한 표본이 없어 **텍스트 대비 정확도는 미확정**이다. ③ **캡처는 대화 본문만 담고 있지 않다** — 프로필 사진·표시 이름 같은 부수 정보가 함께 Google로 나간다. 막을 방법이 없어 고지로 다룬다(이미지 모드 힌트 한 줄, PRD DR-4). ④ **텍스트를 대체하자**는 안은 ②가 미확정인 이상 검증된 경로를 버릴 근거가 없어 기각.
-- 종합: 텍스트 붙여넣기를 **기본**으로 두고 캡처는 **선택 모드**로 추가한다. 살아남은 근거는 "텍스트로는 아예 넣을 수 없는 대화가 존재한다" 하나이며 이는 정확도와 무관하게 성립한다. 계약은 **가산만** 한다 — 선택 필드(`CreatePersonaInput.images?`), 선택 인자(`generate(prompt, images?)`), 타임아웃 상수 1개. 모델은 분기하지 않는다(단일 `gemini-3.1-flash-lite`). 이미지가 없으면 M1과 완전히 같은 요청이 나가고, 실패하면 이미지 코드만 되돌리면 된다. 이미지 자체는 IndexedDB에 저장하지 않고 `conversation`에는 캡처 장수 플레이스홀더를 넣는다 — 대신 이미지 모드로 만든 페르소나는 근거 대화를 되짚어 볼 수 없다는 대가를 진다. 정확도·지연은 관찰 항목으로 남긴다.
-- 변경 파일(문서, 완료): `docs/PRD.md`(1.1), `docs/TRD.md`(1.1), `docs/DESIGN.md`(1.1), `docs/PLAN.md`(1.1), `docs/LOG.md`
-- 변경 예정 파일(구현): `src/lib/image.ts`(신규 — `fileToInlineImage`), `src/lib/types.ts`(`InlineImage`, `CreatePersonaInput.images?`), `src/lib/config.ts`(`IMAGE_REQUEST_TIMEOUT_MS = 180_000`), `src/lib/gemini.ts`(`generate(prompt, images?)` 멀티모달 `contents`·타임아웃 분기), `src/lib/prompts.ts`(`buildPersonaPrompt` 입력 소스 블록 분기), `src/lib/persona.ts`(`generate(prompt, input.images)`), `src/routes/PersonaPage.tsx`(입력 모드 세그먼트·드롭존·썸네일 그리드·모드별 검증), `src/lib/i18n.ts`(`persona.create.tabText`·`tabImage`·`imageDropzone`·`imageHint`·`imagePlaceholder`, `toast.addImage`·`toast.imageLoadFail`)
-- 검증 계획: `npx tsc --noEmit` / `npx vite build` / UI 스모크(모드 토글, 캡처 첨부 → 썸네일, 개별 제거, 0장 제출 거부, **텍스트 모드 20자 거부가 그대로인지 회귀 확인**) / 실키 1회 — 실제 카카오톡 캡처 1장으로 생성해 **요청 지연을 실측**하고 페르소나 11필드가 채워지는지 확인. 텍스트 대비 정확도는 표본이 없어 **정성 관찰로만 남기고 "미확정"으로 기재**한다. 아직 아무것도 실행하지 않았다 — 이 항목의 검증은 전부 **미실행**이다.
+- 배경/목적: 텍스트로 넣을 수 없는 대화(타인 기기·스크롤 캡처)를 위해 채팅 캡처 이미지 입력을 **선택 모드**로 추가한다. 텍스트 붙여넣기가 기본. 계약: TRD §3.1·§3.2·§3.4·§3.4.1·§3.5·§3.7·§4, DESIGN §5.2·§5.3, PRD FR-7·FR-9·DR-4, ADR-6.
+- 변경 파일: `src/lib/image.ts`(신규, fileToInlineImage), `src/lib/types.ts`(InlineImage, CreatePersonaInput.images?), `src/lib/config.ts`(IMAGE_REQUEST_TIMEOUT_MS=180_000), `src/lib/gemini.ts`(generate(prompt, images?) 멀티모달 contents·이미지 타임아웃), `src/lib/prompts.ts`(buildPersonaPrompt 입력 소스 분기), `src/lib/persona.ts`(images 전달), `src/routes/PersonaPage.tsx`(텍스트/캡처 이미지 토글·드롭존·썸네일·모드별 검증), `src/lib/i18n.ts`(persona.create.tabText/tabImage/imageDropzone/imageHint/imagePlaceholder, toast.addImage/imageLoadFail), `docs/TRD.md`(§10 실측), `docs/PLAN.md`
+- 구현 중 결정: 모델은 단일 `gemini-3.1-flash-lite`(멀티모달)로 유지 — 별도 비전 모델 없음. 이미지 자체는 저장하지 않고 `conversation`에 장수 플레이스홀더만 저장. 힌트에 "캡처 이미지도 Google로 전송됩니다" 고지.
+- 검증:
+  - `npx tsc --noEmit` → 0 에러 / `npx vite build` → 성공: index.html 0.83 kB │ gzip: 0.43 kB / index-BTBsnXpN.css 21.67 kB │ gzip: 4.84 kB / index-CmUtWYd8.js 533.18 kB │ gzip: 132.86 kB (79 modules transformed) / 주석 위생 grep(작업 메모·단계 번호) → 없음
+  - UI 스모크(Vite dev, Playwright 390×844, 유효 키): 생성 시트 세그먼트 토글(✍️ 텍스트 / 🖼️ 캡처 이미지) → 이미지 모드에서 0장 제출 → "캡처 이미지를 추가해주세요" 토스트 → 실제 카카오톡 캡처 1장(JPEG 648×1440, 162 KB, base64 약 216 KB) 선택 → 썸네일 + 제거 버튼 표시 → 생성 → **Gemini 4.95s**(Resource Timing; 텍스트 1,331자 생성 6.57s와 같은 자리수) → "친구 페르소나 생성 완료!" 토스트, 목록 카드 추가.
+  - 저장 결과(IndexedDB): `conversation` = "[채팅 캡처 이미지 1장으로 생성된 페르소나]", `persona` 11필드 모두 채워짐(`raw` 없음), 나의 이름 미입력이라 `my_persona` = {}. `vocabulary_examples`에 캡처 속 실제 표현("조으당", "먹었쪄용", "ㅋㅋㅋ")이 인용됨 → 모델이 이미지에서 대화를 직접 읽는다는 것은 확인.
+- 관찰(정확도, 미확정 — 표본 1): 캡처 1장의 `vocabulary_examples` 5개 중 2개는 음식 이름("쿡밥", "설렁탕")으로 말투 지표가 아니다. 텍스트 모드(대화 38줄)에서는 6개가 모두 어미·감탄 표현이었다. 한 장 분량의 발화로는 문체 근거가 얇을 수 있다는 P5 docs의 2차 공격과 방향이 같지만, 표본이 1건이라 결론은 보류하고 실사용 관찰 항목(TRD §10 #16)으로 남긴다.
+- 발견: 코드 주석에 마일스톤 명칭(M1)이 인용되어 있어 제거(주석 규칙: 현재 동작과 TRD 참조만).
 
 ## 2026-09-05 — [docs] M1 마일스톤 — 문서 1.0, package 1.0.0 — 완료
 

@@ -7,6 +7,9 @@ export const TEXT_MODEL = 'gemini-3.1-flash-lite';
 /** 텍스트 요청 타임아웃(ms). */
 export const TEXT_REQUEST_TIMEOUT_MS = 60_000;
 
+/** 이미지가 붙은 요청 타임아웃(ms). 인라인 base64 페이로드가 무거워 넉넉히 잡는다 — 값은 실측 전 여유값. */
+export const IMAGE_REQUEST_TIMEOUT_MS = 180_000;
+
 /** API 키를 보관하는 쿠키 이름. */
 export const API_KEY_COOKIE_NAME = 'pm_gemini_key';
 

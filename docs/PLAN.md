@@ -1,6 +1,6 @@
 # PLAN — Persora 구현 계획
 
-> 문서 버전: 1.1 · 갱신일: 2026-09-05 · 상태: P5 진행중 — 캡처 이미지 페르소나 생성(멀티모달). 설계 확정, 구현 착수
+> 문서 버전: 1.2 · 갱신일: 2026-09-05 · 상태: P5 완료 — 다음은 P6 안정화(§3 표·§4 체크리스트가 단일 출처)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -10,6 +10,7 @@
 | 0.3 | 2026-09-05 | 표시명 Persora 확정 반영(§2 트리, §5, §8) |
 | 1.0 | 2026-09-05 | M1 기준선: §2 트리를 실제 `src/`와 대조, §3 P4 완료·P5 다음 단계, §4 P4 검증 범위 정정(A6 미실행), §5에 M1 결과 표·남은 미확정, §8 갱신 |
 | 1.1 | 2026-09-05 | P5 착수: §2 트리에 `image.ts`(P5), §3 P5 상태 진행중·산출물을 확정 계약으로 교체, §4 P5 체크리스트 상세화(docs 완료·구현 대기), §8 이미지 입력 UX 항목 정리 + 지연·정확도 미확정 추가 |
+| 1.2 | 2026-09-05 | P5 완료 반영(§3 상태·§4 체크) |
 
 > 기준 문서: [`./PRD.md`](./PRD.md) 1.0(요구사항·Acceptance), [`./TRD.md`](./TRD.md) 1.0(아키텍처·모듈 계약), [`./DESIGN.md`](./DESIGN.md) 1.0(화면·토큰). 변경 이력은 [`./LOG.md`](./LOG.md)에만 적고, 이 문서는 **현재 계획**만 서술한다. 단계가 끝날 때마다 §3 상태와 §4 체크리스트를 갱신하고 문서 버전을 0.1 올린다(M1에서 1.0에 도달했고, 이후 P5부터 1.1·1.2로 이어간다).
 
@@ -118,7 +119,7 @@ M1(P4 완료) 시점에 실재하는 파일에 **P5에서 만들 `lib/image.ts` 
 | **P2** API 키 온보딩·Gemini 클라이언트 | 키 없으면 앱을 잠그고, 있으면 Gemini를 부를 준비 | `config.ts`, `repos/settingsRepo.ts`(쿠키 1년, SameSite=Lax), `gemini.ts`(generate/extractJson/에러 변환), `OnboardingModal.tsx`, `ApiKeyStatus.tsx`, `App.tsx` 온보딩 게이트, `store.ts` apiKey 상태 | 키 미등록 시 모달이 화면 점유(A1). 키+동의 저장 → 모달 닫힘 → 헤더 "● Gemini 준비됨". 새로고침 후 유지. 인디케이터로 변경/삭제, 삭제 시 모달 재등장 | `tsc`/`build`, UI 스모크(모달 → 저장 → 인디케이터 → 새로고침). **임의(무효) 키로 `generate` 1회 호출** → CORS 통과 여부·SDK 오류 객체 형태 확인(기대: 인증 오류가 SDK 오류로 도착; 결과를 LOG에, 미실행이면 미실행으로). **실키 실호출(품질·지연)은 키 부재 시 미확정** | **완료** |
 | **P3** 페르소나 생성·목록·상세·삭제 | 대화 텍스트 → 상대/나 페르소나 JSON → IndexedDB | `types.ts`, `db.ts`, `repos/personaRepo.ts`, `persona.ts`, `prompts.ts`(PERSONA_FIELDS, buildPersonaPrompt), `id.ts`, `dom.ts`, `store.ts`(`selectedPersonaId` 추가), `PersonaPage.tsx`(목록·생성 바텀 시트·상세 모달) | **키 불필요(필수)**: 생성 시트 열림·닫힘, 빈 이름·키 없음·짧은 대화(trim < 20)가 순서대로 토스트로 거부됨, 빈 목록 상태, `tsc`/`build` 통과. **키 필요(미확정 허용)**: 생성 → 목록 카드 → 상세(나/상대 탭, PERSONA_FIELDS 11항목) → 삭제, 재방문 시 목록 유지(A4) — 실키가 없으면 "미확정"으로 LOG에 기재하고 단계를 닫는다 | `tsc`/`build`, UI 스모크(시트 열림·닫힘, 빈 목록 상태, 유효성 토스트). **생성 품질·지연은 키 필요, 미확정** | **완료** |
 | **P4** 메시지 분석 v1·기록 → **M1** | 페르소나 선택 + 받은 메시지 1건 → 심리 분석 + 답변 후보 3개, 기록 저장 | `analysis.ts`, `repos/analysisRepo.ts`, `prompts.ts`(buildAnalyzePrompt), `types.ts`(CandidateReply·AnalysisRecord), `AnalyzePage.tsx`(페르소나 칩 + textarea + 결과·후보 복사), `HistoryPage.tsx`(목록·펼치기·삭제) | **키 불필요(필수)**: `buildAnalyzePrompt`가 3축 정식 라벨("깊은 공감·수용형" / "공감 + 함께 해결형" / "공감 + 분위기 전환형", PRD FR-13)·말투 보존 지시·JSON-only 지시를 포함(코드 리뷰), `analyzeMessage`가 `{ raw }` 폴백 시 후보 1개로 정규화(코드 리뷰), AnalyzePage 검증 토스트 3종·복사 토스트 동작, 기록 탭 빈 상태·펼치기 UI(UI 스모크). **키 필요(미확정 허용)**: 실제 분석 → 기록 저장·펼치기·삭제, 라벨·말투 준수율 관찰. **M1 출구(§5)**: 문서 1.0, 표시명 확정, package 1.0.0 | `tsc`/`build`, UI 스모크(전 탭), DevTools Network(A3), 실키 실호출 3회. LAN 휴대폰 실기기 접속(A6)은 **미실행** — 자동화 뷰포트 390/360px만 확인. **분석 품질·라벨·말투 준수율은 표본 1회라 미확정** | **완료** |
-| **P5** 캡처 이미지로 페르소나 생성(멀티모달) | 대화 캡처 이미지 n장으로도 페르소나 생성. 텍스트 붙여넣기는 기본 모드로 남기고 이미지를 **선택 모드로 가산**(PRD §8 부속 결정 3 / TRD ADR-6) | `lib/image.ts`(`fileToInlineImage`), `types.ts`(`InlineImage`, `CreatePersonaInput.images?`), `config.ts`(`IMAGE_REQUEST_TIMEOUT_MS = 180_000`), `gemini.ts`(`generate(prompt, images?)` — 멀티모달 `contents` + 이미지 타임아웃, 모델은 그대로 하나), `prompts.ts`(`buildPersonaPrompt` 이미지 분기), `persona.ts`(`generate(prompt, input.images)`), `routes/PersonaPage.tsx`(입력 모드 세그먼트·드롭존·썸네일 그리드), `lib/i18n.ts`(`persona.create.tab*`·`image*`·`imagePlaceholder`, `toast.addImage`·`toast.imageLoadFail`) | 캡처만으로 페르소나 생성 가능. **텍스트 경로 회귀 없음**(`images` 미전달 시 M1과 동일한 요청). 이미지 모드로 만든 레코드의 `conversation`이 캡처 장수 플레이스홀더 | `tsc`/`build`, UI 스모크(토글·드롭존·썸네일 추가/제거·검증 토스트), 실제 카카오톡 캡처 1장으로 생성해 **지연 실측**·필드 채움 확인. **텍스트 대비 정확도는 정성 관찰(미확정)** | **진행중** |
+| **P5** 캡처 이미지로 페르소나 생성(멀티모달) | 대화 캡처 이미지 n장으로도 페르소나 생성. 텍스트 붙여넣기는 기본 모드로 남기고 이미지를 **선택 모드로 가산**(PRD §8 부속 결정 3 / TRD ADR-6) | `lib/image.ts`(`fileToInlineImage`), `types.ts`(`InlineImage`, `CreatePersonaInput.images?`), `config.ts`(`IMAGE_REQUEST_TIMEOUT_MS = 180_000`), `gemini.ts`(`generate(prompt, images?)` — 멀티모달 `contents` + 이미지 타임아웃, 모델은 그대로 하나), `prompts.ts`(`buildPersonaPrompt` 이미지 분기), `persona.ts`(`generate(prompt, input.images)`), `routes/PersonaPage.tsx`(입력 모드 세그먼트·드롭존·썸네일 그리드), `lib/i18n.ts`(`persona.create.tab*`·`image*`·`imagePlaceholder`, `toast.addImage`·`toast.imageLoadFail`) | 캡처만으로 페르소나 생성 가능. **텍스트 경로 회귀 없음**(`images` 미전달 시 M1과 동일한 요청). 이미지 모드로 만든 레코드의 `conversation`이 캡처 장수 플레이스홀더 | `tsc`/`build`, UI 스모크(토글·드롭존·썸네일 추가/제거·검증 토스트), 실제 카카오톡 캡처 1장으로 생성해 **지연 실측**·필드 채움 확인. **텍스트 대비 정확도는 정성 관찰(미확정)** | **완료** |
 | **P6** 안정화 | 실사용(PC·LAN 휴대폰)에서 드러난 버그 수정 | 재현된 버그별 `fix` 커밋(파일은 버그마다), 필요 시 `*.test.ts` | 알려진 재현 버그 0. 각 fix에 원인 가설·반증·종합이 LOG와 커밋 본문에 있음 | `tsc`/`build`, (도입 시) `vitest`, 버그별 재현 스모크 | 대기 |
 | **P7** 보안 점검·GitHub Pages 배포 | 정적 호스팅에 올리고 키·XSS 완화책을 점검 | 보안 점검 결과(키 취급·XSS 완화·CSP meta·referrer 정책·의존성)(문서), `vite.config.ts` base(하위 경로 필요 시), `.github/workflows/*.yml`(build → Pages), `README.md` 배포·키 제한 안내 | Pages URL에서 A1~A4 재확인. 우리 호스트로 가는 요청은 정적 자산만(A3) | `npm run build`, 배포 후 브라우저 확인(DevTools Network·Application) | 대기 |
 
@@ -180,15 +181,15 @@ M1(P4 완료) 시점에 실재하는 파일에 **P5에서 만들 `lib/image.ts` 
 
 ### P5 — 캡처 이미지로 페르소나 생성(멀티모달)
 - [x] docs: PRD 1.1(FR-7 두 모드·FR-9 플레이스홀더 저장·DR-4 캡처 전송 고지·NFR-3 이미지 타임아웃·§8 부속 결정 3), TRD 1.1(§3.1 `InlineImage`·`images?`, §3.2 `IMAGE_REQUEST_TIMEOUT_MS`, §3.4 `generate(prompt, images?)`, §3.4.1 `image.ts`, §3.5 프롬프트 분기, §3.7 플레이스홀더, §3.10, §4 멀티모달 `contents`·타임아웃 표, ADR-6, §10 #4 종결), DESIGN 1.1(§5.2 세그먼트·드롭존·썸네일·검증 순서, §10.1 신규 키, §12 U18~U20), PLAN 1.1, LOG `진행중` → `docs(p5)` 커밋
-- [ ] `lib/image.ts` — `fileToInlineImage(file)`: `FileReader.readAsDataURL` → 첫 쉼표 뒤만 `data`로, `mimeType`은 `file.type`(없으면 `'image/png'`), 읽기 실패는 reject(TRD §3.4.1)
-- [ ] `lib/types.ts` — `InlineImage { mimeType, data }` 추가, `CreatePersonaInput.images?: InlineImage[]` **선택 필드로 가산**(기존 호출부 무영향) / `lib/config.ts` — `IMAGE_REQUEST_TIMEOUT_MS = 180_000`
-- [ ] `lib/gemini.ts` — `generate(prompt, images?)`: 이미지가 있으면 `contents = [{ role:'user', parts:[{text}, ...{inlineData:{mimeType,data}}] }]` + 타임아웃 180초, 없으면 M1과 동일(문자열 `contents` + 60초). **모델은 분기하지 않는다**(TRD §4)
-- [ ] `lib/prompts.ts` — `buildPersonaPrompt`가 `input.images` 유무로 입력 소스 블록만 분기: 이미지면 "첨부 캡처에서 대화를 직접 읽어라 + 말풍선 좌/우·이름표로 화자 구분 + 여러 장은 위→아래·앞→뒤 순서" 지시. 나머지 블록·출력 JSON 계약은 두 모드 동일(TRD §3.5)
-- [ ] `lib/persona.ts` — `createPersona`가 `generate(prompt, input.images)` 호출. `conversation`은 화면이 넘긴 값을 그대로 저장(플레이스홀더 규칙은 화면 책임, TRD §3.7)
-- [ ] `routes/PersonaPage.tsx` — 입력 모드 세그먼트(기본 텍스트, 두 모드 입력값 각각 보존)·드롭존(`<label>` + hidden `input[type=file][accept=image/*][multiple]`)·썸네일 그리드(64×64, 개별 제거)·이미지 모드 검증(이름 → 키 → 0장 `toast.addImage`)·성공 시 모드까지 초기화. 이미지 모드 제출 시 `conversation`에 `persona.create.imagePlaceholder {n}` (DESIGN §5.2)
-- [ ] `lib/i18n.ts` — ko/en에 `persona.create.tabText`·`tabImage`·`imageDropzone`·`imageHint`·`imagePlaceholder`, `toast.addImage`·`toast.imageLoadFail`. `imageHint`에 캡처가 Google로 전송된다는 한 줄 포함(PRD DR-4)
-- [ ] 검증: `npx tsc --noEmit` 0 에러, `npx vite build` 성공. UI 스모크(모드 토글, 캡처 첨부→썸네일, 개별 제거, 0장 제출 거부, 텍스트 모드 20자 거부가 그대로인지 = 회귀 확인). **실키 1회**: 실제 카카오톡 캡처 1장으로 생성 → 지연 실측(Resource Timing)·11필드 채움 여부 확인, 텍스트 대비 정확도는 정성 관찰로 "미확정" 기재
-- [ ] LOG `완료` → `feat: 캡처 이미지로 페르소나 생성(멀티모달)` 커밋
+- [x] `lib/image.ts` — `fileToInlineImage(file)`: `FileReader.readAsDataURL` → 첫 쉼표 뒤만 `data`로, `mimeType`은 `file.type`(없으면 `'image/png'`), 읽기 실패는 reject(TRD §3.4.1)
+- [x] `lib/types.ts` — `InlineImage { mimeType, data }` 추가, `CreatePersonaInput.images?: InlineImage[]` **선택 필드로 가산**(기존 호출부 무영향) / `lib/config.ts` — `IMAGE_REQUEST_TIMEOUT_MS = 180_000`
+- [x] `lib/gemini.ts` — `generate(prompt, images?)`: 이미지가 있으면 `contents = [{ role:'user', parts:[{text}, ...{inlineData:{mimeType,data}}] }]` + 타임아웃 180초, 없으면 M1과 동일(문자열 `contents` + 60초). **모델은 분기하지 않는다**(TRD §4)
+- [x] `lib/prompts.ts` — `buildPersonaPrompt`가 `input.images` 유무로 입력 소스 블록만 분기: 이미지면 "첨부 캡처에서 대화를 직접 읽어라 + 말풍선 좌/우·이름표로 화자 구분 + 여러 장은 위→아래·앞→뒤 순서" 지시. 나머지 블록·출력 JSON 계약은 두 모드 동일(TRD §3.5)
+- [x] `lib/persona.ts` — `createPersona`가 `generate(prompt, input.images)` 호출. `conversation`은 화면이 넘긴 값을 그대로 저장(플레이스홀더 규칙은 화면 책임, TRD §3.7)
+- [x] `routes/PersonaPage.tsx` — 입력 모드 세그먼트(기본 텍스트, 두 모드 입력값 각각 보존)·드롭존(`<label>` + hidden `input[type=file][accept=image/*][multiple]`)·썸네일 그리드(64×64, 개별 제거)·이미지 모드 검증(이름 → 키 → 0장 `toast.addImage`)·성공 시 모드까지 초기화. 이미지 모드 제출 시 `conversation`에 `persona.create.imagePlaceholder {n}` (DESIGN §5.2)
+- [x] `lib/i18n.ts` — ko/en에 `persona.create.tabText`·`tabImage`·`imageDropzone`·`imageHint`·`imagePlaceholder`, `toast.addImage`·`toast.imageLoadFail`. `imageHint`에 캡처가 Google로 전송된다는 한 줄 포함(PRD DR-4)
+- [x] 검증: `npx tsc --noEmit` 0 에러, `npx vite build` 성공. UI 스모크(모드 토글, 캡처 첨부→썸네일, 개별 제거, 0장 제출 거부, 텍스트 모드 20자 거부가 그대로인지 = 회귀 확인). **실키 1회**: 실제 카카오톡 캡처 1장으로 생성 → 지연 실측(Resource Timing)·11필드 채움 여부 확인, 텍스트 대비 정확도는 정성 관찰로 "미확정" 기재
+- [x] LOG `완료` → `feat: 캡처 이미지로 페르소나 생성(멀티모달)` 커밋
 
 ### P6 — 안정화
 - [ ] PC·LAN 휴대폰에서 전 흐름 실사용, 버그를 LOG `진행중`으로 먼저 등록

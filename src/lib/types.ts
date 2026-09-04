@@ -38,11 +38,25 @@ export interface PersonaSummary {
   summary: string; // persona.summary ?? ''
 }
 
-/** 페르소나 생성 입력(텍스트). */
+/**
+ * 멀티모달 입력용 인라인 이미지. Gemini `inlineData` 파트에 그대로 실린다.
+ * data는 base64 문자열이며 `data:image/png;base64,` 같은 data URL 접두는 제외한다.
+ */
+export interface InlineImage {
+  mimeType: string; // 예: 'image/png', 'image/jpeg'
+  data: string; // base64 (data URL 접두 제외)
+}
+
+/**
+ * 페르소나 생성 입력. 두 모드가 있고 필드로 구분한다.
+ * - 텍스트 모드: conversation에 대화 텍스트, images는 비움
+ * - 이미지 모드: images에 캡처, conversation은 표시용 플레이스홀더
+ */
 export interface CreatePersonaInput {
   name: string;
   my_name: string;
   conversation: string;
+  images?: InlineImage[];
 }
 
 /** 분석 결과의 답변 후보 1개 */

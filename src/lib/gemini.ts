@@ -2,9 +2,10 @@
 // 키/프롬프트는 콘솔에 출력하지 않는다 (TRD §8).
 
 import { GoogleGenAI } from '@google/genai';
-import { TEXT_MODEL, TEXT_REQUEST_TIMEOUT_MS } from '@/lib/config';
+import { TEXT_MODEL, TEXT_REQUEST_TIMEOUT_MS, IMAGE_REQUEST_TIMEOUT_MS } from '@/lib/config';
 import { getApiKey } from '@/lib/repos/settingsRepo';
 import { t } from './i18n';
+import type { InlineImage } from '@/lib/types';
 
 /**
  * 요청 설정을 만든다.
@@ -21,8 +22,10 @@ function buildConfig(timeoutMs: number): Record<string, unknown> {
 /**
  * 저장된 API 키로 Gemini에 프롬프트를 전송하고 텍스트를 반환한다.
  * 키가 없으면 호출 전에 throw한다(err.keyNotSet).
+ * images가 한 장 이상이면 멀티모달 요청으로 구성하고 타임아웃을 IMAGE_REQUEST_TIMEOUT_MS로 바꾼다.
+ * 모델은 두 경로가 같다(TEXT_MODEL 하나) — images가 없으면 요청 형태는 텍스트 전용일 때와 같다.
  */
-export async function generate(prompt: string): Promise<string> {
+export async function generate(prompt: string, images?: InlineImage[]): Promise<string> {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error(t('err.keyNotSet'));
@@ -30,11 +33,29 @@ export async function generate(prompt: string): Promise<string> {
 
   const ai = new GoogleGenAI({ apiKey });
 
+  const useImages = !!images && images.length > 0;
+  const timeoutMs = useImages ? IMAGE_REQUEST_TIMEOUT_MS : TEXT_REQUEST_TIMEOUT_MS;
+
+  // 텍스트 전용이면 문자열 그대로, 이미지가 있으면 parts 배열로 멀티모달 구성.
+  const contents = useImages
+    ? [
+        {
+          role: 'user',
+          parts: [
+            { text: prompt },
+            ...images!.map((img) => ({
+              inlineData: { mimeType: img.mimeType, data: img.data },
+            })),
+          ],
+        },
+      ]
+    : prompt;
+
   try {
     const response = await ai.models.generateContent({
       model: TEXT_MODEL,
-      contents: prompt,
-      config: buildConfig(TEXT_REQUEST_TIMEOUT_MS),
+      contents,
+      config: buildConfig(timeoutMs),
     });
     return response.text ?? '';
   } catch (err: unknown) {
