@@ -1,6 +1,7 @@
 import { create } from 'zustand';
+import { getApiKey, setApiKey as persistApiKey, clearApiKey as clearPersistedApiKey } from '@/lib/repos/settingsRepo';
 
-// P1: 토스트 큐만 둔다. apiKey(P2)·selectedPersonaId(P3)는 해당 단계에서 추가한다.
+// P2: apiKey 미러(쿠키 settingsRepo와 동기화)가 추가됐다. selectedPersonaId(P3)는 해당 단계에서 추가한다.
 export interface ToastEntry {
   id: number;
   message: string;
@@ -8,7 +9,11 @@ export interface ToastEntry {
 }
 
 interface AppState {
+  apiKey: string;
   toasts: ToastEntry[];
+  setApiKey: (key: string) => void;
+  clearApiKey: () => void;
+  refreshApiKey: () => void;
   pushToast: (message: string, tone?: ToastEntry['tone']) => void;
   dismissToast: (id: number) => void;
 }
@@ -16,7 +21,22 @@ interface AppState {
 let toastSeq = 1;
 
 export const useApp = create<AppState>((set, get) => ({
+  apiKey: getApiKey() ?? '',
   toasts: [],
+
+  setApiKey: (key) => {
+    persistApiKey(key);
+    set({ apiKey: key });
+  },
+
+  clearApiKey: () => {
+    clearPersistedApiKey();
+    set({ apiKey: '' });
+  },
+
+  refreshApiKey: () => {
+    set({ apiKey: getApiKey() ?? '' });
+  },
 
   pushToast: (message, tone = 'info') => {
     const id = toastSeq++;
@@ -28,3 +48,8 @@ export const useApp = create<AppState>((set, get) => ({
     set({ toasts: get().toasts.filter((toast) => toast.id !== id) });
   },
 }));
+
+/** React 트리 밖(prompts.ts/analysis.ts 등)에서 키 존재 여부를 확인할 때 사용 (TRD §3.9). */
+export function hasApiKey(): boolean {
+  return useApp.getState().apiKey.trim().length > 0;
+}

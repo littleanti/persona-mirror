@@ -1,0 +1,142 @@
+// Gemini API 클라이언트.
+// 키/프롬프트는 콘솔에 출력하지 않는다 (TRD §8).
+
+import { GoogleGenAI } from '@google/genai';
+import { TEXT_MODEL, TEXT_REQUEST_TIMEOUT_MS } from '@/lib/config';
+import { getApiKey } from '@/lib/repos/settingsRepo';
+import { t } from './i18n';
+
+/**
+ * 요청 설정을 만든다.
+ * thinkingBudget=0으로 추론 토큰을 꺼 지연을 줄인다는 것은 문헌 근거이며 실측은 미확정(TRD §4).
+ * httpOptions.timeout으로 타임아웃을 명시한다.
+ */
+function buildConfig(timeoutMs: number): Record<string, unknown> {
+  return {
+    httpOptions: { timeout: timeoutMs },
+    thinkingConfig: { thinkingBudget: 0 },
+  };
+}
+
+/**
+ * 저장된 API 키로 Gemini에 프롬프트를 전송하고 텍스트를 반환한다.
+ * 키가 없으면 호출 전에 throw한다(err.keyNotSet).
+ */
+export async function generate(prompt: string): Promise<string> {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error(t('err.keyNotSet'));
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  try {
+    const response = await ai.models.generateContent({
+      model: TEXT_MODEL,
+      contents: prompt,
+      config: buildConfig(TEXT_REQUEST_TIMEOUT_MS),
+    });
+    return response.text ?? '';
+  } catch (err: unknown) {
+    // 인증 오류(400/403)는 키 재입력을 유도하는 명확한 메시지로 변환
+    if (isAuthError(err)) {
+      throw new Error(t('err.invalidKey'));
+    }
+    throw toUserFriendlyError(err);
+  }
+}
+
+/**
+ * LLM 응답 텍스트에서 JSON 객체를 추출한다.
+ * 1) ```json 펜스 제거
+ * 2) 첫 번째 균형 잡힌 {...} 블록 찾기
+ * 3) 실패 시 전체 텍스트를 JSON.parse
+ * 4) 그것도 실패하면 { raw: text } 반환
+ */
+export function extractJson(text: string): Record<string, unknown> {
+  const cleaned = text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '').trim();
+
+  // 첫 번째 균형 잡힌 {...} 블록 탐색
+  const start = cleaned.indexOf('{');
+  if (start !== -1) {
+    let depth = 0;
+    for (let i = start; i < cleaned.length; i++) {
+      const ch = cleaned[i];
+      if (ch === '{') depth++;
+      else if (ch === '}') {
+        depth--;
+        if (depth === 0) {
+          try {
+            return JSON.parse(cleaned.slice(start, i + 1)) as Record<string, unknown>;
+          } catch {
+            // 파싱 실패 — 다음 단계로 넘어감
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // 전체 텍스트 파싱 시도
+  try {
+    return JSON.parse(cleaned) as Record<string, unknown>;
+  } catch {
+    return { raw: cleaned };
+  }
+}
+
+// ── 내부 헬퍼 ────────────────────────────────────────────────────────────────
+
+/** 인증(키) 오류 여부 판단. */
+function isAuthError(err: unknown): boolean {
+  const msg = getErrorMessage(err).toLowerCase();
+  // 키와 직접 관련된 신호만 인증 오류로 본다.
+  // (주의: 일반 400은 다른 파라미터 오류 등 키와 무관한 경우도 있어 제외 — 오분류 방지)
+  if (msg.includes('api key') || msg.includes('api_key')) return true;
+  if (msg.includes('api_key_invalid') || msg.includes('permission_denied')) return true;
+  if (msg.includes('invalid') && msg.includes('key')) return true;
+  if (msg.includes('unauthorized') || msg.includes('forbidden')) return true;
+  // 403은 거의 항상 권한/키 문제. 403만 status로도 인정.
+  if (msg.includes('403')) return true;
+  const status = (err as Record<string, unknown>)?.['status'];
+  if (status === 403) return true;
+  return false;
+}
+
+/** 네트워크 오류 여부 판단. */
+function isNetworkError(err: unknown): boolean {
+  const msg = getErrorMessage(err).toLowerCase();
+  return (
+    msg.includes('failed to fetch') ||
+    msg.includes('network') ||
+    msg.includes('networkerror') ||
+    msg.includes('fetch')
+  );
+}
+
+/** 오류 객체에서 메시지 문자열을 안전하게 추출. */
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  return String(err);
+}
+
+/** 오류를 사용자 친화적인 Error로 변환. */
+function toUserFriendlyError(err: unknown): Error {
+  if (isNetworkError(err)) {
+    return new Error(t('err.network'));
+  }
+  const msg = getErrorMessage(err);
+  const lower = msg.toLowerCase();
+  const name = (err as { name?: string })?.name ?? '';
+  if (name === 'AbortError' || lower.includes('timeout') || lower.includes('timed out') || lower.includes('aborted')) {
+    return new Error(t('err.timeout'));
+  }
+  if (msg.includes('429') || lower.includes('quota') || lower.includes('rate limit')) {
+    return new Error(t('err.rateLimit'));
+  }
+  if (msg.includes('500') || msg.includes('503')) {
+    return new Error(t('err.serviceTemp'));
+  }
+  return new Error(t('err.aiGeneric', { msg }));
+}

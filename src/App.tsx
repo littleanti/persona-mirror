@@ -1,10 +1,13 @@
 import { useEffect } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import ApiKeyStatus from '@/components/ApiKeyStatus';
 import LanguageToggle from '@/components/LanguageToggle';
+import OnboardingModal from '@/components/OnboardingModal';
 import ToastContainer from '@/components/Toast';
 import AnalyzePage from '@/routes/AnalyzePage';
 import HistoryPage from '@/routes/HistoryPage';
 import PersonaPage from '@/routes/PersonaPage';
+import { useApp } from '@/lib/store';
 import { useT } from '@/lib/useI18n';
 
 const tabs = [
@@ -44,6 +47,7 @@ const tabs = [
 ];
 
 export default function App() {
+  const apiKey = useApp((s) => s.apiKey);
   const t = useT();
   const location = useLocation();
 
@@ -64,6 +68,7 @@ export default function App() {
           <span className="font-semibold tracking-tight text-slate-900 truncate">{t('app.title')}</span>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
+          <ApiKeyStatus />
           <LanguageToggle />
         </div>
       </header>
@@ -103,6 +108,7 @@ export default function App() {
         </div>
       </nav>
 
+      {!apiKey && <OnboardingModal />}
       <ToastContainer />
     </div>
   );

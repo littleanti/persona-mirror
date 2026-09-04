@@ -2,11 +2,17 @@
 
 > 규칙(CLAUDE.md 그라운드 룰 2): 최신 항목을 맨 위에 둔다. 각 항목은 태그(`[feat]`/`[fix]`/`[test]`/`[docs]`/`[chore]`), 절대 날짜, 변경 파일, 상태(`진행중`/`완료`/`완료(미검증)`)를 적는다. 코드 변경은 착수 전에 `진행중` 항목을 먼저 추가하고, 검증 후 `완료`로 바꾸며 실제 변경 파일을 정정한다. 검증을 돌리지 않았으면 "검증 비대상" 또는 "미실행"으로 사실대로 적는다. 원인 진단·설계 선택·수치 판단에는 그라운드 룰 1의 3단 사고(1차 사고 / 비판적 재사고 / 종합)를 남긴다.
 
-## 2026-09-05 — [feat] P2 Gemini API 키 온보딩(쿠키)과 클라이언트 — 진행중
+## 2026-09-05 — [feat] P2 Gemini API 키 온보딩(쿠키)과 클라이언트 — 완료
 
-- 배경/목적: 모든 도메인 기능이 사용자 소유 Gemini 키에 의존하므로 페르소나보다 먼저 키 온보딩과 호출 모듈을 만든다(PLAN §6 순서 근거). 계약: TRD §3.2(config) · §3.3(settingsRepo, 쿠키) · §3.4(gemini.generate/extractJson) · §3.10(OnboardingModal/ApiKeyStatus/App 게이트) · §4(호출·에러 변환), DESIGN §4.
-- 변경 예정 파일: `src/lib/config.ts`, `src/lib/repos/settingsRepo.ts`, `src/lib/gemini.ts`, `src/components/OnboardingModal.tsx`, `src/components/ApiKeyStatus.tsx`, `src/App.tsx`(온보딩 게이트·헤더 인디케이터), `src/lib/store.ts`(apiKey 미러), `src/lib/i18n.ts`(onboarding/err/toast 키), `docs/TRD.md`(§2 SDK 버전 고정, §4 CORS 확인 방법)
-- 검증 계획: `tsc`/`vite build`; UI 스모크(키 없음 → 모달 점유 → 키+동의 저장 → 헤더 "● Gemini 준비됨" → 새로고침 유지 → 삭제 → 모달 재등장); 브라우저에서 무효 키로 `generate()` 1회 호출해 CORS 통과 여부·SDK 오류 형태 확인(방법: Vite dev 서버에서 `import('/src/lib/gemini.ts')`로 모듈을 불러 호출). 실키가 확보되면 유효 키 1회 호출로 응답·지연을 기록한다.
+- 배경/목적: 모든 도메인 기능이 사용자 소유 Gemini 키에 의존하므로 페르소나보다 먼저 키 온보딩과 호출 모듈을 만든다(PLAN §6). 계약: TRD §3.2·§3.3·§3.4·§3.9·§3.10·§4, DESIGN §4.
+- 변경 파일: `src/lib/config.ts`, `src/lib/repos/settingsRepo.ts`(쿠키 `pm_gemini_key`, max-age 1년, path=/, SameSite=Lax), `src/lib/gemini.ts`(generate/extractJson/에러 변환), `src/lib/store.ts`(apiKey 미러, setApiKey/clearApiKey, hasApiKey), `src/components/OnboardingModal.tsx`, `src/components/ApiKeyStatus.tsx`, `src/App.tsx`(온보딩 게이트·헤더 인디케이터), `src/lib/i18n.ts`(onboarding/status/err/toast/btn 키), `docs/TRD.md`(§10 #1·#3 실측 반영)
+- 구현 중 결정: 스토어는 TRD §3.9대로 `setApiKey(key)`/`clearApiKey()`를 분리(`setApiKey(key|null)` 통합안도 검토했으나 TRD §3.9 계약과 달라 폐기). 온보딩 소개 문구는 이 시점에 없는 기능(이미지 입력 등)을 언급하지 않도록 조정하고, 동의 문구는 DR-4(Gemini 전송)·DR-6(복구 불가)를 함께 담았다.
+- 검증:
+  - `npx tsc --noEmit` → 0 에러 / `npx vite build` → 성공: index.html 0.81 kB │ gzip: 0.42 kB / index-1V1pdAPq.css 14.64 kB │ gzip: 3.75 kB / index-Bcbch9zE.js 183.82 kB │ gzip: 60.51 kB (59 modules transformed)
+  - UI 스모크(Vite dev, Playwright 390×844): 키 없음 → 온보딩 모달이 화면 점유(A1). 빈 입력으로 저장 → 검증 토스트. 무효 키 + 동의 → 저장 → 모달 사라지고 헤더 "● Gemini 준비됨". `document.cookie`에 `pm_gemini_key` 존재 확인. 새로고침 후 인디케이터 유지(A4). 인디케이터 클릭 → 인라인 편집(저장/취소/삭제) → 삭제 → 쿠키 제거 확인, 온보딩 모달 재등장 + "저장된 키를 삭제했습니다" 토스트. 언어 토글 후에도 동일 동작.
+  - CORS·오류 형태(TRD §10 #3, 무효 키): 브라우저에서 `generativelanguage.googleapis.com`으로 직접 `fetch` → **CORS 통과**, HTTP 400, 본문 `error.code=400, status=INVALID_ARGUMENT, reason=API_KEY_INVALID`(307ms). `generate('ping')`은 이 오류를 `err.invalidKey` 문구("API 키가 유효하지 않습니다…")로 변환해 throw(152ms). → §4.1 분류 규칙(메시지에 "api key" 포함 시 인증 오류) 유효.
+  - 유효 키 1회 호출(TRD §10 #1 일부): 한 문장 말투 평가 + JSON-only 지시 → **1.94s**, 응답 `{"tone": "친근함"}` 15자, `extractJson` 파싱 성공. 실제 페르소나 프롬프트(수천 자 입력) 지연은 P3에서 측정한다 — 미확정 유지.
+  - 발견: 콘솔에 Google 400 응답 로그 1건(브라우저 네트워크 로그, 정상). 키·프롬프트 콘솔 출력 없음(grep 확인).
 
 ## 2026-09-05 — [feat] P1 앱 스캐폴드와 셸 — 완료
 
