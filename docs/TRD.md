@@ -1,6 +1,6 @@
 # TRD — Persora 기술 요구사항·설계
 
-> 문서 버전: 1.3 · 갱신일: 2026-09-05 · 상태: P6 착수 — 분석 입력 계약 재설계(스레드·타겟·의도) 확정, 구현 진행중. 기준: [PRD 1.2](./PRD.md) / [PLAN 1.3](./PLAN.md) / [DESIGN 1.2](./DESIGN.md)
+> 문서 버전: 1.4 · 갱신일: 2026-09-05 · 상태: P6-1 완료 — 의도 스티어링 실측 1건 반영. 기준: [PRD 1.2](./PRD.md) / [PLAN 1.3](./PLAN.md) / [DESIGN 1.2](./DESIGN.md)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -16,6 +16,7 @@
 | 1.1 | 2026-09-05 | P5 착수: 멀티모달 계약 확정 — §3.1 `InlineImage`·`CreatePersonaInput.images?`, §3.2 `IMAGE_REQUEST_TIMEOUT_MS`, §3.4 `generate(prompt, images?)`, §3.4.1 `image.ts`(신규), §3.5 `buildPersonaPrompt` 이미지 분기, §3.7 `createPersona`의 이미지 전달·플레이스홀더 저장, §3.10 `PersonaPage` 입력 토글, §4 멀티모달 `contents` 구성·타임아웃 표, §5 ADR-6, §10 #4 종결 + 미확정 2건 추가 |
 | 1.2 | 2026-09-05 | P5 완료: §10 #15 이미지 지연 실측(4.95s), #16 정확도 관찰 1건 |
 | 1.3 | 2026-09-05 | P6 착수(분석 재설계): §1.1 그림·§3.0 트리에 `thread.ts`·`drafts.ts`·`*.test.ts`, §3.1 타입 가산(`AnalysisRecord.thread?`/`target_message?`/`intent?`, `ReplyIntentKey`, `REPLY_INTENTS`, `AnalyzeReplyInput`, `PersonaRecord.updated_at?`), §3.5 `buildAnalyzePrompt` v2 계약, §3.7 `updatePersona`, §3.8 `analyzeReply`(+`analyzeMessage` 하위 호환 래퍼), §3.9 i18n 영역, §3.10 화면 책임, 신규 §3.11 `thread.ts`·§3.12 `drafts.ts`, ADR-7, §9.2 vitest 도입 확정, §10 갱신 및 단계 번호 재편(안정화 P6→P7, 보안·배포 P7→P8) |
+| 1.4 | 2026-09-05 | P6-1 완료: §10 #20 의도 스티어링 실측(decline, 3.86s) |
 
 > 이 문서는 **현재 확정된 설계**를 서술한다. 변경 이력은 [`LOG.md`](./LOG.md)에만 적는다. §3의 시그니처는 모든 구현 작업이 따라야 하는 **계약**이며, 계약을 바꿀 때는 코드보다 이 문서를 먼저 갱신한다(CLAUDE.md 그라운드 룰 2). M1(P4 완료) 시점에 §3의 식별자는 모두 `src/` 아래에 실재하며, 1.0에서 코드와 한 줄씩 대조해 어긋난 서술을 코드 기준으로 정정했다. 1.1에서 추가한 멀티모달 계약(`InlineImage`, `image.ts`, `IMAGE_REQUEST_TIMEOUT_MS`, `generate`의 두 번째 인자)은 P5에서 구현돼 코드에 실재한다. **1.3에서 추가한 분석 재설계 계약(`thread.ts`, `drafts.ts`, `analyzeReply`, `updatePersona`, `buildAnalyzePrompt` v2, `AnalysisRecord`의 선택 필드 3개, `ReplyIntentKey`·`REPLY_INTENTS`·`AnalyzeReplyInput`, `PersonaRecord.updated_at`)은 P6에서 만들 것이며 아직 코드에 없다** — 해당 자리마다 그 사실을 밝혀 둔다.
 
@@ -836,5 +837,5 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 | 17 | 캡처로 만든 페르소나에 `updatePersona`로 텍스트를 이어 붙였을 때의 결과(§3.7) | **미확정.** 그 경우 `conversation`이 "캡처 장수 플레이스홀더 + 새 대화"가 되어 앞줄이 근거 없는 한 줄로 남는다. 동작은 하지만 품질이 어떤지 잰 적이 없다. P7 실사용에서 관찰 |
 | 18 | `analyzeMessage` 하위 호환 래퍼의 존치 여부(§3.8) | 화면이 모두 `analyzeReply`로 옮겨 가면 호출부가 없어진다. 미사용이 확인되면 마무리 단계에서 제거를 판단한다 |
 | 19 | 스레드 파서(§3.11)의 실제 적중률 | **미확정.** 카카오톡 내보내기 형식과 `이름: 내용` 두 가지만 상정했다. 다른 메신저 형식·이름 표기 흔들림·라벨 없는 붙여넣기에서 화자와 타겟이 얼마나 맞는지 표본이 없다. 오검출은 수동 교정(PRD FR-30)으로 복구되는 것이 완화책이다. P6 검증에서 몇 형태를 넣어 보고 판단은 P7 실사용으로 넘긴다 |
-| 20 | 답장 의도가 실제로 후보 방향을 바꾸는지 | **미실측.** ADR-7의 실측 2건은 v1 코드에서 잰 것이라 의도 슬롯 자체를 시험하지 않았다. P6 검증에서 같은 스레드에 `decline`을 주고 후보 방향을 비교한다(§9.6) |
+| 20 | ~~답장 의도가 실제로 후보 방향을 바꾸는지~~ **실측 확인(P6-1, 표본 1)**: 같은 스레드에 `decline` 의도를 주자 후보 3개가 모두 상대의 요청을 부드럽게 거절하는 방향으로 바뀌고(3.86s), 라벨도 의도에 맞게 생성됨. 말투 보존. 표본이 1건이라 프리셋 6종 전체 검증은 남아 있다 | P6-1 완료 |
 | 21 | 스레드 드래프트(§3.12)를 IndexedDB로 옮길 필요가 있는지 | 미확정 — localStorage 한 칸으로 시작한다. 스레드가 매우 길거나 페르소나가 많아 용량이 문제가 되면 그때 다시 본다 |

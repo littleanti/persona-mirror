@@ -1,6 +1,6 @@
 # PLAN — Persora 구현 계획
 
-> 문서 버전: 1.3 · 갱신일: 2026-09-05 · 상태: P6 분석 재설계 진행중(설계 확정, 구현 대기) — §3 표·§4 체크리스트가 단일 출처
+> 문서 버전: 1.4 · 갱신일: 2026-09-05 · 상태: P6-1 완료, P6-2 진행중(§3 표·§4 체크리스트가 단일 출처)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -12,6 +12,7 @@
 | 1.1 | 2026-09-05 | P5 착수: §2 트리에 `image.ts`(P5), §3 P5 상태 진행중·산출물을 확정 계약으로 교체, §4 P5 체크리스트 상세화(docs 완료·구현 대기), §8 이미지 입력 UX 항목 정리 + 지연·정확도 미확정 추가 |
 | 1.2 | 2026-09-05 | P5 완료 반영(§3 상태·§4 체크) |
 | 1.3 | 2026-09-05 | P6 착수(분석 재설계). **단계 번호 재편** — 새 P6 = 분석 재설계, 기존 안정화 P6 → **P7**, 기존 보안·배포 P7 → **P8**(§3·§4·§6·§8과 다른 문서의 단계 참조를 모두 옮겼다). §1.3 검증 정책에 `npm test` 게이트 추가(vitest 도입 트리거 충족), §2 트리에 `thread.ts`·`drafts.ts`·`*.test.ts`, §3 표에 P6-1·P6-2 하위 단계, §4 P6-1·P6-2 체크리스트, §6 의존성 갱신, §8 미확정 갱신 |
+| 1.4 | 2026-09-05 | P6-1 완료 반영(§4 체크) |
 
 > 기준 문서: [`./PRD.md`](./PRD.md) 1.2(요구사항·Acceptance), [`./TRD.md`](./TRD.md) 1.3(아키텍처·모듈 계약), [`./DESIGN.md`](./DESIGN.md) 1.2(화면·토큰). 변경 이력은 [`./LOG.md`](./LOG.md)에만 적고, 이 문서는 **현재 계획**만 서술한다. 단계가 끝날 때마다 §3 상태와 §4 체크리스트를 갱신하고 문서 버전을 0.1 올린다(M1에서 1.0에 도달했고, 이후 P5부터 1.1·1.2로 이어간다).
 
@@ -208,16 +209,16 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + **P6에서 만들 5개**
 
 ### P6-1 — 스레드·타겟·의도 + vitest 도입
 - [x] docs: PRD 1.2(§1·§2.3 3레이어, N6·N7, FR-12·FR-13 개정 + FR-28~FR-33, DR-1·DR-6, §8 부속 결정 4, §10 로드맵 재편, §11), TRD 1.3(§3.1 타입 가산, §3.5 프롬프트 v2, §3.7 `updatePersona`, §3.8 `analyzeReply`, §3.10, 신규 §3.11·§3.12, ADR-7, §9.2 vitest 확정, §9.6, §10), DESIGN 1.2(§5.3 업데이트 블록, §6 v2 재작성, §7·§9 정정, §10.1 신규 키, §12 U21~U24), PLAN 1.3, LOG `진행중` → `docs(p6)` 커밋
-- [ ] `lib/thread.ts` — `parseThread(thread, { name, myName })`(카카오톡 `[이름] [시간] 내용` → `이름: 내용` 폴백 → 라벨 없는 줄 이어붙이기, 화자 `me`/`other`/`unknown`), `detectTarget(parsed)`(마지막 상대 발화 → 마지막 비어 있지 않은 줄 폴백). 순수 함수(TRD §3.11)
-- [ ] `lib/types.ts` — `AnalysisRecord`에 `thread?`·`target_message?`·`intent?` **선택 필드 가산**, `ReplyIntentKey`(6종), `REPLY_INTENTS`(키 + `intent.*` 라벨 키), `AnalyzeReplyInput`. `DB_VERSION`은 1 그대로
-- [ ] `lib/prompts.ts` — `buildAnalyzePrompt({ persona, thread, targetMessage, intent }, lang)`: 최근 대화 흐름 블록(원문 그대로) + 답장 대상 명시 + `intentDirective`(프리셋 6종 매핑 / 자유 텍스트 그대로 / 빈 값이면 `null`). **빈 값이면 v1의 공감 3축·정식 라벨을 그대로 유지**. 출력 JSON 계약은 두 경로 동일(TRD §3.5)
-- [ ] `lib/analysis.ts` — `analyzeReply(personaId, { thread, intent, targetOverride? })`: 파싱 → 타겟 결정(override 우선) → 프롬프트 → `generate` → `extractJson` → 폴백·정규화 → 저장. **`message`에 타겟 메시지를 넣어 구 스키마 호환**. `analyzeMessage`는 `analyzeReply` 한 줄 래퍼로 유지(TRD §3.8)
-- [ ] `routes/AnalyzePage.tsx` — 스레드 textarea(rows=7, 카카오톡식 placeholder), 타겟 칩("이 메시지에 답장" + 60자 컷), 의도 칩(기본 + 프리셋 6 + 직접 입력), 실행 줄을 카드 밖으로. 검증 순서는 ① 페르소나 ② 스레드 공백 ③ 키(DESIGN §6.2)
-- [ ] `lib/i18n.ts` — ko/en에 `analyze.threadLabel`·`threadHint`·`threadPlaceholder`·`target`·`targetEmpty`·`intentLabel`, `intent.none`~`intent.persuade`·`intent.custom`·`intent.customPlaceholder`. 미사용이 된 `analyze.messagePlaceholder` 정리
-- [ ] `package.json` — `vitest` devDependency + `"test": "vitest run"`
-- [ ] `lib/thread.test.ts`(파서 형식·화자 분류·멀티라인·타겟 검출 1순위/폴백), `lib/gemini.test.ts`(`extractJson` 4경로)
-- [ ] 검증: `npm test` 0 실패, `npx tsc --noEmit` 0 에러, `npx vite build` 성공, UI 스모크(스레드 → 타겟 칩 → 의도 칩), **실키**: 같은 스레드로 의도 빈 값 / `decline` 두 번 돌려 후보 방향 비교(TRD §9.6·§10 #20)
-- [ ] LOG `완료` → `feat: 최근 대화 스레드·답장 의도 기반 분석` 커밋
+- [x] `lib/thread.ts` — `parseThread(thread, { name, myName })`(카카오톡 `[이름] [시간] 내용` → `이름: 내용` 폴백 → 라벨 없는 줄 이어붙이기, 화자 `me`/`other`/`unknown`), `detectTarget(parsed)`(마지막 상대 발화 → 마지막 비어 있지 않은 줄 폴백). 순수 함수(TRD §3.11)
+- [x] `lib/types.ts` — `AnalysisRecord`에 `thread?`·`target_message?`·`intent?` **선택 필드 가산**, `ReplyIntentKey`(6종), `REPLY_INTENTS`(키 + `intent.*` 라벨 키), `AnalyzeReplyInput`. `DB_VERSION`은 1 그대로
+- [x] `lib/prompts.ts` — `buildAnalyzePrompt({ persona, thread, targetMessage, intent }, lang)`: 최근 대화 흐름 블록(원문 그대로) + 답장 대상 명시 + `intentDirective`(프리셋 6종 매핑 / 자유 텍스트 그대로 / 빈 값이면 `null`). **빈 값이면 v1의 공감 3축·정식 라벨을 그대로 유지**. 출력 JSON 계약은 두 경로 동일(TRD §3.5)
+- [x] `lib/analysis.ts` — `analyzeReply(personaId, { thread, intent, targetOverride? })`: 파싱 → 타겟 결정(override 우선) → 프롬프트 → `generate` → `extractJson` → 폴백·정규화 → 저장. **`message`에 타겟 메시지를 넣어 구 스키마 호환**. `analyzeMessage`는 `analyzeReply` 한 줄 래퍼로 유지(TRD §3.8)
+- [x] `routes/AnalyzePage.tsx` — 스레드 textarea(rows=7, 카카오톡식 placeholder), 타겟 칩("이 메시지에 답장" + 60자 컷), 의도 칩(기본 + 프리셋 6 + 직접 입력), 실행 줄을 카드 밖으로. 검증 순서는 ① 페르소나 ② 스레드 공백 ③ 키(DESIGN §6.2)
+- [x] `lib/i18n.ts` — ko/en에 `analyze.threadLabel`·`threadHint`·`threadPlaceholder`·`target`·`targetEmpty`·`intentLabel`, `intent.none`~`intent.persuade`·`intent.custom`·`intent.customPlaceholder`. 미사용이 된 `analyze.messagePlaceholder` 정리
+- [x] `package.json` — `vitest` devDependency + `"test": "vitest run"`
+- [x] `lib/thread.test.ts`(파서 형식·화자 분류·멀티라인·타겟 검출 1순위/폴백), `lib/gemini.test.ts`(`extractJson` 4경로)
+- [x] 검증: `npm test` 0 실패, `npx tsc --noEmit` 0 에러, `npx vite build` 성공, UI 스모크(스레드 → 타겟 칩 → 의도 칩), **실키**: 같은 스레드로 의도 빈 값 / `decline` 두 번 돌려 후보 방향 비교(TRD §9.6·§10 #20)
+- [x] LOG `완료` → `feat: 최근 대화 스레드·답장 의도 기반 분석` 커밋
 
 ### P6-2 — 드래프트·타겟 수동 교정·페르소나 추가 대화 업데이트
 - [x] docs: 위 P6-1 docs 커밋에 함께 확정(TRD §3.7 `updatePersona`·§3.12 `drafts.ts`, DESIGN §5.3·§6.1 피커·§6.3 드래프트)

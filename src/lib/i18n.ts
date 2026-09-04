@@ -22,7 +22,6 @@ const MESSAGES: Record<Lang, Dict> = {
     'persona.title': '페르소나',
     'persona.subtitle': '대화 기록을 입력하면 AI가 상대방의 페르소나를 분석해요',
     'analyze.title': '분석하기',
-    'analyze.subtitle': '상대방이 보낸 메시지를 입력하세요',
     'history.title': '기록',
     'history.subtitle': '원하는 답변 후보',
 
@@ -76,7 +75,6 @@ const MESSAGES: Record<Lang, Dict> = {
 
     // 분석 탭 (AnalyzePage) — DESIGN §10.1 analyze.*
     'analyze.selectPersona': '페르소나 선택',
-    'analyze.messagePlaceholder': '예) 야 오늘 뭐해? 시간 돼?',
     'analyze.run': '분석하기',
     'analyze.loading': '메시지 분석 중...',
     'analyze.aiLabel': 'AI 심리 분석',
@@ -84,6 +82,23 @@ const MESSAGES: Record<Lang, Dict> = {
     'analyze.reason': '원하는 이유:',
     'analyze.copy': '복사하기',
     'analyze.noPersonaHint': '먼저 페르소나 탭에서 상대방의 대화를 분석해 페르소나를 만들어주세요.',
+    'analyze.threadLabel': '최근 대화 붙여넣기',
+    'analyze.threadHint': '상대와 주고받은 최근 대화를 그대로 붙여넣으세요. 맨 아래(최신)의 상대 메시지에 답장해요.',
+    'analyze.threadPlaceholder': '[상대] 오늘 뭐해?\n[나] 집에 있어\n[상대] 그럼 이따 볼래?',
+    'analyze.target': '이 메시지에 답장',
+    'analyze.targetEmpty': '대화를 붙여넣으면 답장할 마지막 메시지를 자동으로 잡아드려요.',
+    'analyze.intentLabel': '답장 의도',
+
+    // 답장 의도 라벨(REPLY_INTENTS와 짝) — TRD §3.9
+    'intent.none': '기본(공감)',
+    'intent.comfort': '위로·공감',
+    'intent.solve': '함께 해결',
+    'intent.lighten': '가볍게 전환',
+    'intent.decline': '정중한 거절',
+    'intent.boundary': '선 긋기',
+    'intent.persuade': '설득·제안',
+    'intent.custom': '직접 입력',
+    'intent.customPlaceholder': '원하는 답장 방향을 적어주세요 (예: 사과하고 싶어)',
 
     // 기록 탭 (HistoryPage) — DESIGN §10.1 history.*
     'history.empty': '아직 분석 기록이 없어요',
@@ -166,7 +181,6 @@ const MESSAGES: Record<Lang, Dict> = {
     'persona.title': 'Personas',
     'persona.subtitle': 'Paste a conversation and AI will analyze the other person’s persona',
     'analyze.title': 'Analyze',
-    'analyze.subtitle': 'Paste the message you received',
     'history.title': 'History',
     'history.subtitle': 'Suggested replies',
 
@@ -220,7 +234,6 @@ const MESSAGES: Record<Lang, Dict> = {
 
     // Analyze tab (AnalyzePage) — DESIGN §10.1 analyze.*
     'analyze.selectPersona': 'Select a persona',
-    'analyze.messagePlaceholder': 'e.g. Hey, what are you up to today? Free to talk?',
     'analyze.run': 'Analyze',
     'analyze.loading': 'Analyzing message...',
     'analyze.aiLabel': 'AI psychological analysis',
@@ -228,6 +241,23 @@ const MESSAGES: Record<Lang, Dict> = {
     'analyze.reason': 'Why they want it:',
     'analyze.copy': 'Copy',
     'analyze.noPersonaHint': 'First create a persona by analyzing a conversation in the Personas tab.',
+    'analyze.threadLabel': 'Paste recent conversation',
+    'analyze.threadHint': 'Paste your recent back-and-forth. We reply to the other person’s latest message at the bottom.',
+    'analyze.threadPlaceholder': '[Them] what are you up to?\n[Me] just home\n[Them] wanna meet later?',
+    'analyze.target': 'Replying to',
+    'analyze.targetEmpty': 'Paste a conversation and we’ll pick the last message to reply to.',
+    'analyze.intentLabel': 'Reply intent',
+
+    // Reply intent labels (paired with REPLY_INTENTS) — TRD §3.9
+    'intent.none': 'Default (empathy)',
+    'intent.comfort': 'Comfort',
+    'intent.solve': 'Solve together',
+    'intent.lighten': 'Lighten mood',
+    'intent.decline': 'Politely decline',
+    'intent.boundary': 'Set boundary',
+    'intent.persuade': 'Persuade',
+    'intent.custom': 'Custom',
+    'intent.customPlaceholder': 'Describe the reply direction (e.g. I want to apologize)',
 
     // History tab (HistoryPage) — DESIGN §10.1 history.*
     'history.empty': 'No analysis history yet',

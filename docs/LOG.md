@@ -2,7 +2,13 @@
 
 > 규칙(CLAUDE.md 그라운드 룰 2): 최신 항목을 맨 위에 둔다. 각 항목은 태그(`[feat]`/`[fix]`/`[test]`/`[docs]`/`[chore]`), 절대 날짜, 변경 파일, 상태(`진행중`/`완료`/`완료(미검증)`)를 적는다. 코드 변경은 착수 전에 `진행중` 항목을 먼저 추가하고, 검증 후 `완료`로 바꾸며 실제 변경 파일을 정정한다. 검증을 돌리지 않았으면 "검증 비대상" 또는 "미실행"으로 사실대로 적는다. 원인 진단·설계 선택·수치 판단에는 그라운드 룰 1의 3단 사고(1차 사고 / 비판적 재사고 / 종합)를 남긴다.
 
-## 2026-09-05 — [feat] P6 분석 단계 재설계 — 최근 대화 스레드·답장 대상·답장 의도 — 진행중
+## 2026-09-05 — [feat] P6-2 분석 단계 재설계(2/2) — 스레드 드래프트·타겟 수동 교정·페르소나 추가 대화 업데이트 — 진행중
+
+- 배경/목적: P6-1이 만든 입력 계약 위에 재입력 부담과 오검출을 다루는 보조 기능을 얹는다(근거·3단 사고는 아래 P6-1 항목). 계약: TRD §3.12(drafts.ts) · §3.8(analyzeReply targetOverride) · §3.7(updatePersona) · §3.1(PersonaRecord.updated_at?), DESIGN §6(타겟 피커·드래프트 규칙) · §5.3(추가 대화로 업데이트).
+- 변경 예정 파일: `src/lib/drafts.ts`(신규) + `src/lib/drafts.test.ts`, `src/routes/AnalyzePage.tsx`(드래프트 복원·자동 저장, 파싱 라인 피커), `src/lib/analysis.ts`(targetOverride 우선), `src/lib/persona.ts`(updatePersona), `src/lib/types.ts`(updated_at?), `src/routes/PersonaPage.tsx`(상세 모달 "추가 대화로 업데이트"), `src/lib/i18n.ts`
+- 검증 계획: `npm test`(drafts 스텁 테스트 포함), tsc/build, UI 스모크(페르소나 전환 시 스레드 복원, 새로고침 후 드래프트 유지, 타겟 피커로 다른 줄 선택 → 기록의 target_message 반영, 추가 대화 업데이트 → updated_at 기록·필드 갱신 — 실키 1회).
+
+## 2026-09-05 — [feat] P6-1 분석 단계 재설계(1/2) — 최근 대화 스레드·자동 타겟·답장 의도 + vitest 도입 — 완료
 
 - 배경/목적: 실사용 리뷰에서 제품 의도와 구현 계약이 어긋나 있음이 드러났다. 의도는 "① 과거 대화로 상대의 장기 페르소나를 파악하고 → ② 최근 대화 맥락에서 → ③ 상대의 **마지막 메시지**에 **내 의도**대로 답장"인데, v1에는 ①과 ③의 일부만 있고 ②(단기 최근 맥락)가 입력 계약에 아예 없다. 근거는 코드다 — `AnalysisRecord.message: string`(메시지 1건), `buildAnalyzePrompt({ persona, message })`가 "…가 다음 메시지를 보냈습니다"로 **단발 메시지를 전제**, 화면 라벨 "받은 메시지", 답장 의도 슬롯 없음, 후보 3개가 항상 공감 3축 고정.
 - 1차 사고: v1으로 충분하다. 사용자가 textarea에 최근 대화를 여러 줄 붙여 넣으면 모델이 알아서 맥락을 읽을 것이므로 구조 변경은 불필요하다.
@@ -23,6 +29,12 @@
   - `npx tsc --noEmit`, `npx vite build`
   - UI 스모크(Vite dev + 브라우저 자동화): 스레드 붙여넣기 → 타겟 칩 표시 → 피커로 다른 메시지 선택 → 의도 칩 전환 → 직접 입력 → 페르소나 전환 시 드래프트 복원 → 상세 모달 "추가 대화로 업데이트"
   - 실키 1회 이상: **의도 스티어링 확인** — 같은 스레드에 `decline`(정중한 거절) 의도를 주면 후보 3개의 방향이 공감 3축에서 거절 쪽으로 바뀌는지. 빈 의도로 한 번 더 돌려 v1 무회귀도 함께 본다
+
+- P6-1 변경 파일(실제): `src/lib/thread.ts`(신규), `src/lib/thread.test.ts`(신규, 15케이스), `src/lib/gemini.test.ts`(신규, extractJson 4경로), `src/lib/types.ts`(가산 필드·ReplyIntentKey·REPLY_INTENTS·AnalyzeReplyInput), `src/lib/prompts.ts`(buildAnalyzePrompt v2 + intentDirective), `src/lib/analysis.ts`(analyzeReply, analyzeMessage는 래퍼), `src/routes/AnalyzePage.tsx`(스레드 textarea·타겟 칩·의도 칩·직접 입력), `src/lib/i18n.ts`(analyze.thread*/target*, intent.*; 미사용 키 2개 제거), `package.json`·`package-lock.json`(vitest ^3.2.7, `npm test`), `vite.config.ts`(test.include를 `src/**/*.test.ts`로 한정 — 테스트 수집 범위를 `src/**`에 고정), `docs/TRD.md`(§10 #20 실측), `docs/PLAN.md`
+- P6-1 검증:
+  - `npm test` → 2 files, **16/16 통과** / `npx tsc --noEmit` → 0 에러 / `npx vite build` → index.html 0.83 kB │ gzip: 0.43 kB / index-DZpy6KgT.css 21.69 kB │ gzip: 4.85 kB / index-CAN2Ugvv.js 538.74 kB │ gzip: 134.67 kB (81 modules transformed) / 주석 위생 grep → 없음
+  - 코드 리뷰: 의도가 비어 있으면 후보 축·라벨이 v1과 동일(무회귀). 타겟 = 마지막 상대 발화, 없으면 끝줄.
+  - UI 스모크(Vite dev, Playwright 390×844, 유효 키, 페르소나 지수/현우): 스레드 6줄 붙여넣기 → "이 메시지에 답장" 칩이 상대의 마지막 발화(주말에 와서 기획안 봐달라는 요청)를 정확히 표시 → 의도 "정중한 거절" → **Gemini 3.86s** → 후보 3개가 모두 요청을 부드럽게 거절("이번 주는 선약이 있어서…", "톡으로 보내봐 짬 날 때 볼게", "다음엔 내가 맛있는 거 쏠 테니") — 라벨은 의도에 맞게 생성됨("부드럽고 완곡하게 / 솔직하고 분명하게 / 따뜻한 유머를 곁들여"). 말투(반말, ㅠㅠ/ㅋㅋ)는 유지. → **의도 스티어링 실측 확인(표본 1)**. 기록에는 `message`=타겟 메시지가 저장되어 기록 탭은 코드 변경 없이 동작.
 
 ## 2026-09-05 — [feat] P5 캡처 이미지로 페르소나 생성(멀티모달) — 완료
 
