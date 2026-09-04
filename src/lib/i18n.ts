@@ -3,6 +3,7 @@
 // - t(): 동적으로 생성되는 문자열용 ({param} 보간 지원)
 // - onLangChange(): 동적 뷰가 스스로 다시 렌더링하도록 구독
 //
+// 문구는 키 이름은 DESIGN.md §10.1 영역 규칙을 따른다.
 
 export type Lang = 'ko' | 'en';
 
@@ -67,8 +68,26 @@ const MESSAGES: Record<Lang, Dict> = {
     'persona.field.how_they_seek_response': '원하는 반응',
     'persona.field.relationship_dynamics': '관계 역학',
 
+    // 분석 탭 (AnalyzePage) — DESIGN §10.1 analyze.*
+    'analyze.selectPersona': '페르소나 선택',
+    'analyze.messagePlaceholder': '예) 야 오늘 뭐해? 시간 돼?',
+    'analyze.run': '분석하기',
+    'analyze.loading': '메시지 분석 중...',
+    'analyze.aiLabel': 'AI 심리 분석',
+    'analyze.candidatesTitle': '원하는 답변 후보 3가지',
+    'analyze.reason': '원하는 이유:',
+    'analyze.copy': '복사하기',
+    'analyze.noPersonaHint': '먼저 페르소나 탭에서 상대방의 대화를 분석해 페르소나를 만들어주세요.',
+
+    // 기록 탭 (HistoryPage) — DESIGN §10.1 history.*
+    'history.empty': '아직 분석 기록이 없어요',
+    'history.candidatesTitle': '원하는 답변 후보',
+    'history.delete': '기록 삭제',
+    'history.confirmDelete': '이 분석 기록을 삭제할까요?',
+
     // 공용
     'common.loading': '불러오는 중...',
+    'common.candidateN': '후보 {n}',
 
     // 토스트 — 페르소나 생성/조회/삭제
     'toast.enterName': '이름을 입력해주세요',
@@ -80,6 +99,20 @@ const MESSAGES: Record<Lang, Dict> = {
     'toast.personaSelected': '{name} 페르소나 선택됨',
     'toast.deleteFail': '삭제에 실패했습니다',
     'toast.personaDeleted': '{name} 삭제 완료',
+
+    // 토스트 — 분석/기록 (P4)
+    'toast.selectPersona': '페르소나를 선택해주세요',
+    'toast.enterMessage': '메시지를 입력해주세요',
+    'toast.analyzeFail': '분석에 실패했습니다. API 키 설정을 확인해주세요',
+    'toast.copied': '✓ 복사됨',
+    'toast.copyFail': '클립보드 복사 실패',
+    'toast.loadHistoryFail': '기록을 불러오지 못했습니다',
+    'toast.historyDeleted': '기록 삭제 완료',
+
+    // 분석 응답 파싱 실패 폴백(analysis.ts가 사용, TRD §3.8 — 저장 시점 언어로 고정됨)
+    'parse.failAnalysis': 'AI 응답을 파싱하는 데 문제가 발생했습니다. 원본 응답을 확인하세요.',
+    'parse.failLabel': '원본 응답',
+    'parse.failReason': 'JSON 파싱 실패',
 
     // DB 오류(TRD §3.6 — App.tsx가 initDB 실패를 잡아 사용)
     'err.dbOpen': '브라우저 저장소를 여는 데 실패했습니다.',
@@ -171,8 +204,26 @@ const MESSAGES: Record<Lang, Dict> = {
     'persona.field.how_they_seek_response': 'Desired response',
     'persona.field.relationship_dynamics': 'Relationship dynamics',
 
+    // Analyze tab (AnalyzePage) — DESIGN §10.1 analyze.*
+    'analyze.selectPersona': 'Select a persona',
+    'analyze.messagePlaceholder': 'e.g. Hey, what are you up to today? Free to talk?',
+    'analyze.run': 'Analyze',
+    'analyze.loading': 'Analyzing message...',
+    'analyze.aiLabel': 'AI psychological analysis',
+    'analyze.candidatesTitle': '3 suggested replies',
+    'analyze.reason': 'Why they want it:',
+    'analyze.copy': 'Copy',
+    'analyze.noPersonaHint': 'First create a persona by analyzing a conversation in the Personas tab.',
+
+    // History tab (HistoryPage) — DESIGN §10.1 history.*
+    'history.empty': 'No analysis history yet',
+    'history.candidatesTitle': 'Suggested replies',
+    'history.delete': 'Delete record',
+    'history.confirmDelete': 'Delete this analysis record?',
+
     // Common
     'common.loading': 'Loading...',
+    'common.candidateN': 'Option {n}',
 
     // Toasts — persona create/view/delete
     'toast.enterName': 'Please enter a name',
@@ -184,6 +235,20 @@ const MESSAGES: Record<Lang, Dict> = {
     'toast.personaSelected': '{name} persona selected',
     'toast.deleteFail': 'Failed to delete',
     'toast.personaDeleted': '{name} deleted',
+
+    // Toasts — analyze/history (P4)
+    'toast.selectPersona': 'Please select a persona',
+    'toast.enterMessage': 'Please enter a message',
+    'toast.analyzeFail': 'Analysis failed. Please check your API key.',
+    'toast.copied': '✓ Copied',
+    'toast.copyFail': 'Failed to copy to clipboard',
+    'toast.loadHistoryFail': 'Failed to load history',
+    'toast.historyDeleted': 'Record deleted',
+
+    // Analysis parse-failure fallback (used by analysis.ts, TRD §3.8 — frozen at save-time language)
+    'parse.failAnalysis': 'There was a problem parsing the AI response. See the raw response below.',
+    'parse.failLabel': 'Raw response',
+    'parse.failReason': 'JSON parsing failed',
 
     // DB error (TRD §3.6 — used by App.tsx when initDB fails)
     'err.dbOpen': 'Failed to open browser storage.',

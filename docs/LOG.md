@@ -2,11 +2,17 @@
 
 > 규칙(CLAUDE.md 그라운드 룰 2): 최신 항목을 맨 위에 둔다. 각 항목은 태그(`[feat]`/`[fix]`/`[test]`/`[docs]`/`[chore]`), 절대 날짜, 변경 파일, 상태(`진행중`/`완료`/`완료(미검증)`)를 적는다. 코드 변경은 착수 전에 `진행중` 항목을 먼저 추가하고, 검증 후 `완료`로 바꾸며 실제 변경 파일을 정정한다. 검증을 돌리지 않았으면 "검증 비대상" 또는 "미실행"으로 사실대로 적는다. 원인 진단·설계 선택·수치 판단에는 그라운드 룰 1의 3단 사고(1차 사고 / 비판적 재사고 / 종합)를 남긴다.
 
-## 2026-09-05 — [feat] P4 메시지 분석 v1(받은 메시지 1건)과 기록 — 진행중
+## 2026-09-05 — [feat] P4 메시지 분석 v1(받은 메시지 1건)과 기록 — 완료
 
-- 배경/목적: 저장된 페르소나를 골라 상대가 보낸 메시지 1건을 넣으면 심리 분석과 답변 후보 3개(깊은 공감·수용형 / 공감 + 함께 해결형 / 공감 + 분위기 전환형)를 나의 페르소나 말투로 생성하고 기록에 저장한다. 이 단계가 끝나면 M1(MVP)이다. 계약: TRD §3.8(analysis.ts, 파싱 실패 폴백 parse.*) · §3.6(analysisRepo) · §3.5(buildAnalyzePrompt) · §3.10(AnalyzePage/HistoryPage), DESIGN §6·§7, PRD FR-12~22.
-- 변경 예정 파일: `src/lib/analysis.ts`, `src/lib/repos/analysisRepo.ts`, `src/lib/prompts.ts`(buildAnalyzePrompt·말투 요약 헬퍼), `src/routes/AnalyzePage.tsx`, `src/routes/HistoryPage.tsx`, `src/lib/i18n.ts`(analyze.*/history.*/parse.*/toast.*)
-- 검증 계획: `tsc`/`vite build`; UI 스모크(페르소나 없음 안내 → 페르소나 생성 → 분석 탭 초기 선택 = 마지막에 고른 페르소나 → 메시지 빈 값 토스트 → 실제 메시지 분석(지연 실측) → 후보 3개 라벨·복사 토스트 → 기록 탭 카드 펼치기 → 새로고침 유지 → 삭제); 프롬프트가 3축 라벨·말투 보존·JSON-only 지시를 포함하는지 코드 리뷰.
+- 배경/목적: 저장된 페르소나를 골라 상대가 보낸 메시지 1건을 넣으면 심리 분석과 답변 후보 3개(깊은 공감·수용형 / 공감 + 함께 해결형 / 공감 + 분위기 전환형)를 나의 페르소나 말투로 생성하고 기록에 저장한다. 계약: TRD §3.8·§3.6·§3.5·§3.10, DESIGN §6·§7, PRD FR-12~22.
+- 변경 파일: `src/lib/analysis.ts`(analyzeMessage/listAnalyses/removeAnalysis, 파싱 실패 폴백), `src/lib/repos/analysisRepo.ts`, `src/lib/prompts.ts`(speechSummary·buildAnalyzePrompt), `src/routes/AnalyzePage.tsx`, `src/routes/HistoryPage.tsx`, `src/lib/i18n.ts`(analyze.*/history.*/parse.*/toast.*), `docs/TRD.md`(§10 #1 실측), `docs/PLAN.md`
+- 구현 중 결정: 안내 문구에 HTML 태그를 넣지 않는다(DESIGN D6) — `<strong>` 강조 후처리 대신 평문. i18n 키는 DESIGN §10.1 영역 규칙(`analyze.run`, `analyze.loading`, `analyze.copy`, `history.delete`, `history.confirmDelete` …). 후보가 3개를 넘으면 앞 3개만, 모자라면 있는 만큼만 렌더(가짜 후보를 만들지 않음). 분석 탭 초기 선택은 TRD §3.10대로 "선택 ID가 목록에 있으면 그것, 없으면 첫 번째".
+- 검증:
+  - `npx tsc --noEmit` → 0 에러 / `npx vite build` → 성공: index.html 0.81 kB │ gzip: 0.42 kB / index-BfvnMbgV.css 21.43 kB │ gzip: 4.80 kB / index-B4x_fgcJ.js 529.91 kB │ gzip: 131.68 kB (78 modules transformed)
+  - 코드 리뷰: buildAnalyzePrompt에 3축 정식 라벨, "평소 말투 안에서 공감" 지시, JSON-only 지시 포함. 파싱 실패 폴백은 후보 1개(`parse.failLabel`/`parse.failReason`, response=원문).
+  - UI 스모크(Vite dev, Playwright 390×844, 유효 키): 페르소나 없음 → 안내 문구 + 버튼 비활성. 페르소나(지수/현우, 대화 30줄) 생성 5.87s → 분석 탭 진입 시 그 페르소나가 초기 선택("지수 · Gemini"). 메시지 빈 값 → "메시지를 입력해주세요". 실제 메시지(상대의 마지막 고민 문장) 분석 → **Gemini 3.49s** → 심리 분석 카드 + 후보 3개가 정식 라벨 그대로 렌더, response는 나의 페르소나 말투(반말, ㅠㅠ/ㅋㅋ)로 작성됨. 복사 버튼 클릭은 동작했으나 자동화 브라우저의 클립보드 권한 대기로 토스트 문구 확인은 **미확정**.
+  - 기록 탭: 카드(페르소나명·메시지 55자 미리보기·날짜) → 펼치면 분석 + 후보 3(복사 버튼 없음, DESIGN §7) + "기록 삭제". 전체 새로고침 후 기록 유지(A4). 삭제 confirm → 빈 상태("아직 분석 기록이 없어요") + "기록 삭제 완료" 토스트. 콘솔 에러 0.
+- M1 판단 자료: 이 단계로 PRD Acceptance A1(온보딩)·A2(생성·분석·기록)·A4(영속)·A5(빌드·서빙)는 실측으로 통과, A3(네트워크 분리)은 P2·P3·P4 스모크에서 Google 도메인 직접 호출만 관찰됨(우리 서버로 가는 요청은 정적 자산). A6(휴대폰 동일 Wi-Fi)은 자동화 뷰포트로만 확인 — 실기기 미확정. 상세는 M1 마일스톤 항목(문서 1.0)에서 정리.
 
 ## 2026-09-05 — [feat] P3 페르소나 생성·목록·상세·삭제 — 완료
 

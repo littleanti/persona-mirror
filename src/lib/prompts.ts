@@ -1,5 +1,7 @@
+// P3: PERSONA_FIELDS · buildPersonaPrompt.
+// P4: buildAnalyzePrompt(+ speechSummary 헬퍼) — 분석 v1(받은 메시지 1건), 공감 3축 후보.
 
-import type { CreatePersonaInput } from '@/lib/types';
+import type { CreatePersonaInput, PersonaRecord } from '@/lib/types';
 import type { Lang } from './i18n';
 
 /**
@@ -84,4 +86,147 @@ ${sourceBlock}
 ${PERSONA_FIELDS}
 }${langDirective}`;
   }
+}
+
+/**
+ * 페르소나 필드에서 말투 요약 문자열을 생성한다.
+ */
+function speechSummary(p: Record<string, unknown>, personName: string): string {
+  const parts: string[] = [];
+
+  if (p['speech_level']) {
+    parts.push(`- 경어 수준: ${p['speech_level']}`);
+  }
+
+  const vocab = p['vocabulary_examples'];
+  if (Array.isArray(vocab) ? vocab.length > 0 : vocab) {
+    if (Array.isArray(vocab)) {
+      const items = vocab.slice(0, 8).map((v) => String(v));
+      parts.push(`- 자주 쓰는 표현: ${items.join(', ')}`);
+    } else {
+      parts.push(`- 자주 쓰는 표현: ${vocab}`);
+    }
+  }
+
+  if (p['sentence_style']) {
+    parts.push(`- 문장 스타일: ${p['sentence_style']}`);
+  }
+
+  if (p['emoji_symbol_usage']) {
+    parts.push(`- 이모지/특수문자: ${p['emoji_symbol_usage']}`);
+  }
+
+  if (p['texting_habits']) {
+    parts.push(`- 메시징 습관: ${p['texting_habits']}`);
+  }
+
+  if (parts.length === 0) return '';
+  return `${personName}의 말투 특징:\n` + parts.join('\n');
+}
+
+/**
+ * 메시지 분석 프롬프트 빌더(v1: 받은 메시지 1건).
+ */
+export function buildAnalyzePrompt(input: {
+  persona: PersonaRecord;
+  message: string;
+}, lang: Lang = 'ko'): string {
+  const { persona: record, message } = input;
+  const { name, my_name, persona, my_persona } = record;
+  const myName = my_name.trim();
+  const langDirective = outputLangDirective(lang);
+
+  const personaStr = JSON.stringify(persona, null, 2);
+  const receiverLabel = myName || '상대방';
+
+  const otherSpeech = speechSummary(persona as Record<string, unknown>, name);
+
+  let myPersonaSection = '';
+  let mySpeechInstruction = '';
+
+  if (myName && my_persona && Object.keys(my_persona).length > 0) {
+    const myPersonaStr = JSON.stringify(my_persona, null, 2);
+    const mySpeech = speechSummary(my_persona as Record<string, unknown>, myName);
+
+    myPersonaSection = `
+${myName}(메시지를 받는 사람)의 페르소나 - ${name}과의 관계에서:
+${myPersonaStr}
+
+`;
+
+    if (mySpeech) {
+      mySpeechInstruction = `
+★ 가장 중요 — 답변(response)은 반드시 ${myName}의 실제 말투로 작성하세요.
+${mySpeech}
+위 말투 지문을 그대로 반영하여 ${myName}이 실제로 폰으로 칠 법한 문자/메시지 형식으로 쓰세요.
+공감한다고 해서 말투를 바꾸지 마세요. ${myName}의 평소 말투(짧은 반말, 무뚝뚝함, 장난스러움 등 무엇이든) 그 "안에서" 공감을 표현하세요 — 짧고 캐주얼한 한마디도 충분히 따뜻할 수 있습니다.
+어색한 문어체, 갑작스러운 존댓말, 격식체, ${myName}이 평소 안 쓰던 미사여구나 상담사 같은 말투를 넣지 마세요.`;
+    }
+  }
+
+  const otherSpeechBlock = otherSpeech ? `\n${otherSpeech}\n` : '';
+
+  const speechToneQuestion = otherSpeech
+    ? `- ${name}의 말투와 표현 방식을 고려할 때, ${name}이 기대하는 답변의 톤은?`
+    : '';
+  const myPersonaQuestion = myName
+    ? `- ${myName}의 말투와 성격을 고려할 때, 어떤 답변이 가장 자연스럽고 효과적인가?`
+    : '';
+
+  // response 필드 설명 (my_name 유무에 따라 분기)
+  const responseDesc = myName
+    ? `${myName}의 말투로 작성`
+    : '자연스러운 말투로 작성';
+
+  // 공감 가이드라인 — 3개 답변 후보 모두에 공통 적용 (감정→욕구 인식 → 공감 우선 → 안티패턴 금지).
+  const empathyGuide = `공감 가이드라인 (3개 답변 후보 모두에 공통 적용):
+1. 먼저 ${name}이 지금 느끼는 핵심 감정과 그 밑에 깔린 진짜 욕구를 짚으세요 (예: 서운함→인정받고 싶음, 불안→안심받고 싶음).
+2. 모든 답변은 그 감정을 먼저 알아주고 받아들이는 말로 시작하세요. 조언·해결·화제 전환은 반드시 그 다음입니다.
+3. 다음은 절대 금지: 섣부른 조언/훈수, 감정 축소("별거 아냐", 성급한 "괜찮아질 거야"), 영혼 없는 진부한 위로, 질문만 줄줄이 늘어놓는 심문, ${name}의 감정을 평가·판단하기.`;
+
+  return `당신은 지금 "${name}"의 내면 심리를 완벽히 이해하는 분석가입니다.
+
+${name}의 성격 및 소통 방식 분석:
+${personaStr}
+${otherSpeechBlock}
+${myPersonaSection}
+${name}이(가) ${receiverLabel}에게 다음 메시지를 보냈습니다:
+"${message}"
+
+${name}의 성격, 소통 방식, 말투, 감정 표현 방식, 관계 패턴을 깊이 고려하여 분석하세요:
+- ${name}이 지금 느끼는 핵심 감정은 무엇이고, 그 밑에 깔린 진짜 욕구는 무엇인가?
+- ${name}이 이 메시지를 보낸 진짜 심리적 이유는 무엇인가?
+- ${name}은 ${receiverLabel}으로부터 어떤 종류의 답변을 듣고 싶어하는가?
+${speechToneQuestion}
+${myPersonaQuestion}
+
+${empathyGuide}
+
+- 위 공감을 기본으로 깔되, 공감 "이후"의 방향만 다르게 한 답변 후보 3가지를 만드세요:
+  (1) 감정에 더 깊이 머무르며 수용·지지하는 답변
+  (2) 공감한 뒤 함께 해결책이나 다음 행동을 제안하는 답변
+  (3) 공감한 뒤 분위기를 가볍게(유머·온기) 풀어주는 답변
+${mySpeechInstruction}
+
+반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트나 마크다운은 절대 포함하지 마세요:
+{
+  "analysis": "${name}이 지금 느끼는 핵심 감정과 그 밑의 진짜 욕구, 그리고 이 메시지를 보낸 심리적 배경·기대하는 반응 (2-3문장)",
+  "candidates": [
+    {
+      "label": "깊은 공감·수용형",
+      "reason": "${name}이 이 답변을 원하는 구체적인 이유 (어떤 감정/욕구를 채워주는지)",
+      "response": "${receiverLabel}이(가) ${name}에게 보낼 수 있는 실제 답변 — 감정을 먼저 알아준 뒤 깊이 수용·지지, ${responseDesc}"
+    },
+    {
+      "label": "공감 + 함께 해결형",
+      "reason": "${name}이 이 답변을 원하는 구체적인 이유 (어떤 감정/욕구를 채워주는지)",
+      "response": "${receiverLabel}이(가) ${name}에게 보낼 수 있는 실제 답변 — 감정을 먼저 알아준 뒤 함께 해결/다음 행동 제안, ${responseDesc}"
+    },
+    {
+      "label": "공감 + 분위기 전환형",
+      "reason": "${name}이 이 답변을 원하는 구체적인 이유 (어떤 감정/욕구를 채워주는지)",
+      "response": "${receiverLabel}이(가) ${name}에게 보낼 수 있는 실제 답변 — 감정을 먼저 알아준 뒤 가볍게(유머·온기) 분위기 전환, ${responseDesc}"
+    }
+  ]
+}${langDirective}`;
 }
