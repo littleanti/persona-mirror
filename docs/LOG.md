@@ -2,6 +2,33 @@
 
 > 규칙(CLAUDE.md 그라운드 룰 2): 최신 항목을 맨 위에 둔다. 각 항목은 태그(`[feat]`/`[fix]`/`[test]`/`[docs]`/`[chore]`), 절대 날짜, 변경 파일, 상태(`진행중`/`완료`/`완료(미검증)`)를 적는다. 코드 변경은 착수 전에 `진행중` 항목을 먼저 추가하고, 검증 후 `완료`로 바꾸며 실제 변경 파일을 정정한다. 검증을 돌리지 않았으면 "검증 비대상" 또는 "미실행"으로 사실대로 적는다. 원인 진단·설계 선택·수치 판단에는 그라운드 룰 1의 3단 사고(1차 사고 / 비판적 재사고 / 종합)를 남긴다.
 
+## 2026-09-05 — [fix] P7-3 페이지 오버레이(백드롭)가 화면 최상단 20px를 덮지 않음 — 진행중
+
+- 증상/재현(실측): 상세 모달이 열린 상태에서 `fixed inset-0` 오버레이의 `getBoundingClientRect().top = 20`, computed `margin-top = 20px`, 부모는 `<section class="max-w-2xl mx-auto px-4 py-6 space-y-5">`. `document.elementFromPoint(200, 2)`가 오버레이가 아니어서 헤더 윗부분이 덮이지 않는다(P3에서 스크린샷으로 관찰한 것과 동일, TRD §10 #13 / DESIGN U17).
+- 1차 사고: z-index나 sticky 헤더가 오버레이 위에 그려지는 문제일 것이다.
+- 비판적 재사고: 오버레이의 `top`은 0인데 실제 위치가 20이라면 겹침 순서가 아니라 **배치**의 문제다. Tailwind `space-y-5`는 `> * + *`에 `margin-top: 1.25rem`(20px)을 주입하고, margin은 `position: fixed` 요소도 밀어낸다. 오버레이가 section의 비-첫 자식으로 렌더되어 정확히 20px 내려간다. 반증: 온보딩 모달(App.tsx, `space-y` 없는 컨테이너 직속)은 같은 마크업인데 top 0 — 가설과 일치. 대안 ① 오버레이에 `!mt-0` — 부모 규칙에 기대는 땜질이고 다른 부모로 옮기면 재발. ② `createPortal(document.body)`로 레이아웃 트리에서 분리 — 부모 CSS 영향을 구조적으로 차단.
+- 종합: ②. PersonaPage의 오버레이 3개(생성 시트·상세 모달·상세 로딩)를 body 포털로 렌더한다. 규칙화: 페이지 안에서 `fixed` 오버레이를 렌더할 때는 항상 포털(DESIGN §2.6).
+- 변경 예정 파일: `src/routes/PersonaPage.tsx`, `docs/DESIGN.md`, `docs/TRD.md`
+- 검증 계획: 오버레이 top 0·`elementFromPoint(200, 2)`가 오버레이, 백드롭 닫기·X 닫기 정상, 닫은 뒤 body에 포털 잔존 노드 0, tsc/build/test.
+
+## 2026-09-05 — [fix] P7-2 LAN IP(http)로 접속하면 페르소나 생성이 "crypto.randomUUID is not a function"으로 실패 — 진행중
+
+- 증상/재현(실측): 같은 Wi-Fi 휴대폰 시나리오를 재현하기 위해 `http://192.168.47.1:4121`로 접속 → `window.isSecureContext = false`, `typeof crypto.randomUUID = "undefined"`, `uuid()` 호출 시 "crypto.randomUUID is not a function". `http://localhost:4121`에서는 정상.
+- 1차 사고: 휴대폰 브라우저가 오래되어 API가 없는 것이다.
+- 비판적 재사고: 같은 브라우저에서 localhost는 되고 LAN IP는 안 된다면 브라우저 버전 문제가 아니다. `crypto.randomUUID`는 **보안 컨텍스트(HTTPS 또는 localhost)에서만 노출**되는 API다. 반면 `crypto.getRandomValues`는 비보안 컨텍스트에서도 있다(재현에서 `function` 확인). 프로덕션(GitHub Pages, HTTPS)에서는 재현되지 않겠지만 개발·LAN 테스트 경로가 막히고, HTTP로 서빙되는 어떤 배포에서도 재발한다.
+- 종합: `randomUUID` → `getRandomValues` 기반 RFC 4122 v4 → `Math.random` 순 폴백. 마지막 폴백은 충돌 확률이 높지만 단일 사용자 로컬 DB 키로는 허용한다(문서에 명시). `id.test.ts`로 형식과 폴백 경로를 검증한다.
+- 변경 예정 파일: `src/lib/id.ts`, `src/lib/id.test.ts`(신규), `docs/TRD.md` §3.9
+- 검증 계획: `npm test`(id 테스트), LAN IP 재접속 후 `uuid()`가 v4 형식 문자열을 반환, tsc/build.
+
+## 2026-09-05 — [fix] P7-1 모달 안에서 텍스트를 드래그하다 백드롭에서 손을 떼면 모달이 닫힘 (+ ErrorBoundary) — 진행중
+
+- 증상/재현(실측): 생성 시트의 대화 textarea에서 mousedown → 텍스트를 선택하며 포인터를 시트 바깥(백드롭)으로 이동 → mouseup. mouseup 지점의 요소 = 백드롭 div(`fixed inset-0 bg-slate-900/40 …`), 결과: **시트가 닫히고 입력이 사라짐**(Playwright 마우스 이벤트로 재현).
+- 1차 사고: 백드롭은 `onClick`에서 `target === currentTarget`일 때만 닫는다. 드래그는 클릭이 아니니 관련이 없을 것이다.
+- 비판적 재사고: DOM `click` 이벤트는 mousedown 요소와 mouseup 요소의 **가장 가까운 공통 조상**에서 발생한다. textarea에서 누르고 백드롭에서 떼면 공통 조상이 백드롭이므로 `click.target === currentTarget`이 참이 되어 "진짜 백드롭 클릭"과 구분되지 않는다. 대안 ① mouseup 위치만 검사 — 같은 결과. ② pointer-down이 백드롭에서 시작했는지 기억해 두고 click 때 그 플래그와 target 조건을 함께 요구 — 누름과 뗌이 모두 백드롭인 경우에만 닫힌다.
+- 종합: ②를 생성 시트·상세 모달 양쪽에 적용. 아울러 "UI가 통째로 사라진다"는 증상은 렌더 예외로도 생길 수 있어 `ErrorBoundary`를 `main.tsx`에 안전망으로 둔다(현재 렌더 예외가 발생한 증거는 없음 — 예방 조치임을 명시).
+- 변경 예정 파일: `src/routes/PersonaPage.tsx`, `src/components/ErrorBoundary.tsx`(신규), `src/main.tsx`, `docs/DESIGN.md` §9, `docs/TRD.md` §3.10
+- 검증 계획: 같은 드래그 시나리오 재실행 → 시트 유지·입력 보존; 백드롭에서 누르고 떼기 → 닫힘; X 닫기 정상; tsc/build/test.
+
 ## 2026-09-05 — [feat] P6-2 분석 단계 재설계(2/2) — 스레드 드래프트·타겟 수동 교정·페르소나 추가 대화 업데이트 — 완료
 
 - 배경/목적: P6-1이 만든 입력 계약 위에 재입력 부담(드래프트)과 타겟 오검출(수동 교정), 정적 페르소나의 갱신 수단(추가 대화로 수동 업데이트)을 얹는다. 계약: TRD §3.12 · §3.8 · §3.7 · §3.1, DESIGN §6 · §5.3.

@@ -1,6 +1,6 @@
 # TRD — Persora 기술 요구사항·설계
 
-> 문서 버전: 1.4 · 갱신일: 2026-09-05 · 상태: P6-1 완료 — 의도 스티어링 실측 1건 반영. 기준: [PRD 1.2](./PRD.md) / [PLAN 1.3](./PLAN.md) / [DESIGN 1.2](./DESIGN.md)
+> 문서 버전: 1.5 · 갱신일: 2026-09-05 · 상태: P7 안정화 착수 — uuid 폴백·ErrorBoundary·포털 오버레이 계약 반영, §10 #13 원인 확정. 기준: [PRD 1.2](./PRD.md) / [PLAN 1.3](./PLAN.md) / [DESIGN 1.2](./DESIGN.md)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -17,6 +17,7 @@
 | 1.2 | 2026-09-05 | P5 완료: §10 #15 이미지 지연 실측(4.95s), #16 정확도 관찰 1건 |
 | 1.3 | 2026-09-05 | P6 착수(분석 재설계): §1.1 그림·§3.0 트리에 `thread.ts`·`drafts.ts`·`*.test.ts`, §3.1 타입 가산(`AnalysisRecord.thread?`/`target_message?`/`intent?`, `ReplyIntentKey`, `REPLY_INTENTS`, `AnalyzeReplyInput`, `PersonaRecord.updated_at?`), §3.5 `buildAnalyzePrompt` v2 계약, §3.7 `updatePersona`, §3.8 `analyzeReply`(+`analyzeMessage` 하위 호환 래퍼), §3.9 i18n 영역, §3.10 화면 책임, 신규 §3.11 `thread.ts`·§3.12 `drafts.ts`, ADR-7, §9.2 vitest 도입 확정, §10 갱신 및 단계 번호 재편(안정화 P6→P7, 보안·배포 P7→P8) |
 | 1.4 | 2026-09-05 | P6-1 완료: §10 #20 의도 스티어링 실측(decline, 3.86s) |
+| 1.5 | 2026-09-05 | P7 착수: §3.9 uuid 폴백, §3.10 ErrorBoundary·포털 오버레이·pointer-down 닫기, §10 #13 원인 확정 |
 
 > 이 문서는 **현재 확정된 설계**를 서술한다. 변경 이력은 [`LOG.md`](./LOG.md)에만 적는다. §3의 시그니처는 모든 구현 작업이 따라야 하는 **계약**이며, 계약을 바꿀 때는 코드보다 이 문서를 먼저 갱신한다(CLAUDE.md 그라운드 룰 2). M1(P4 완료) 시점에 §3의 식별자는 모두 `src/` 아래에 실재하며, 1.0에서 코드와 한 줄씩 대조해 어긋난 서술을 코드 기준으로 정정했다. 1.1에서 추가한 멀티모달 계약(`InlineImage`, `image.ts`, `IMAGE_REQUEST_TIMEOUT_MS`, `generate`의 두 번째 인자)은 P5에서 구현돼 코드에 실재한다. **1.3에서 추가한 분석 재설계 계약(`thread.ts`, `drafts.ts`, `analyzeReply`, `updatePersona`, `buildAnalyzePrompt` v2, `AnalysisRecord`의 선택 필드 3개, `ReplyIntentKey`·`REPLY_INTENTS`·`AnalyzeReplyInput`, `PersonaRecord.updated_at`)은 P6에서 만들 것이며 아직 코드에 없다** — 해당 자리마다 그 사실을 밝혀 둔다.
 
@@ -506,7 +507,9 @@ export const useApp: UseBoundStore<StoreApi<{
 export function hasApiKey(): boolean;                   // useApp.getState().apiKey.trim().length > 0
 
 // id.ts
-export function uuid(): string;                         // crypto.randomUUID() 직접 호출(폴백 없음)
+export function uuid(): string;                         // crypto.randomUUID() → crypto.getRandomValues 기반 RFC 4122 v4 → Math.random 순 폴백
+// randomUUID는 보안 컨텍스트(HTTPS·localhost)에서만 존재한다. LAN IP(http) 접속 등 비보안 컨텍스트에서는 undefined이므로 폴백이 필요하다(LOG P7-2 실측).
+// Math.random 폴백은 충돌 확률이 높지만 단일 사용자 로컬 DB 키 용도로 허용한다.
 
 // dom.ts
 export function formatDate(iso: string): string;        // 'YYYY.MM.DD'
@@ -521,7 +524,7 @@ export function getInitial(name: string): string;       // 아바타용 첫 글�
 
 | 파일 | 책임 | 데이터 경로 |
 |---|---|---|
-| `main.tsx` | `initI18n()` → `createRoot` → `<React.StrictMode><HashRouter><App/></HashRouter></…>` | — |
+| `main.tsx` | `initI18n()` → `createRoot` → `<React.StrictMode><HashRouter><App/></HashRouter></…>` | — `<ErrorBoundary>`로 `<App/>`을 감싸 렌더 예외가 화면 전체를 비우지 않게 한다(P7-1). |
 | `App.tsx` | 상단바(로고·앱명·`ApiKeyStatus`·`LanguageToggle`), `<Routes>`(`/` → `/personas` redirect, `/personas`, `/analyze`, `/history`), 하단 탭 3개, `initDB()` 1회 호출, **`!apiKey`면 `<OnboardingModal/>` 렌더**(온보딩 게이트), `<ToastContainer/>` | `useApp` |
 | `OnboardingModal` | 키 `password` 입력 + 발급 링크(`GEMINI_API_KEY_HELP_URL`) + "이 기기에만 저장" 동의 체크박스(고지 문구 수준은 §10 #8) → 저장. 빈 키/미동의는 토스트로 거부. 키가 있으면 `null` | `useApp.setApiKey` |
 | `ApiKeyStatus` | 키 있을 때만 헤더에 "● Gemini 준비됨". 클릭 → 인라인 입력(변경/취소/삭제). 키 없으면 `null`(모달이 점유) | `useApp` |
@@ -830,7 +833,7 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 | 10 | ~~`gemini-3.1-flash-lite` 모델명 유효성·`thinkingConfig` 수락 여부~~ **확인(P2~P4)**: 실키 호출 4회가 모두 정상 응답을 돌려줬다. 모델명도 `thinkingConfig`도 거부되지 않았다 | 완료 |
 | 11 | AI Studio 키의 API/referrer 제한 UI 존재 여부(§8 안내 문구의 전제) | 미확인 — P2 온보딩 문구는 이 전제 없이 작성했다. P8 보안 점검에서 확인 |
 | 12 | 첫 로드 JS 529.88 kB(gzip 131.68 kB)에 코드 스플리팅을 도입할지 | 배포 경로가 정해지는 P8 직전에 판단. 대부분이 `@google/genai` 번들이라 분할 대상은 LLM 호출 경로다 |
-| 13 | 상세 모달 백드롭이 화면 최상단 약 20px를 덮지 않는 것으로 보임(P3 스크린샷 관찰) | **원인 미조사.** 닫기·조작에는 영향이 없어 M1에서 추적하지 않았다. P7 안정화에서 열린 오버레이의 `getBoundingClientRect().top`을 실측해 진단한다 |
+| 13 | ~~상세 모달 백드롭이 화면 최상단 약 20px를 덮지 않는 것으로 보임~~ **원인 확정(P7-3 실측)**: 오버레이가 `space-y-5` section의 비-첫 자식이라 `margin-top: 20px`이 주입되고, margin은 `position: fixed` 요소도 밀어낸다(top 20, `elementFromPoint(200,2)`가 오버레이 아님). 수정: `createPortal(document.body)` | P7-3 진행중 |
 | 14 | 실기기 확인(A6, 같은 Wi-Fi 휴대폰) | **미실행.** 자동화 뷰포트 390/360px만 확인했다. P7 실사용에서 수행 |
 | 15 | 캡처 이미지 요청의 지연·페이로드 크기와 `IMAGE_REQUEST_TIMEOUT_MS = 180_000`의 적정성  — P5 실측: 캡처 1장(162 KB, base64 약 216 KB) 4.95s(표본 1) | **미실측.** 장당 base64 크기도 요청 지연도 잰 적이 없고, 180초는 근거 없는 여유값이다. P5 검증에서 실제 카카오톡 캡처 1장으로 생성해 지연을 재고, 값이 과하거나 모자라면 상수 1곳을 고친다 |
 | 16 | 캡처 이미지로 만든 페르소나의 정확도(텍스트 대비)와 캡처 장수 상한·압축 도입 여부  — P5 관찰(표본 1): 캡처 1장의 vocabulary_examples 5개 중 2개가 음식 명사(문체 지표 아님). 결론 보류, 실사용 관찰 지속 | **미확정.** 같은 대화를 두 모드로 만들어 비교한 표본이 없다(ADR-6 반증 실패 항목). 장수 상한과 리사이즈도 두지 않고 시작하며, #15 실측 뒤 필요가 보이면 넣는다. 이미지를 레코드에 저장하지 않는 결정(§3.7)의 재논의도 이 관찰에 달렸다. P5 검증에서 1회 관찰하고 판단은 P7 실사용으로 넘긴다 |
