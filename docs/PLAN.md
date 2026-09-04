@@ -1,6 +1,6 @@
 # PLAN — Persora 구현 계획
 
-> 문서 버전: 1.7 · 갱신일: 2026-09-05 · 상태: P7 완료 — 다음은 P8 보안 점검·배포(§3 표·§4 체크리스트가 단일 출처)
+> 문서 버전: 1.8 · 갱신일: 2026-09-05 · 상태: P8 착수 — 보안 점검에서 키 저장소를 쿠키에서 localStorage로 전환하기로 결정. 설정 탭·CSP·GitHub Pages 배포 산출물 확정, 구현 대기(§3 표·§4 체크리스트가 단일 출처)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -16,8 +16,9 @@
 | 1.5 | 2026-09-05 | P6-2 완료 반영(§3 상태·§4 체크) |
 | 1.6 | 2026-09-05 | P7 착수: 버그 3건 재현·LOG 등록 |
 | 1.7 | 2026-09-05 | P7 완료 반영(fix 3건) |
+| 1.8 | 2026-09-05 | P8 착수(보안 점검·배포): §2 트리에 `dataManagement.ts`·`assets.ts`·`SettingsPage.tsx`·`.github/workflows/`, §3 P8 행을 진행중 + 산출물 확정, §4 P8 체크리스트 상세화(docs 완료·구현 대기·검증 계획), §7 리스크에 키 저장 매체·Pages 헤더 불가·백업 가져오기 추가, §8 미확정 갱신 |
 
-> 기준 문서: [`./PRD.md`](./PRD.md) 1.2(요구사항·Acceptance), [`./TRD.md`](./TRD.md) 1.3(아키텍처·모듈 계약), [`./DESIGN.md`](./DESIGN.md) 1.2(화면·토큰). 변경 이력은 [`./LOG.md`](./LOG.md)에만 적고, 이 문서는 **현재 계획**만 서술한다. 단계가 끝날 때마다 §3 상태와 §4 체크리스트를 갱신하고 문서 버전을 0.1 올린다(M1에서 1.0에 도달했고, 이후 P5부터 1.1·1.2로 이어간다).
+> 기준 문서: [`./PRD.md`](./PRD.md) 1.3(요구사항·Acceptance), [`./TRD.md`](./TRD.md) 1.6(아키텍처·모듈 계약), [`./DESIGN.md`](./DESIGN.md) 1.4(화면·토큰). 변경 이력은 [`./LOG.md`](./LOG.md)에만 적고, 이 문서는 **현재 계획**만 서술한다. 단계가 끝날 때마다 §3 상태와 §4 체크리스트를 갱신하고 문서 버전을 0.1 올린다(M1에서 1.0에 도달했고, 이후 P5부터 1.1·1.2로 이어간다).
 
 ## 1. 원칙
 
@@ -56,6 +57,8 @@ CLAUDE.md 검증 정책을 이 프로젝트 명령으로 옮긴 것이다. **매
 | UI 스모크 | `npm run dev` + 브라우저 자동화(Playwright) | 마일스톤(M1) 및 화면 흐름이 바뀌는 단계(P2·P3·P4·P5) | 온보딩 모달 표시 → 키 저장 → 탭 이동 → 생성 시트 열림. P5는 입력 모드 토글·썸네일 추가/제거·모드별 검증 토스트를 더한다 |
 | 정적 서빙 | `npm run build && npm start` → PC·같은 Wi-Fi 휴대폰 접속 | P1, M1, P8 | A5·A6 |
 | Gemini 실호출 | 실제 키로 페르소나 생성·분석 | 키가 있을 때 수동 | 키 부재 시 **미확정**으로 기록 |
+| 키 전송 프로브 | 정적 서버에 요청별 `Cookie` 헤더 로깅을 붙이고 새 프로필로 키 저장 후 요청 관찰 | P8, 이후 키 저장 방식이 바뀔 때 | 우리 서버가 받은 요청 중 키를 실은 요청 **0건** |
+| 의존성 점검 | `npm audit` | P8, 이후 의존성 추가 시 | 결과를 사실대로 기록. 조치 여부는 심각도로 판단 |
 
 **vitest를 M1 이후로 미룬 근거(3단 사고)**
 - 1차 사고: 처음부터 단위 테스트를 두면 회귀를 가장 싸게 잡는다. P1부터 도입하자.
@@ -64,16 +67,18 @@ CLAUDE.md 검증 정책을 이 프로젝트 명령으로 옮긴 것이다. **매
 
 **트리거 충족 — P6에서 도입한다.** P6의 `thread.ts`(TRD §3.11)가 정확히 그 조건에 해당한다. 카카오톡 `[이름] [시간] 내용`과 `이름: 내용` 두 형식, 콜론 앞 길이 제한, 라벨 없는 줄의 이어붙이기, `me`/`other`/`unknown` 분류, 타겟 검출의 1순위와 폴백까지 — `tsc`가 잡아 주지 않고 눈으로 훑어서 맞다고 말할 수도 없는 분기다. 같은 커밋에서 `extractJson` 테스트를 함께 넣고(트리거의 약속), P6-2에서 `drafts.ts` 테스트를 더한다. 프롬프트 빌더는 아직 넣지 않는다 — 긴 문자열 템플릿이라 문구를 다듬을 때마다 깨져 신호보다 잡음이 크다(TRD §9.2).
 
-## 2. 목표 디렉터리 구조 (M1 시점)
+## 2. 목표 디렉터리 구조
 
-M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + **P6에서 만들 5개**(`lib/thread.ts`, `lib/drafts.ts`, 테스트 3개)다. 괄호는 생성 단계이며 `(P6-1)`·`(P6-2)`는 아직 없는 파일이라는 뜻이다. P7 이후 추가분은 §3의 해당 단계 산출물에만 적고 이 트리에는 넣지 않는다(확정 시 갱신).
+M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + P6의 5개(`lib/thread.ts`, `lib/drafts.ts`, 테스트 3개) + P7의 `components/ErrorBoundary.tsx`·`lib/id.test.ts` + **P8에서 만들 4개**(`routes/SettingsPage.tsx`, `lib/dataManagement.ts`, `lib/assets.ts`, `.github/workflows/deploy-pages.yml`)다. 괄호는 생성 단계이며 `(P8)`은 아직 없는 파일이라는 뜻이다.
 
 ```
 (repo root)/
 ├── CLAUDE.md · LICENSE · .gitignore                 (P0, 있음)
-├── README.md                                        (P1)
+├── README.md                                        (P1, 배포·개인정보·키 제한 절은 P8)
+├── .github/workflows/
+│   └── deploy-pages.yml      # main push → npm ci → npm run build → dist 업로드 → Pages   (P8)
 ├── docs/  PRD.md · TRD.md · DESIGN.md · PLAN.md · LOG.md   (P0)
-├── index.html                # Vite 엔트리, #root 하나          (P1)
+├── index.html                # Vite 엔트리, #root 하나 (CSP·referrer meta는 P8)   (P1)
 ├── package.json              # name persora(M1 직전 개명), version 1.0.0(M1), engines.node >= 20   (P1, vitest devDep + `npm test`는 P6-1)
 ├── tsconfig.json · vite.config.ts · tailwind.config.js · postcss.config.js   (P1)
 ├── public/                   # favicon · 앱 아이콘 · 로고 이미지   (P1)
@@ -81,29 +86,34 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + **P6에서 만들 5개**
 │   └── index.js              # Express 정적 미리보기: dist/ 서빙, LAN 접속(같은 Wi-Fi 휴대폰)   (P1)
 └── src/
     ├── main.tsx              # CSS import + HashRouter + <App/> 마운트          (P1)
-    ├── App.tsx               # 상단바 · 하단 탭 3개 · 라우트 · 온보딩 게이트 · 토스트 컨테이너   (P1, 게이트는 P2)
+    ├── App.tsx               # 상단바 · 하단 탭 4개 · 라우트 · 온보딩 게이트 · 토스트 컨테이너   (P1 탭 3개, 게이트는 P2, 설정 탭은 P8)
     ├── index.css             # Tailwind base + 공용 유틸                        (P1)
     ├── vite-env.d.ts                                                          (P1)
     ├── components/
     │   ├── LanguageToggle.tsx    # 한/EN 세그먼트 토글                          (P1)
     │   ├── Toast.tsx             # Zustand 토스트 큐 렌더(하단)                 (P1)
     │   ├── OnboardingModal.tsx   # 키 + 로컬 저장 동의 → 저장, 중앙 카드 모달   (P2)
-    │   └── ApiKeyStatus.tsx      # 헤더 "● Gemini 준비됨", 클릭 시 변경/삭제   (P2)
+    │   ├── ApiKeyStatus.tsx      # 헤더 "● Gemini 준비됨", 클릭 시 변경/삭제   (P2)
+    │   └── ErrorBoundary.tsx     # 렌더 예외 안전망(main.tsx가 App을 감쌈)      (P7-1)
     ├── routes/
     │   ├── PersonaPage.tsx       # 목록 · 생성 바텀 시트 · 상세 모달 · 삭제    (P1 빈 페이지 → P3)
     │   ├── AnalyzePage.tsx       # 페르소나 선택 · 받은 메시지 · 분석 · 후보 복사   (P1 빈 페이지 → P4)
-    │   └── HistoryPage.tsx       # 기록 목록 · 펼치기 · 삭제                   (P1 빈 페이지 → P4)
+    │   ├── HistoryPage.tsx       # 기록 목록 · 펼치기 · 삭제                   (P1 빈 페이지 → P4)
+    │   └── SettingsPage.tsx      # 백업 내보내기/가져오기 · 전체 삭제 · 개인정보·면책 고지   (P8)
     └── lib/
         ├── i18n.ts / useI18n.ts  # ko/en 사전, t(), 로케일(모듈 상태 + onLangChange 구독, localStorage 'pm_lang'), 훅   (P1)
         ├── store.ts              # Zustand: toasts · apiKey 미러 · selectedPersonaId (locale은 i18n.ts)   (P1, apiKey는 P2, selectedPersonaId는 P3)
-        ├── config.ts             # TEXT_MODEL · TEXT_REQUEST_TIMEOUT_MS · API_KEY_COOKIE_NAME · DB_*   (P2, IMAGE_REQUEST_TIMEOUT_MS는 P5)
+        ├── config.ts             # TEXT_MODEL · TEXT_REQUEST_TIMEOUT_MS · API_KEY_STORAGE_KEY · LEGACY_COOKIE_KEY_NAME · DB_*   (P2, IMAGE_REQUEST_TIMEOUT_MS는 P5, 저장소 키 상수 교체는 P8)
         ├── gemini.ts             # generate(prompt, images?) · extractJson(text) · 에러 변환   (P2, images 인자는 P5)
         ├── image.ts              # fileToInlineImage — File → InlineImage(base64, data URL 접두 제거)   (P5)
         ├── types.ts              # PersonaFields · PersonaRecord · PersonaSummary · CreatePersonaInput · CandidateReply · AnalysisRecord   (P3, Analysis 타입은 P4, InlineImage·images?는 P5, ReplyIntentKey·REPLY_INTENTS·AnalyzeReplyInput·선택 필드 가산은 P6)
         ├── prompts.ts            # PERSONA_FIELDS · buildPersonaPrompt · buildAnalyzePrompt   (P3 → P4, v2는 P6)
         ├── thread.ts             # parseThread · detectTarget — 최근 대화 스레드 파서(순수 함수)   (P6-1)
-        ├── drafts.ts             # getThreadDraft · setThreadDraft · clearThreadDraft — localStorage `pm_thread_draft:<id>`   (P6-2)
+        ├── drafts.ts             # getThreadDraft · setThreadDraft · clearThreadDraft — localStorage `pm_thread_draft:<id>`   (P6-2, list/import/clearAll은 P8)
+        ├── dataManagement.ts     # exportAppData · downloadBackup · importAppData · clearAllLocalAppData   (P8)
+        ├── assets.ts             # publicAsset · APP_LOGO_SRC — BASE_URL 기준 public 자산 경로   (P8)
         ├── thread.test.ts        # vitest — 파서 형식·화자 분류·타겟 검출   (P6-1)
+        ├── id.test.ts            # vitest — uuid 형식·폴백 경로   (P7-2)
         ├── gemini.test.ts        # vitest — extractJson 4경로   (P6-1)
         ├── drafts.test.ts        # vitest — localStorage 스텁으로 저장·복원·폴백   (P6-2)
         ├── db.ts                 # initDB · withStore (IndexedDB 'persona-mirror' v1)   (P3)
@@ -112,7 +122,7 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + **P6에서 만들 5개**
         ├── persona.ts            # createPersona · listPersonaSummaries · getPersona · removePersona   (P3, updatePersona는 P6-2)
         ├── analysis.ts           # analyzeReply · listAnalyses · removeAnalysis   (P4 analyzeMessage → P6-1 analyzeReply, 래퍼 유지)
         └── repos/
-            ├── settingsRepo.ts   # getApiKey · setApiKey · clearApiKey · hasApiKey — 쿠키 'pm_gemini_key'   (P2)
+            ├── settingsRepo.ts   # getApiKey · setApiKey · clearApiKey · hasApiKey — localStorage 'pm_gemini_key'   (P2 쿠키 → P8 localStorage + 레거시 쿠키 1회 이전)
             ├── personaRepo.ts    # put · get · list · remove — store 'personas'   (P3)
             └── analysisRepo.ts   # put · list · remove — store 'analyses'        (P4)
 ```
@@ -128,7 +138,7 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + **P6에서 만들 5개**
 |---|---|---|---|---|---|
 | **P0** 초기화·문서 초안 | 코드 0줄에서 제품·기술·화면·계획을 먼저 고정 | `LICENSE`, `CLAUDE.md`, `.gitignore`, `docs/LOG.md`(완료), `docs/PRD.md`·`TRD.md`·`DESIGN.md`·`PLAN.md` 0.1 | 4문서가 서로 모순 없이 P1~P4 계약을 제공. Client-First 결정과 기각 대안이 3단 사고로 기록됨 | 비대상(문서만) | **완료** |
 | **P1** 스캐폴드·앱 셸 | 빈 페이지라도 배포 가능한 골격 | `package.json`(persona-mirror 0.1.0, engines.node >= 20), Vite+React 18+TS strict+Tailwind 설정, `index.html`, `main.tsx`, `App.tsx`(상단바: 로고+앱명+언어 토글 / 하단 탭 3개), `index.css`, `i18n.ts`·`useI18n.ts`, `store.ts`, `Toast.tsx`, `LanguageToggle.tsx`, 라우트 3개 placeholder, `server/index.js` + `npm start`, `README.md` 초안 | `npm run dev`로 셸이 뜨고 탭 전환·언어 토글이 동작. `npm run build` 무에러, `npm start`로 dist 서빙 | `tsc --noEmit`, `vite build`, 브라우저 육안(PC) | **완료** |
-| **P2** API 키 온보딩·Gemini 클라이언트 | 키 없으면 앱을 잠그고, 있으면 Gemini를 부를 준비 | `config.ts`, `repos/settingsRepo.ts`(쿠키 1년, SameSite=Lax), `gemini.ts`(generate/extractJson/에러 변환), `OnboardingModal.tsx`, `ApiKeyStatus.tsx`, `App.tsx` 온보딩 게이트, `store.ts` apiKey 상태 | 키 미등록 시 모달이 화면 점유(A1). 키+동의 저장 → 모달 닫힘 → 헤더 "● Gemini 준비됨". 새로고침 후 유지. 인디케이터로 변경/삭제, 삭제 시 모달 재등장 | `tsc`/`build`, UI 스모크(모달 → 저장 → 인디케이터 → 새로고침). **임의(무효) 키로 `generate` 1회 호출** → CORS 통과 여부·SDK 오류 객체 형태 확인(기대: 인증 오류가 SDK 오류로 도착; 결과를 LOG에, 미실행이면 미실행으로). **실키 실호출(품질·지연)은 키 부재 시 미확정** | **완료** |
+| **P2** API 키 온보딩·Gemini 클라이언트 | 키 없으면 앱을 잠그고, 있으면 Gemini를 부를 준비 | `config.ts`, `repos/settingsRepo.ts`(당시 쿠키 1년·SameSite=Lax — P8에서 localStorage로 전환), `gemini.ts`(generate/extractJson/에러 변환), `OnboardingModal.tsx`, `ApiKeyStatus.tsx`, `App.tsx` 온보딩 게이트, `store.ts` apiKey 상태 | 키 미등록 시 모달이 화면 점유(A1). 키+동의 저장 → 모달 닫힘 → 헤더 "● Gemini 준비됨". 새로고침 후 유지. 인디케이터로 변경/삭제, 삭제 시 모달 재등장 | `tsc`/`build`, UI 스모크(모달 → 저장 → 인디케이터 → 새로고침). **임의(무효) 키로 `generate` 1회 호출** → CORS 통과 여부·SDK 오류 객체 형태 확인(기대: 인증 오류가 SDK 오류로 도착; 결과를 LOG에, 미실행이면 미실행으로). **실키 실호출(품질·지연)은 키 부재 시 미확정** | **완료** |
 | **P3** 페르소나 생성·목록·상세·삭제 | 대화 텍스트 → 상대/나 페르소나 JSON → IndexedDB | `types.ts`, `db.ts`, `repos/personaRepo.ts`, `persona.ts`, `prompts.ts`(PERSONA_FIELDS, buildPersonaPrompt), `id.ts`, `dom.ts`, `store.ts`(`selectedPersonaId` 추가), `PersonaPage.tsx`(목록·생성 바텀 시트·상세 모달) | **키 불필요(필수)**: 생성 시트 열림·닫힘, 빈 이름·키 없음·짧은 대화(trim < 20)가 순서대로 토스트로 거부됨, 빈 목록 상태, `tsc`/`build` 통과. **키 필요(미확정 허용)**: 생성 → 목록 카드 → 상세(나/상대 탭, PERSONA_FIELDS 11항목) → 삭제, 재방문 시 목록 유지(A4) — 실키가 없으면 "미확정"으로 LOG에 기재하고 단계를 닫는다 | `tsc`/`build`, UI 스모크(시트 열림·닫힘, 빈 목록 상태, 유효성 토스트). **생성 품질·지연은 키 필요, 미확정** | **완료** |
 | **P4** 메시지 분석 v1·기록 → **M1** | 페르소나 선택 + 받은 메시지 1건 → 심리 분석 + 답변 후보 3개, 기록 저장 | `analysis.ts`, `repos/analysisRepo.ts`, `prompts.ts`(buildAnalyzePrompt), `types.ts`(CandidateReply·AnalysisRecord), `AnalyzePage.tsx`(페르소나 칩 + textarea + 결과·후보 복사), `HistoryPage.tsx`(목록·펼치기·삭제) | **키 불필요(필수)**: `buildAnalyzePrompt`가 3축 정식 라벨("깊은 공감·수용형" / "공감 + 함께 해결형" / "공감 + 분위기 전환형", PRD FR-13)·말투 보존 지시·JSON-only 지시를 포함(코드 리뷰), `analyzeMessage`가 `{ raw }` 폴백 시 후보 1개로 정규화(코드 리뷰), AnalyzePage 검증 토스트 3종·복사 토스트 동작, 기록 탭 빈 상태·펼치기 UI(UI 스모크). **키 필요(미확정 허용)**: 실제 분석 → 기록 저장·펼치기·삭제, 라벨·말투 준수율 관찰. **M1 출구(§5)**: 문서 1.0, 표시명 확정, package 1.0.0 | `tsc`/`build`, UI 스모크(전 탭), DevTools Network(A3), 실키 실호출 3회. LAN 휴대폰 실기기 접속(A6)은 **미실행** — 자동화 뷰포트 390/360px만 확인. **분석 품질·라벨·말투 준수율은 표본 1회라 미확정** | **완료** |
 | **P5** 캡처 이미지로 페르소나 생성(멀티모달) | 대화 캡처 이미지 n장으로도 페르소나 생성. 텍스트 붙여넣기는 기본 모드로 남기고 이미지를 **선택 모드로 가산**(PRD §8 부속 결정 3 / TRD ADR-6) | `lib/image.ts`(`fileToInlineImage`), `types.ts`(`InlineImage`, `CreatePersonaInput.images?`), `config.ts`(`IMAGE_REQUEST_TIMEOUT_MS = 180_000`), `gemini.ts`(`generate(prompt, images?)` — 멀티모달 `contents` + 이미지 타임아웃, 모델은 그대로 하나), `prompts.ts`(`buildPersonaPrompt` 이미지 분기), `persona.ts`(`generate(prompt, input.images)`), `routes/PersonaPage.tsx`(입력 모드 세그먼트·드롭존·썸네일 그리드), `lib/i18n.ts`(`persona.create.tab*`·`image*`·`imagePlaceholder`, `toast.addImage`·`toast.imageLoadFail`) | 캡처만으로 페르소나 생성 가능. **텍스트 경로 회귀 없음**(`images` 미전달 시 M1과 동일한 요청). 이미지 모드로 만든 레코드의 `conversation`이 캡처 장수 플레이스홀더 | `tsc`/`build`, UI 스모크(토글·드롭존·썸네일 추가/제거·검증 토스트), 실제 카카오톡 캡처 1장으로 생성해 **지연 실측**·필드 채움 확인. **텍스트 대비 정확도는 정성 관찰(미확정)** | **완료** |
@@ -136,7 +146,7 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + **P6에서 만들 5개**
 | ┗ **P6-1** 스레드·타겟·의도 + vitest | v2의 뼈대. 파서·프롬프트·유스케이스·화면을 한 번에 갈아 끼운다 | `lib/thread.ts`(신규), `lib/types.ts`(`AnalysisRecord.thread?`/`target_message?`/`intent?`, `ReplyIntentKey`, `REPLY_INTENTS`, `AnalyzeReplyInput`), `lib/prompts.ts`(`buildAnalyzePrompt` v2 + `intentDirective`), `lib/analysis.ts`(`analyzeReply` + `analyzeMessage` 래퍼), `routes/AnalyzePage.tsx`(스레드 textarea·타겟 칩·의도 칩), `lib/i18n.ts`(`analyze.thread*`·`analyze.target`·`analyze.intentLabel`·`intent.*`), `package.json`(vitest + `npm test`), `lib/thread.test.ts`, `lib/gemini.test.ts` | 스레드 입력으로 분석이 끝까지 동작하고 타겟 칩이 상대의 마지막 발화를 가리킨다. 의도 빈 값에서 v1과 같은 3축 라벨 | `npm test` 0 실패, `tsc`/`build`, UI 스모크, 실키 1회 이상 | **완료** |
 | ┗ **P6-2** 드래프트·타겟 교정·페르소나 업데이트 | v2를 실제로 반복해 쓸 수 있게 만드는 보완 | `lib/drafts.ts`(신규) + `lib/drafts.test.ts`, `routes/AnalyzePage.tsx`(드래프트 복원·자동 저장, 타겟 피커), `lib/analysis.ts`(`targetOverride` 반영), `lib/persona.ts`(`updatePersona`), `lib/types.ts`(`PersonaRecord.updated_at?`), `routes/PersonaPage.tsx`(상세 모달 "추가 대화로 업데이트"), `lib/i18n.ts`(`analyze.pickTarget`, `persona.detail.update*`, `toast.persona*`) | 페르소나를 바꿔도 붙여넣던 대화가 남아 있고, 자동 타겟이 틀리면 목록에서 고를 수 있고, 상세에서 대화를 더해 페르소나를 갱신할 수 있다 | `npm test` 0 실패, `tsc`/`build`, UI 스모크 | **완료** |
 | **P7** 안정화 | 실사용(PC·LAN 휴대폰)에서 드러난 버그 수정 | 재현된 버그별 `fix` 커밋(파일은 버그마다), 필요 시 `*.test.ts` | 알려진 재현 버그 0. 각 fix에 원인 가설·반증·종합이 LOG와 커밋 본문에 있음 | `npm test`, `tsc`/`build`, 버그별 재현 스모크 | **완료** |
-| **P8** 보안 점검·GitHub Pages 배포 | 정적 호스팅에 올리고 키·XSS 완화책을 점검 | 보안 점검 결과(키 취급·XSS 완화·CSP meta·referrer 정책·의존성)(문서), `vite.config.ts` base(하위 경로 필요 시), `.github/workflows/*.yml`(build → Pages), `README.md` 배포·키 제한 안내 | Pages URL에서 A1~A4 재확인. 우리 호스트로 가는 요청은 정적 자산만(A3) | `npm run build`, 배포 후 브라우저 확인(DevTools Network·Application) | 대기 |
+| **P8** 보안 점검·GitHub Pages 배포 | 배포 전에 키 취급을 실제로 점검하고, 그 결과로 **저장 매체를 바꾼다.** 함께 설정 탭(백업·전체 삭제·고지)·CSP·Pages 배포를 넣는다([PRD §8 부속 결정 1](./PRD.md) / TRD ADR-8) | `lib/config.ts`(`API_KEY_STORAGE_KEY`·`LEGACY_COOKIE_KEY_NAME`), `lib/repos/settingsRepo.ts`(localStorage + 레거시 쿠키 1회 이전), `lib/dataManagement.ts`(신규), `lib/drafts.ts`(list/import/clearAll 가산) + `lib/drafts.test.ts`, `routes/SettingsPage.tsx`(신규), `App.tsx`(탭 4개·`/settings`), `lib/assets.ts`(신규), `lib/i18n.ts`(`settings.*`·`nav.settings`·`common.saving`, `onboarding.intro` 정정), `index.html`(CSP·referrer meta, 아이콘 상대 경로), `vite.config.ts`(`base: '/persora/'`), `.github/workflows/deploy-pages.yml`(신규), `README.md`(배포·개인정보·키 제한) | 키가 우리 호스트로 가는 요청에 **실리지 않는다**(쿠키 프로브 재실행 0건). 설정 탭에서 백업 내보내기 → 전체 삭제 → 가져오기 왕복이 성립하고 백업에 키가 없다. 빌드본에서 CSP 위반 0. `main` push 후 Pages URL에서 A1~A4 재확인 | 쿠키 프로브 재실행, `npm test`, `tsc`/`build`, UI 스모크(설정 탭), `npm audit`, 배포 후 브라우저 확인(DevTools Network·Application) | **진행중** |
 
 **단계 번호 재편.** 1.2까지 P6은 안정화, P7은 보안·배포였다. 분석 재설계를 그 앞에 넣으면서 두 단계를 P7·P8로 한 칸씩 밀었다. 순서를 이렇게 둔 이유는 §6에 적는다. 다른 문서(PRD §10·§11, TRD §10, DESIGN §12)의 단계 참조도 같은 규칙으로 옮겼다.
 
@@ -242,11 +252,38 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + **P6에서 만들 5개**
 - [x] 검증: `npm test`, `tsc`/`build`, 버그별 재현 스모크
 
 ### P8 — 보안 점검·GitHub Pages 배포
-- [ ] docs: 키 취급·XSS 완화(React 텍스트 렌더링, CSP meta, referrer 정책)·의존성 점검 결과를 TRD 보안 절에 기록, PRD DR 정정, LOG `진행중`
-- [ ] `index.html` CSP·referrer meta, `vite.config.ts` base(프로젝트 사이트면 하위 경로), `.github/workflows/*.yml`(push → `npm ci` → `npm run build` → Pages)
-- [ ] `README.md` 배포 URL·키 제한(Gemini API만 허용; referrer 제한은 효과가 제한적임을 함께 적음) 안내
-- [ ] 검증: 배포 URL에서 A1~A4 재확인, DevTools Network에 우리 호스트 요청은 정적 자산만
-- [ ] LOG `완료` → 커밋
+
+**① 문서(완료)**
+- [x] 보안 점검 첫 항목 실행: "키가 브라우저 밖으로 나가는 경로가 있는가" — 정적 서버에 요청별 `Cookie` 헤더 로깅을 붙여 실측. **키 저장 전 요청 4건 중 0건, 저장 후 5건 중 5건**에 키 쿠키가 실렸다
+- [x] PRD 1.3 — §8 부속 결정 1 재검토(3단 사고·실측표), FR-5·FR-23 정정, §4.7 신설(FR-34~FR-38), DR-2·DR-3 정정 + DR-8, NFR-7, A3 확인 방법, R1·R1b·R6·R9, §10 P8 진행중, §11
+- [x] TRD 1.6 — §3.2 저장소 키 상수, §3.3 settingsRepo 재작성, 신규 §3.13 `dataManagement.ts`·§3.14 `assets.ts`, §3.12 헬퍼 3종, §3.9·§3.10, §2.1·§6.1·§6.4 배포, §8 보안 + §8.1 meta 정책, ADR-3 종결 + **ADR-8**, §9.4·§9.7, §10
+- [x] DESIGN 1.4 — §1.1(C·C-2) 탭 4개 결정, §3 셸, §4 온보딩 문구 정정, **신규 §7b 설정 화면**, §8.2·§8.5, §10.1 `settings.*`(14종), §12 U3 종결·U25~U28
+- [x] PLAN 1.8 — 이 문서(§2 트리, §3 P8 행, 이 체크리스트, §7 리스크, §8 미확정)
+- [x] LOG `진행중` 항목 추가 → `docs(p8)` 커밋
+
+**② 구현(대기)**
+- [ ] `lib/config.ts` — `API_KEY_COOKIE_NAME`·`API_KEY_COOKIE_MAX_AGE_DAYS` 제거, `API_KEY_STORAGE_KEY = 'pm_gemini_key'`·`LEGACY_COOKIE_KEY_NAME = 'pm_gemini_key'` 추가(TRD §3.2)
+- [ ] `lib/repos/settingsRepo.ts` — localStorage 기반으로 재작성. 시그니처 4개는 그대로. `getApiKey`는 localStorage → 레거시 쿠키 1회 이전(옮기고 만료) → 메모리 폴백 순. `setApiKey`/`clearApiKey`도 레거시 쿠키를 만료시킨다. 저장소 접근 실패는 throw하지 않고 메모리로 폴백(TRD §3.3)
+- [ ] `lib/drafts.ts` — `listThreadDrafts`/`importThreadDrafts`/`clearAllThreadDrafts` 가산(TRD §3.12) + `lib/drafts.test.ts`에 케이스 추가
+- [ ] `lib/dataManagement.ts`(신규) — `PersoraBackup`(`app`/`version`/`exported_at`/`personas`/`analyses`/`drafts`, **키 필드 없음**), `exportAppData`/`downloadBackup`/`importAppData`/`clearAllLocalAppData`. 가져오기는 **검증 후 쓰기**, 두 스토어를 한 트랜잭션으로 `put`(같은 id 덮어쓰기)(TRD §3.13)
+- [ ] `routes/SettingsPage.tsx`(신규) — 데이터 관리 카드(버튼 3개 + hidden 파일 입력, `busy` 하나로 상호 잠금), 개인정보 카드 5항목, 면책 카드. 전체 삭제는 `window.confirm` → 삭제 → `setSelectedPersonaId(null)` + `refreshApiKey()`(DESIGN §7b)
+- [ ] `App.tsx` — 하단 탭 4개(설정 = 톱니 아이콘), `/settings` 라우트, 로고 `src`를 `APP_LOGO_SRC`로
+- [ ] `lib/assets.ts`(신규) — `publicAsset(path)`·`APP_LOGO_SRC`(TRD §3.14)
+- [ ] `lib/i18n.ts` — ko/en에 `settings.*` 22키·`nav.settings`·`common.saving` 추가, **`onboarding.intro` 정정**(localStorage/IndexedDB 저장 + Google 전송 사실)
+- [ ] `index.html` — CSP meta(TRD §8.1 정책 문자열 그대로)·`referrer no-referrer`, 아이콘 `<link href>`를 `./` 상대 경로로
+- [ ] `vite.config.ts` — `base: '/persora/'`
+- [ ] `.github/workflows/deploy-pages.yml`(신규) — main push/수동 실행 → checkout → setup-node(LTS, npm 캐시) → `npm ci` → `npm run build` → configure-pages → upload-pages-artifact(`./dist`) → deploy-pages. `permissions: contents read · pages write · id-token write`, `concurrency: pages`
+- [ ] `README.md` — 배포 URL·base·workflow, 개인정보 절(저장 위치·전송·백업·전체 삭제·면책), 키 제한 안내(**사용 API를 Gemini API로 제한**; referrer 제한은 효과가 제한적임을 함께)
+
+**③ 검증(대기 — 계획은 TRD §9.7)**
+- [ ] **쿠키 프로브 재실행** — 전환 후 우리 서버가 받은 요청 중 키를 실은 요청 **0건**
+- [ ] 레거시 쿠키 1회 이전 — 쿠키에 키를 심어 둔 상태로 접속 → localStorage로 옮겨지고 쿠키가 사라지며 헤더 인디케이터 유지
+- [ ] `npm test` 0 실패 / `npx tsc --noEmit` 0 에러 / `npx vite build` 성공
+- [ ] UI 스모크 — 설정 탭 진입, 백업 내보내기(파일에 키 없음 확인) → 전체 삭제(온보딩 모달 재등장) → 가져오기(페르소나·기록·드래프트 복원)
+- [ ] CSP — 빌드본과 `npm run dev` 양쪽에서 콘솔 CSP 위반 확인. dev가 깨지면 사실대로 기록하고 대응을 정한다(TRD §10 #22)
+- [ ] `npm audit` — 결과를 **사실대로** 기록(미실행이면 미실행으로)
+- [ ] 배포 확인 — `main` push 후 Pages URL에서 A1~A4 재확인. push 전에는 **미확정**으로 남긴다
+- [ ] LOG `완료`(검증 결과 정정 반영) → `feat(security)` 커밋
 
 ## 5. 마일스톤 M1 (= P4 완료, MVP)
 
@@ -318,7 +355,7 @@ P0 문서 ─▶ P1 셸 ─▶ P2 온보딩·Gemini ─▶ P3 페르소나 ─�
 
 | 리스크 | 완화 | 롤백 |
 |---|---|---|
-| 모델명·타임아웃·저장소명이 코드 곳곳에 퍼짐 | `src/lib/config.ts` **단일 출처**: `TEXT_MODEL`, `TEXT_REQUEST_TIMEOUT_MS`, `API_KEY_COOKIE_NAME`, `DB_NAME`/`DB_VERSION`/`STORE_*`. 다른 파일은 이 상수만 import | 값 1곳 수정 후 재빌드 |
+| 모델명·타임아웃·저장소명이 코드 곳곳에 퍼짐 | `src/lib/config.ts` **단일 출처**: `TEXT_MODEL`, `TEXT_REQUEST_TIMEOUT_MS`, `IMAGE_REQUEST_TIMEOUT_MS`, `API_KEY_STORAGE_KEY`/`LEGACY_COOKIE_KEY_NAME`, `DB_NAME`/`DB_VERSION`/`STORE_*`. 다른 파일은 이 상수만 import | 값 1곳 수정 후 재빌드 |
 | Gemini SDK 파손·브라우저 번들 미지원·모델 폐기 | 호출을 `gemini.ts` `generate()` 한 곳에 **캡슐화**. 도메인 계층은 `Promise<string>`만 본다 | `generate` 내부를 `fetch` REST(`v1beta/models/{model}:generateContent`)로 교체하거나 `TEXT_MODEL` 변경. 호출처 수정 없음 |
 | Google이 브라우저 origin 호출을 CORS로 차단(PRD R2b) | 완화책 없음 — REST 폴백도 같은 엔드포인트라 함께 막힌다. P2 임의 키 호출로 현재 상태만 확인 | 없음(Client-First 전제 재검토) |
 | `thinkingConfig.thinkingBudget=0`·모델명이 실제 API에서 거부됨(키 없이 진행해 미검증) | P3 첫 실호출 결과를 LOG에 기록 | `gemini.ts` 요청 config 1곳 수정 |
@@ -328,7 +365,11 @@ P0 문서 ─▶ P1 셸 ─▶ P2 온보딩·Gemini ─▶ P3 페르소나 ─�
 | LLM이 JSON 아닌 텍스트나 여분 키를 반환 | `extractJson` 방어 파싱(펜스 제거 → 균형 블록 → 전체 → `{ raw }`), `PersonaFields`는 추가 키를 허용하는 관대한 타입, UI는 없는 항목을 건너뜀 | 프롬프트 문구 수정(`prompts.ts` 1곳). `responseMimeType` 옵션은 후속 후보(§8) |
 | 표시명 변경 시 로컬 데이터·키 호환 깨짐 | 표시명은 i18n `app.title`·`index.html` title·README·`package.json` name에 둔다(모두 로컬 데이터·키와 무관). `DB_NAME`·쿠키명만 호환을 위해 코드네임 기반으로 고정(TRD §10 #9) | 표시명만 되돌리면 데이터 무영향 |
 | docs와 코드가 한 커밋에 섞여 되돌리기 어려움 | 단계마다 docs 커밋 → feat 커밋 분리 | feat 커밋만 `git revert`, 문서는 다음 docs 커밋에서 정정 |
-| 키가 브라우저에 있어 XSS 시 유출 | React 텍스트 렌더링(HTML 주입 경로 없음), CSP meta(P8), 피해 범위 축소로 키 API 제한(Gemini API만) 안내(referrer 제한은 효과 제한적 — PRD R1), 콘솔에 키·대화 미출력 | 사용자 키 회전·삭제(헤더 인디케이터) |
+| 키가 브라우저에 있어 XSS 시 유출 | React 텍스트 렌더링(HTML 주입 경로 없음), `index.html` CSP·referrer meta(P8), 피해 범위 축소로 키 API 제한(Gemini API만) 안내(referrer 제한은 효과 제한적 — PRD R1), 콘솔에 키·대화 미출력 | 사용자 키 회전·삭제(헤더 인디케이터·설정 탭 전체 삭제) |
+| **키가 요청 헤더로 새어 나감** — 저장 매체가 값을 요청에 자동으로 붙이면 정적 호스트가 매 요청마다 키를 받는다 | 쿠키를 쓰지 않는다(TRD ADR-8). 실측으로 발견했고(정적 자산 5건 중 5건) localStorage로 전환했다. **저장 매체를 고를 때 "대안보다 나쁜가"만이 아니라 "이 매체가 스스로 하는 일"을 따로 확인한다** | 저장소 모듈(`settingsRepo.ts`) 한 곳만 바꾸면 된다 — 시그니처가 같아 호출부는 무영향 |
+| **GitHub Pages는 응답 헤더를 설정할 수 없다** | 보안 정책을 `index.html` meta로 넣는다(CSP·referrer). meta에서 무시되는 `frame-ancestors`·`report-uri`는 포기한다(TRD §8.1). 로컬 Express의 헤더는 배포본에 적용되지 않는다는 점을 문서에 명시 | 더 강한 헤더가 필요하면 커스텀 도메인 + CDN/프록시. 지금은 가지 않는다 |
+| **백업 가져오기가 기존 데이터를 손상** | 검증(`app`/`version`/배열 여부)을 **쓰기 전에** 끝내고, 통과하면 두 스토어를 한 트랜잭션으로 `put`한다. `put`이므로 같은 id만 덮어쓰고 나머지는 남는다. 삭제하는 경로가 없다(TRD §3.13) | 가져오기 전에 내보내 둔 백업으로 되돌린다 |
+| **CSP가 개발 서버(HMR)를 막음** | meta는 빌드본과 dev에 모두 실린다. P8 검증에서 양쪽 콘솔을 확인하고, dev만 문제라면 정책을 약화하는 대신 개발 환경 쪽에서 예외를 찾는다(TRD §10 #22) | `index.html` meta 1줄 제거 후 재검토 |
 | 모바일 브라우저의 저장소 제약(시크릿 모드·용량) | 온보딩에서 "이 기기 브라우저에만 저장" 고지, 저장 실패는 토스트 | — (미확정, §8) |
 
 ## 8. 미확정·후속 후보
@@ -340,21 +381,26 @@ P0 문서 ─▶ P1 셸 ─▶ P2 온보딩·Gemini ─▶ P3 페르소나 ─�
 | ~~Gemini 실호출 동작(CORS·모델명·`thinkingConfig` 수락)~~ | **확인(P2~P4)**: 브라우저 직접 호출 CORS 통과, 실키 4회 모두 정상 응답 | 완료 |
 | ~~vitest 도입 시점·대상~~ | **확정(P6)**: 트리거(`extractJson` 외에 분기가 비자명한 순수 모듈)가 `thread.ts`로 충족됐다. P6-1에서 `thread.test.ts`·`gemini.test.ts`, P6-2에서 `drafts.test.ts`를 만들고 `npm test`를 커밋 직전 게이트에 넣는다(§1.3). 프롬프트 빌더는 대상에서 뺐다 | 완료 |
 | 답장 의도가 후보 방향을 실제로 바꾸는지 | **미실측** — PRD §8 부속 결정 4의 실측 2건은 v1 코드에서 잰 것이라 의도 슬롯을 시험하지 않았다 | P6-1 검증(같은 스레드에 빈 의도 / `decline` 비교) |
-| 스레드 파서의 실제 적중률 | **미확정** — 카카오톡 내보내기와 `이름: 내용` 두 형식만 상정했다. 오검출은 수동 타겟 교정(P6-2)으로 복구된다 | P6 검증 → P7 실사용 |
-| 타겟 칩 60자·피커 50자 컷, 피커 목록의 사용성 | 임시값. 근거 실측 없음(DESIGN U21·U22) | P7 |
-| 스레드 드래프트의 저장소(localStorage)와 삭제 수단 | localStorage 한 칸으로 시작하고 전용 삭제 UI를 두지 않는다. 용량·정리 필요가 보이면 다시 본다(TRD §10 #21, DESIGN U23) | P7 |
+| 스레드 파서의 실제 적중률 | **미확정** — 카카오톡 내보내기와 `이름: 내용` 두 형식만 상정했다. 오검출은 수동 타겟 교정(P6-2)으로 복구된다 | 실사용 관찰(계속) |
+| 타겟 칩 60자·피커 50자 컷, 피커 목록의 사용성 | 임시값. 근거 실측 없음(DESIGN U21·U22) | 실사용 후 |
+| 스레드 드래프트의 저장소(localStorage)와 삭제 수단 | localStorage 한 칸으로 시작하고 전용 삭제 UI를 두지 않는다. 용량·정리 필요가 보이면 다시 본다(TRD §10 #21, DESIGN U23) | 부분 해소(P8 전체 삭제), 나머지는 실사용 후 |
 | `analyzeMessage` 하위 호환 래퍼 존치 | 화면이 모두 `analyzeReply`로 옮겨 가면 호출부가 없어진다. 미사용 확인 후 제거 여부 판단(TRD §10 #18) | 마무리 단계 |
-| 기록 펼침에 스레드·의도를 표시할지 | 레코드에는 저장하되 화면에는 넣지 않고 시작한다(DESIGN U24) | P7 |
-| Gemini 실호출 지연·품질의 표본 | 지연은 실측(소형 1.94s / 페르소나 6.57s·5.87s / 분석 3.49s)했으나 **각 1회**라 분산·준수율은 미확정. `thinkingBudget=0`의 지연 단축 효과는 off 상태만 재서 **미실측**. lite와 비-lite flash 비교도 없음 | P7 실사용에서 표본 확대 |
-| A6 실기기 확인(같은 Wi-Fi 휴대폰) | **미실행** — 자동화 뷰포트 390/360px만 확인 | P7 |
-| 상세 모달 백드롭 상단 미커버(약 20px) | P3 스크린샷 관찰, **원인 미조사** | P7 안정화 |
-| 첫 로드 JS 529.88 kB(gzip 131.68 kB) 코드 스플리팅 | 미확정 — 대부분이 `@google/genai` 번들 | P8 배포 전 |
+| 기록 펼침에 스레드·의도를 표시할지 | 레코드에는 저장하되 화면에는 넣지 않고 시작한다(DESIGN U24) | 실사용 후 |
+| Gemini 실호출 지연·품질의 표본 | 지연은 실측(소형 1.94s / 페르소나 6.57s·5.87s / 분석 3.49s / 캡처 4.95s / 의도 분석 3.86s·4.51s / 페르소나 업데이트 6.38s)했으나 **각 1회**라 분산·준수율은 미확정. `thinkingBudget=0`의 지연 단축 효과는 off 상태만 재서 **미실측**. lite와 비-lite flash 비교도 없음 | 실사용 관찰(계속) |
+| A6 실기기 확인(같은 Wi-Fi 휴대폰) | **미실행** — 자동화 뷰포트 390/360px와 P7의 LAN IP 재현(PC 브라우저)만 했고 실기기 접속은 없다 | P8 배포 후 실기기 |
+| ~~상세 모달 백드롭 상단 미커버(약 20px)~~ | **원인 확정·수정(P7-3)**: `space-y-5` 부모의 margin-top 주입 → 오버레이를 `createPortal(document.body)`로 렌더. 적용 후 top 0 실측 | 완료 |
+| 첫 로드 JS 코드 스플리팅 | **도입하지 않고 배포한다** — P7 빌드 JS 544.45 kB(gzip 136.37 kB), 대부분 `@google/genai`. 정적 호스트에서 1회 로드 후 캐시되는 자산이라 실제 체감을 배포 후에 본다(TRD §10 #12) | P8 배포 후 |
 | ~~이미지 입력 UX(P5)의 타임아웃 값·드롭존/썸네일 형태~~ | **확정(P5 docs)**: 타임아웃 `IMAGE_REQUEST_TIMEOUT_MS = 180_000`(이미지가 붙은 요청만), 드롭존은 `<label>` + hidden 파일 입력, 썸네일 64×64 그리드에 개별 제거(TRD §3.2·DESIGN §5.2) | 완료 |
-| 캡처 이미지 요청의 지연·페이로드 크기 | **미실측** — 180초는 근거 없는 여유값. 장당 base64 크기도 잰 적이 없다 | P5 검증(실제 캡처 1장) |
-| 캡처 페르소나의 정확도(텍스트 대비)·장수 상한·이미지 압축 | **미확정** — 캡처 한 장이 담는 발화가 적을 수 있다는 지적을 반증하지 못했다(TRD ADR-6). 상한과 리사이즈는 두지 않고 시작하며 지연 실측 뒤 판단 | P5 관찰 → P7 실사용 |
+| ~~캡처 이미지 요청의 지연·페이로드 크기~~ | **실측(P5, 표본 1)**: 캡처 1장(JPEG 162 kB, base64 약 216 kB) 4.95s. 180초 타임아웃은 여유가 크지만 표본이 1건이라 값은 그대로 둔다 | 완료(부분) |
+| 캡처 페르소나의 정확도(텍스트 대비)·장수 상한·이미지 압축 | **미확정** — 캡처 한 장이 담는 발화가 적을 수 있다는 지적을 반증하지 못했다(TRD ADR-6). 상한과 리사이즈는 두지 않고 시작하며 지연 실측 뒤 판단 | 실사용 관찰(계속) |
 | `responseMimeType: 'application/json'` 사용 여부 | 도입하지 않음 — LOG에 파싱 결과가 적힌 실호출에서 실패가 없었다(표본 작음) | 파싱 실패가 보이면 검토 |
-| 배포 도메인·`base` 경로 | GitHub Pages 예정. 프로젝트 사이트(하위 경로)인지 사용자 사이트인지에 따라 `vite.config.ts` base가 달라짐(현재 `'/'`) | P8 |
-| CSP 정책 상세 | 허용 출처: self + `generativelanguage.googleapis.com` + 폰트 출처(Pretendard 로딩 방식에 따라) | P8 |
-| 모바일 브라우저 IndexedDB·쿠키 동작(시크릿 모드, 저장 용량, iOS Safari 만료 정책) | 미확인 | P7 실사용에서 확인 |
-| 대화 입력 최소·최대 길이 | 최소 길이 거부 기준은 trim 후 20자(임시값, 근거 실측 없음 — PRD FR-7). 최대는 모델 컨텍스트에 맡김 | 20자 조정 여부는 P7 실사용 후 |
-| 후보 복사 성공 토스트 문구 | 미확정 — 자동화 브라우저의 클립보드 권한 대기로 확인하지 못함 | P7 |
+| ~~배포 도메인·`base` 경로~~ | **확정(P8 docs)**: 프로젝트 사이트 `https://littleanti.github.io/persora/`, `vite.config.ts` `base: '/persora/'`. 하위 경로에서 깨지는 절대 경로 자산은 `lib/assets.ts`와 `index.html`의 `./` 상대 경로로 해결(TRD §6.4) | 완료 |
+| ~~CSP 정책 상세~~ | **확정(P8 docs)**: 정책 문자열은 TRD §8.1이 단일 출처. Pretendard 웹폰트는 **로드하지 않기로** 해서 폰트 출처를 열지 않는다(DESIGN U3) | 완료 |
+| ~~API 키 저장 매체~~ | **재결정(P8)**: 쿠키 → localStorage. 쿠키가 정적 자산 요청 5건 중 5건에 키를 실어 보낸 실측이 근거(TRD ADR-8) | 완료 |
+| CSP meta가 Vite dev 서버(HMR)와 충돌하는지 | **미확인** — P8 검증에서 dev와 빌드본 양쪽 콘솔을 본다 | P8 검증 |
+| 의존성 취약점(`npm audit`) | **미실행** — 보안 점검 항목인데 아직 돌리지 않았다 | P8 검증 |
+| 배포 후 Acceptance A1~A4 재확인 | **미실행** — `main` push 이후에만 가능하다. 그전까지 미확정으로 남긴다 | P8 배포 후 |
+| 백업 파일 크기·암호화 | 대화 원문이 통째로 들어가 파일이 커질 수 있고, 암호화는 두지 않는다(분실 시 복구 불가라 백업의 목적과 충돌 — PRD R9·DESIGN U27) | 실사용 후 |
+| 모바일 브라우저 저장소 동작(시크릿 모드, 용량, iOS Safari 정책) | 미확인 — P8에서 키가 localStorage로 옮겨져 시크릿 모드에서는 세션 메모리 폴백으로 동작한다(TRD §3.3). 실기기 확인은 아직 없다 | P8 배포 후 실기기 |
+| 대화 입력 최소·최대 길이 | 최소 길이 거부 기준은 trim 후 20자(임시값, 근거 실측 없음 — PRD FR-7). 최대는 모델 컨텍스트에 맡김 | 실사용 후 |
+| 후보 복사 성공 토스트 문구 | 미확정 — 자동화 브라우저의 클립보드 권한 대기로 확인하지 못함 | 실사용 관찰(계속) |

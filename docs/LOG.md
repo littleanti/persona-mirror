@@ -2,6 +2,40 @@
 
 > 규칙(CLAUDE.md 그라운드 룰 2): 최신 항목을 맨 위에 둔다. 각 항목은 태그(`[feat]`/`[fix]`/`[test]`/`[docs]`/`[chore]`), 절대 날짜, 변경 파일, 상태(`진행중`/`완료`/`완료(미검증)`)를 적는다. 코드 변경은 착수 전에 `진행중` 항목을 먼저 추가하고, 검증 후 `완료`로 바꾸며 실제 변경 파일을 정정한다. 검증을 돌리지 않았으면 "검증 비대상" 또는 "미실행"으로 사실대로 적는다. 원인 진단·설계 선택·수치 판단에는 그라운드 룰 1의 3단 사고(1차 사고 / 비판적 재사고 / 종합)를 남긴다.
 
+## 2026-09-05 — [feat] P8 보안 점검·GitHub Pages 배포 — API 키 저장소 쿠키 → localStorage 전환, 설정 탭, CSP — 진행중
+
+- 배경/목적: 배포는 이 앱의 데이터가 제3자 호스트를 처음 지나가는 시점이다. 그래서 P8의 첫 항목을 "키가 브라우저 밖으로 나가는 경로가 있는가"로 잡고 실제로 다시 쟀다. 함께 넣는 것은 원래 P8 범위였던 설정 탭(백업·전체 삭제·개인정보/면책 고지), CSP·referrer meta, GitHub Pages 배포다. 계약: [PRD](./PRD.md) §4.7·§8 부속 결정 1·DR-2·DR-3·DR-8, [TRD](./TRD.md) §3.2·§3.3·§3.12·§3.13·§3.14·§6.4·§8.1·ADR-8, [DESIGN](./DESIGN.md) §1.1(C-2)·§7b·§10.1, [PLAN](./PLAN.md) §3·§4.
+
+- **1차 사고**: P0 부속 결정 1 그대로다. 키는 쿠키 `pm_gemini_key`(1년, `SameSite=Lax`)에 둔다. 구현이 단순하고 새로고침·재방문에 유지되며, XSS 노출면은 localStorage와 동등하다고 판단했으니 배포를 앞두고도 바꿀 이유가 없다.
+
+- **비판적 재사고(반증을 실측)**: P0의 2차 사고는 **"localStorage보다 위험한가"라는 비교 축 하나**만 세웠고, 쿠키의 정의적 속성 — 같은 사이트로 가는 **모든 요청에 브라우저가 자동으로 첨부한다** — 은 겨누지 않았다. 그것을 재생했다. 정적 서버(`dist/` 서빙, 8000)에 요청별 `Cookie` 헤더를 기록하는 미들웨어를 붙이고(키 값은 남기지 않고 이름·길이만), 새 Chromium 프로필로 접속해 온보딩에서 키를 저장한 뒤 새로고침과 로고 fetch를 냈다.
+
+  | 시점 | 서버가 받은 요청 | 그중 키 쿠키가 실린 요청 |
+  |---|---|---|
+  | 키 저장 전 | 4건 | **0건** |
+  | 키 저장 후 | 5건 | **5건** — `/`, `assets/index-*.js`, `assets/index-*.css`, `app-logo.png`(2회) |
+
+  정적 자산 요청이 한 건도 빠짐없이 사용자 키를 서버로 실어 보냈다. GitHub Pages 같은 제3자 정적 호스트도 **매 요청마다 키를 수신하며 접근 로그에 남을 수 있다.** 이 결과는 두 서술을 거짓으로 만든다 — 온보딩 문구 "키와 모든 데이터는 이 브라우저에만 저장되며 서버로 전송되지 않습니다"(`onboarding.intro`)와 PRD DR-2·DR-3("우리 서버로 가는 요청은 정적 자산 요청뿐"). 쿠키를 유지한 채 막을 방법도 없다: `SameSite`는 **교차 사이트** 요청을 막는 것이라 같은 사이트인 우리 자산 요청은 그대로 통과하고, `HttpOnly`는 JS가 키를 읽어 Gemini를 불러야 하므로 애초에 불가다. 반면 localStorage 값은 어떤 요청에도 자동으로 실리지 않으며, XSS 노출면은 P0의 판단대로 쿠키와 동등하다.
+
+- **종합**: API 키 저장소를 **localStorage `pm_gemini_key`로 전환한다.** 근거는 비대칭 하나다 — 두 매체의 XSS 노출면은 같은데 쿠키에만 자동 전송 경로가 붙어 있고 끌 수단이 없다. 개발 기기에 남은 쿠키는 최초 읽기에서 한 번 localStorage로 옮기고 만료시킨다(공개 배포 전이라 실제 사용자 데이터는 없지만 잔존 쿠키는 계속 요청에 실린다). 온보딩·설정 고지 문구도 사실대로 고친다. 남기는 교훈은 매체 선택이 아니라 **2차 사고의 사각**이다 — "대안보다 나쁜가"만 물었고 "이 매체가 스스로 무엇을 하는가"를 묻지 않았다.
+
+- 함께 확정한 것(원래 P8 범위):
+  - **설정 탭(4번째 탭)** — 백업 내보내기(JSON: 페르소나·분석 기록·스레드 드래프트, **API 키 제외**), 백업 가져오기(같은 id 덮어쓰기, 검증 후 쓰기), 전체 로컬 데이터 삭제(키·페르소나·기록·드래프트, confirm), 개인정보·면책 고지 상시 노출. DESIGN §1.1(C)의 "탭 3개 고정, 추가 요구 시 갱신"을 이 시점에 갱신했다(§1.1 C-2): 헤더 톱니 진입점도 검토했으나 헤더가 이미 차 있고(360px 앱명 잘림 전례), 무엇보다 고지·삭제는 **발견 가능해야** 하므로 탭으로 둔다.
+  - **`index.html` meta** — CSP(`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://generativelanguage.googleapis.com https://*.googleapis.com; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests`)와 `referrer no-referrer`. **GitHub Pages는 응답 헤더를 바꿀 수 없어** meta가 유일한 수단이다(`frame-ancestors`·`report-uri`는 meta에서 무시되므로 포기).
+  - **GitHub Pages 프로젝트 사이트 배포** — URL `https://littleanti.github.io/persora/`, `vite.config.ts` `base: '/persora/'`, `.github/workflows/deploy-pages.yml`(main push → `npm ci` → `npm run build` → dist 업로드 → Pages). 하위 경로에서 깨지는 절대 경로 자산은 `src/lib/assets.ts`(`import.meta.env.BASE_URL` 기반)와 `index.html`의 `./` 상대 경로로 해결.
+  - **README** — 배포 URL·workflow, 개인정보 절, 키 제한 안내(Google Cloud에서 사용 API를 Gemini API로 제한; referrer 제한은 효과가 제한적임을 함께).
+
+- 변경 예정 파일: `src/lib/config.ts`(`API_KEY_STORAGE_KEY`·`LEGACY_COOKIE_KEY_NAME`), `src/lib/repos/settingsRepo.ts`(localStorage + 레거시 쿠키 1회 이전), `src/lib/dataManagement.ts`(신규), `src/lib/drafts.ts`(`listThreadDrafts`/`importThreadDrafts`/`clearAllThreadDrafts` 가산) + `src/lib/drafts.test.ts`, `src/routes/SettingsPage.tsx`(신규), `src/App.tsx`(탭 4개·`/settings`·로고 경로), `src/lib/assets.ts`(신규), `src/lib/i18n.ts`(`settings.*`·`nav.settings`·`common.saving`, `onboarding.intro` 정정), `index.html`(CSP·referrer meta, 아이콘 상대 경로), `vite.config.ts`(base), `.github/workflows/deploy-pages.yml`(신규), `README.md`, `docs/PRD.md`(1.3)·`TRD.md`(1.6)·`DESIGN.md`(1.4)·`PLAN.md`(1.8)
+
+- 검증 계획(아직 **미실행**):
+  - **쿠키 프로브 재실행** — 전환 후 우리 서버가 받은 요청 중 키를 실은 요청이 0건인지. 저장 전 0/4 · 저장 후 5/5였던 같은 절차를 그대로 돌린다
+  - 레거시 쿠키 1회 이전 — 쿠키에 키를 심어 둔 프로필로 접속 → localStorage에 키가 생기고 `document.cookie`에서 사라지며 헤더 인디케이터가 유지되는지
+  - `npm test` · `npx tsc --noEmit` · `npx vite build`
+  - UI 스모크 — 설정 탭 진입, 백업 내보내기(파일에 키 없음 확인) → 전체 삭제(온보딩 모달 재등장) → 가져오기(페르소나·기록·드래프트 복원)
+  - CSP — 빌드본과 `npm run dev` 양쪽 콘솔의 CSP 위반. dev(HMR)와 충돌하면 사실대로 기록한다
+  - `npm audit` — 결과를 사실대로 기록
+  - 배포 확인 — `main` push 후 Pages URL에서 A1~A4 재확인. push 전에는 **미확정**으로 남긴다
+
 ## 2026-09-05 — [fix] P7-3 페이지 오버레이(백드롭)가 화면 최상단 20px를 덮지 않음 — 완료
 
 - 증상/재현(실측): 상세 모달이 열린 상태에서 `fixed inset-0` 오버레이의 `getBoundingClientRect().top = 20`, computed `margin-top = 20px`, 부모는 `<section class="max-w-2xl mx-auto px-4 py-6 space-y-5">`. `document.elementFromPoint(200, 2)`가 오버레이가 아니어서 헤더 윗부분이 덮이지 않는다(P3에서 스크린샷으로 관찰한 것과 동일, TRD §10 #13 / DESIGN U17).

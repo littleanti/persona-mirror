@@ -1,6 +1,6 @@
 # TRD — Persora 기술 요구사항·설계
 
-> 문서 버전: 1.5 · 갱신일: 2026-09-05 · 상태: P7 안정화 착수 — uuid 폴백·ErrorBoundary·포털 오버레이 계약 반영, §10 #13 원인 확정. 기준: [PRD 1.2](./PRD.md) / [PLAN 1.3](./PLAN.md) / [DESIGN 1.2](./DESIGN.md)
+> 문서 버전: 1.6 · 갱신일: 2026-09-05 · 상태: P8 착수 — **API 키 저장소를 쿠키에서 localStorage로 재결정**(ADR-8), 설정 탭·백업/삭제 계약(§3.13), CSP·referrer meta, GitHub Pages 배포 설계 확정. 기준: [PRD 1.3](./PRD.md) / [PLAN 1.8](./PLAN.md) / [DESIGN 1.4](./DESIGN.md)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -18,7 +18,10 @@
 | 1.3 | 2026-09-05 | P6 착수(분석 재설계): §1.1 그림·§3.0 트리에 `thread.ts`·`drafts.ts`·`*.test.ts`, §3.1 타입 가산(`AnalysisRecord.thread?`/`target_message?`/`intent?`, `ReplyIntentKey`, `REPLY_INTENTS`, `AnalyzeReplyInput`, `PersonaRecord.updated_at?`), §3.5 `buildAnalyzePrompt` v2 계약, §3.7 `updatePersona`, §3.8 `analyzeReply`(+`analyzeMessage` 하위 호환 래퍼), §3.9 i18n 영역, §3.10 화면 책임, 신규 §3.11 `thread.ts`·§3.12 `drafts.ts`, ADR-7, §9.2 vitest 도입 확정, §10 갱신 및 단계 번호 재편(안정화 P6→P7, 보안·배포 P7→P8) |
 | 1.4 | 2026-09-05 | P6-1 완료: §10 #20 의도 스티어링 실측(decline, 3.86s) |
 | 1.5 | 2026-09-05 | P7 착수: §3.9 uuid 폴백, §3.10 ErrorBoundary·포털 오버레이·pointer-down 닫기, §10 #13 원인 확정 |
+| 1.6 | 2026-09-05 | P8 착수(보안 점검·배포): **키 저장소 재결정**(ADR-8, ADR-3 종결) — §3.2 `API_KEY_STORAGE_KEY`·`LEGACY_COOKIE_KEY_NAME`, §3.3 settingsRepo를 localStorage + 레거시 쿠키 1회 이전으로 재작성, §1.1 그림·§1.2 데이터 평면·§1.3·§2 스택 정정. 신규 §3.13 `dataManagement.ts`·§3.14 `assets.ts`, §3.12 드래프트 백업 헬퍼 3종 가산, §3.9 store, §3.10 `SettingsPage`·탭 4개. §2.1·§6 배포(Pages `base '/persora/'`·workflow·헤더 불가 → meta), §8 보안(CSP 정책 문자열·referrer·고지·키 취급 정정), §9.4·§9.7, §10 갱신 |
 
+> **1.6에서 추가한 P8 계약(`dataManagement.ts`, `assets.ts`, `SettingsPage`, `drafts.ts`의 백업 헬퍼 3종, `config.ts`의 저장소 키 상수 교체, localStorage 기반 `settingsRepo`)은 P8에서 만들 것이며 아직 코드에 없다** — 해당 자리마다 그 사실을 밝혀 둔다.
+>
 > 이 문서는 **현재 확정된 설계**를 서술한다. 변경 이력은 [`LOG.md`](./LOG.md)에만 적는다. §3의 시그니처는 모든 구현 작업이 따라야 하는 **계약**이며, 계약을 바꿀 때는 코드보다 이 문서를 먼저 갱신한다(CLAUDE.md 그라운드 룰 2). M1(P4 완료) 시점에 §3의 식별자는 모두 `src/` 아래에 실재하며, 1.0에서 코드와 한 줄씩 대조해 어긋난 서술을 코드 기준으로 정정했다. 1.1에서 추가한 멀티모달 계약(`InlineImage`, `image.ts`, `IMAGE_REQUEST_TIMEOUT_MS`, `generate`의 두 번째 인자)은 P5에서 구현돼 코드에 실재한다. **1.3에서 추가한 분석 재설계 계약(`thread.ts`, `drafts.ts`, `analyzeReply`, `updatePersona`, `buildAnalyzePrompt` v2, `AnalysisRecord`의 선택 필드 3개, `ReplyIntentKey`·`REPLY_INTENTS`·`AnalyzeReplyInput`, `PersonaRecord.updated_at`)은 P6에서 만들 것이며 아직 코드에 없다** — 해당 자리마다 그 사실을 밝혀 둔다.
 
 ---
@@ -32,44 +35,49 @@
 │                                                                                │
 │  index.html (#root)                                                            │
 │      │                                                                         │
-│  src/main.tsx ─▶ src/App.tsx ─── HashRouter · 상단바 · 하단 탭 · 온보딩 게이트 · 토스트 │
+│  src/main.tsx ─▶ src/App.tsx ─── HashRouter · 상단바 · 하단 탭 4개 · 온보딩 게이트 · 토스트 │
 │      │                                                                         │
 │  ┌── routes/ ─────────────┐        ┌── lib/ 유스케이스 ───────────────┐          │
 │  │ PersonaPage            │──────▶ │ persona.ts   createPersona …    │          │
 │  │ AnalyzePage            │        │ analysis.ts  analyzeReply …     │          │
 │  │ HistoryPage            │        │ thread.ts    parseThread …      │          │
-│  └──────────┬─────────────┘        │ drafts.ts    스레드 드래프트     │          │
+│  │ SettingsPage           │        │ drafts.ts    스레드 드래프트     │          │
+│  └──────────┬─────────────┘        │ dataManagement.ts 백업·전체 삭제 │          │
 │             │                      └───────┬───────────────┬─────────┘          │
 │             │                              ▼               ▼                    │
-│  ┌── components/ ─────────┐   ┌── lib/repos/ ──────────┐  ┌── lib/gemini.ts ──┐ │
-│  │ OnboardingModal        │   │ personaRepo  (IndexedDB)│  │ @google/genai     │ │
-│  │ ApiKeyStatus           │   │ analysisRepo (IndexedDB)│  │ generate()        │ │
-│  │ LanguageToggle · Toast │   │ settingsRepo (쿠키)      │  │ extractJson()     │ │
-│  └────────────────────────┘   └────────────────────────┘  │ + prompts.ts      │ │
-│                                                            └────────┬──────────┘ │
-└─────────────────────────────────────────────────────────────────────┼────────────┘
-                                                                      │ HTTPS (사용자 소유 키)
-                                                                      ▼
-                                                 generativelanguage.googleapis.com (Gemini)
+│  ┌── components/ ─────────┐   ┌── lib/repos/ ──────────────┐  ┌── lib/gemini.ts ──┐ │
+│  │ OnboardingModal        │   │ personaRepo  (IndexedDB)   │  │ @google/genai     │ │
+│  │ ApiKeyStatus           │   │ analysisRepo (IndexedDB)   │  │ generate()        │ │
+│  │ LanguageToggle · Toast │   │ settingsRepo (localStorage)│  │ extractJson()     │ │
+│  └────────────────────────┘   └────────────────────────────┘  │ + prompts.ts      │ │
+│                                                                └────────┬──────────┘ │
+└─────────────────────────────────────────────────────────────────────────┼────────────┘
+                                                                          │ HTTPS (사용자 소유 키)
+                                                                          ▼
+                                                     generativelanguage.googleapis.com (Gemini)
 
-   정적 자산(index.html, assets/*) ◀── GitHub Pages(P8 예정) 또는 로컬 Express 미리보기(server/index.js)
+   정적 자산(index.html, assets/*) ◀── GitHub Pages `https://littleanti.github.io/persora/` 또는 로컬 Express 미리보기(server/index.js)
+   ※ 이 요청에는 개인 데이터도 API 키도 실리지 않는다(§8, ADR-8).
 ```
 
 ### 1.2 세 평면
 
 | 평면 | 어디서 | 무엇 | 서버 관여 |
 |---|---|---|---|
-| **데이터** | 브라우저 | 페르소나·분석 기록 = IndexedDB(`persona-mirror`) / API 키 = 쿠키(`pm_gemini_key`) / UI 언어 = localStorage(`pm_lang`) / 스레드 드래프트 = localStorage(`pm_thread_draft:<personaId>`, §3.12) | 없음 |
+| **데이터** | 브라우저 | 페르소나·분석 기록 = IndexedDB(`persona-mirror`) / **API 키 = localStorage(`pm_gemini_key`)** / UI 언어 = localStorage(`pm_lang`) / 스레드 드래프트 = localStorage(`pm_thread_draft:<personaId>`, §3.12) | 없음 |
 | **연산** | 브라우저 → Google | 프롬프트 조립 후 `@google/genai`로 Gemini를 직접 호출 | 없음(프록시 없음) |
-| **서버** | GitHub Pages / Express | 빌드 산출물 `dist/`의 정적 서빙만 | API 라우트·DB·세션·CORS 미들웨어 **없음** |
+| **서버** | GitHub Pages / Express | 빌드 산출물 `dist/`의 정적 서빙만 | API 라우트·DB·세션·CORS 미들웨어 **없음**. 요청에 실려 가는 사용자 값도 **없다** |
+
+**쿠키를 쓰지 않는다.** 브라우저 저장소 셋 중 쿠키만이 같은 사이트로 가는 모든 요청에 값을 자동으로 붙인다. 정적 자산 요청까지 키를 실어 보내는 것을 실측으로 확인해 P8에서 localStorage로 옮겼다(ADR-8, [PRD §8 부속 결정 1](./PRD.md)). 지금 이 앱이 쓰는 쿠키는 **없으며**, `settingsRepo`가 레거시 키 쿠키를 읽어 옮긴 뒤 만료시키는 경로만 남아 있다(§3.3).
 
 ### 1.3 아키텍처 결정 — Client-First
 
 결정·기각 대안(서버 + 로컬 Ollama / 운영자 키 프록시)·3단 사고의 **정본은 [PRD §8](./PRD.md#8-아키텍처-방향-결정-3단-사고)** 이다. 이 문서는 그 결정의 기술적 함의만 적는다.
 
 - **CORS·SDK**: 브라우저가 Google을 직접 호출하므로 우리 서버에 CORS 설정이 없다. `@google/genai` 호출은 `gemini.ts` 한 곳에 캡슐화한다(SDK 파손 시 REST 폴백, §2 각주). Google이 브라우저 origin을 막는 경우는 폴백이 없는 전제 리스크다(PRD R2b) — P2에서 임의(무효) 키 1회 호출로 확인한 결과 현재는 CORS를 통과한다(§10 #3).
-- **키의 브라우저 노출(XSS)**: 사용자/LLM 출력은 React 텍스트 렌더링만 사용(HTML 주입 경로 차단), CSP meta는 P8에 적용할 계획, 키·대화·프롬프트는 콘솔에 출력하지 않음(P2에서 grep 확인). 피해 범위 축소로 "키를 Gemini API만 쓰도록 제한, 노출 의심 시 회전"을 안내한다(referrer 제한은 효과가 제한적 — §8).
-- **저장소**: 구조화 레코드는 IndexedDB, 키는 쿠키(ADR-3). 데이터 휘발성(브라우저 저장소 삭제·기기 변경 시 복구 불가)은 고지한다(PRD DR-6, 위치·문구는 §10 #8).
+- **키의 브라우저 노출(XSS)**: 사용자/LLM 출력은 React 텍스트 렌더링만 사용(HTML 주입 경로 차단), `index.html`에 CSP·referrer meta 적용(P8, 정책은 §8), 키·대화·프롬프트는 콘솔에 출력하지 않음(P2에서 grep 확인). 피해 범위 축소로 "키를 Gemini API만 쓰도록 제한, 노출 의심 시 회전"을 안내한다(referrer 제한은 효과가 제한적 — §8).
+- **키의 전송 경로**: 키는 **우리 서버로 가는 요청에 실리지 않는다.** 쿠키를 쓰던 동안에는 실렸고(정적 자산 요청 5건 중 5건), 그래서 저장소를 localStorage로 옮겼다(ADR-8). 키가 나가는 곳은 Gemini 엔드포인트 하나뿐이다.
+- **저장소**: 구조화 레코드는 IndexedDB, 키는 localStorage(ADR-8이 ADR-3의 쿠키 결정을 대체한다). 데이터 휘발성(브라우저 저장소 삭제·기기 변경 시 복구 불가)은 고지하고, 대비 수단으로 백업 내보내기·가져오기를 둔다(PRD DR-6·FR-35·FR-36, 계약은 §3.13).
 
 ---
 
@@ -84,9 +92,9 @@
 | 스타일 | Tailwind CSS 3 + 커스텀 토큰 | 모바일 우선, 토큰(`brand-gradient`, `shadow-soft`, `animate-slide-up` 등)은 [DESIGN.md](./DESIGN.md)가 단일 출처 |
 | LLM | `@google/genai` ^2.7.0 (Gemini) | 브라우저에서 직접 `generateContent` 호출. P1 `package.json`에 고정 — 2.x의 breaking change는 Interactions API 한정이라 `generateContent` 경로는 영향 없음. M1 번들에서 첫 로드 JS 529.88 kB(gzip 131.68 kB) 중 대부분을 차지한다(§10 #12) |
 | 모델 | `gemini-3.1-flash-lite` 단일 + `thinkingBudget=0` | thinking을 끌 수 있는 flash 계열이 단건 지연에 유리하다는 문헌 근거(지연 단축 효과·기본 thinking 사용 여부는 미실측). **멀티모달이라 캡처 이미지도 같은 모델로 처리한다** — 별도 비전 모델을 두지 않으므로 모델 분기·오류 처리가 늘지 않는다(ADR-2·ADR-6). 이미지가 붙은 요청만 타임아웃을 180초로 바꾼다(§4) |
-| 저장 | IndexedDB(개인 데이터) + 쿠키(API 키) | ADR-3 |
+| 저장 | IndexedDB(개인 데이터) + localStorage(API 키·UI 언어·스레드 드래프트) | ADR-3(레코드는 IndexedDB) + **ADR-8**(키는 localStorage — 쿠키는 매 요청 자동 전송이라 기각) |
 | i18n | 자체 사전(`ko`/`en`) + `t()` | 문구가 적어 라이브러리 불필요. 프롬프트 JSON 키는 언어와 무관하게 고정 |
-| 서버 | 정적 호스팅(GitHub Pages, P8) + Node Express 4.x(`^4.19`) 미리보기 | 로컬에서 같은 Wi-Fi 휴대폰으로 실기기 테스트(A6). Express 5는 와일드카드 라우트 문법이 달라 §6.2 코드가 그대로 돌지 않음 |
+| 서버 | 정적 호스팅(GitHub Pages 프로젝트 사이트 `/persora/`) + Node Express 4.x(`^4.19`) 미리보기 | 배포는 Pages, 로컬에서는 같은 Wi-Fi 휴대폰으로 실기기 테스트(A6). Pages는 **응답 헤더를 바꿀 수 없어** 보안 정책을 meta로 넣는다(§6.4·§8). Express 5는 와일드카드 라우트 문법이 달라 §6.2 코드가 그대로 돌지 않음 |
 | 런타임 | Node 20+ (`engines.node >= 20`) | `@google/genai` 2.x `engines` 요구사항과 일치 |
 
 > SDK 대안: `fetch`로 `v1beta/models/{model}:generateContent?key=…`를 직접 호출하는 경로도 가능하다. 기본은 SDK를 쓰되 호출을 `gemini.ts` 한 곳에 캡슐화해 전환 비용을 낮춘다. 이 폴백은 **SDK 파손·브라우저 번들 미지원**에 대한 것이다 — SDK와 REST는 같은 엔드포인트를 쓰므로 Google이 브라우저 origin을 CORS로 막으면 둘 다 막힌다(PRD R2b).
@@ -96,9 +104,9 @@
 | 파일 | 핵심 설정 |
 |---|---|
 | `tsconfig.json` | `strict: true`, `target: ES2022`, `module: ESNext`, `moduleResolution: bundler`, `jsx: react-jsx`, `paths: { "@/*": ["src/*"] }`, `noEmit` |
-| `vite.config.ts` | `plugins: [react()]`, alias `@` → `src/`, `server: { host: '0.0.0.0', port: 4121, strictPort: true }`, `preview: { host: '0.0.0.0', port: 8000 }`, `build.outDir: 'dist'`, `build.target: 'es2020'`, `base: '/'`(GitHub Pages 하위 경로가 필요하면 P8에서 변경) |
+| `vite.config.ts` | `plugins: [react()]`, alias `@` → `src/`, `server: { host: '0.0.0.0', port: 4121, strictPort: true }`, `preview: { host: '0.0.0.0', port: 8000 }`, `build.outDir: 'dist'`, `build.target: 'es2020'`, **`base: '/persora/'`**(Pages 프로젝트 사이트 하위 경로 — P8에서 `'/'`에서 변경), `test.include: ['src/**/*.test.ts']` |
 | `tailwind.config.js` | `content: ['./index.html', './src/**/*.{ts,tsx}']`, 토큰 확장은 DESIGN.md §토큰 그대로 |
-| `index.html` | `#root` 하나, `<script type="module" src="/src/main.tsx">`, viewport(`viewport-fit=cover`), `theme-color #6366f1`. CSP/referrer meta는 P8에서 추가 |
+| `index.html` | `#root` 하나, `<script type="module" src="/src/main.tsx">`, viewport(`viewport-fit=cover`), `theme-color #6366f1`, **CSP meta(`http-equiv="Content-Security-Policy"`)와 `<meta name="referrer" content="no-referrer">`**(P8, 정책 문자열은 §8). 아이콘 `<link href>`는 `base`가 붙도록 **`./` 상대 경로**로 둔다(`/favicon.png`는 Pages 하위 경로에서 404) |
 
 ---
 
@@ -108,19 +116,21 @@
 
 ```
 src/
-├── main.tsx            # createRoot + HashRouter + <App/>, initI18n()
-├── App.tsx             # 상단바(로고·앱명·ApiKeyStatus·LanguageToggle) / <Routes/> / 하단 탭 3개 / 온보딩 게이트 / ToastContainer
+├── main.tsx            # createRoot + HashRouter + <ErrorBoundary><App/>, initI18n()
+├── App.tsx             # 상단바(로고·앱명·ApiKeyStatus·LanguageToggle) / <Routes/> / 하단 탭 4개 / 온보딩 게이트 / ToastContainer
 ├── index.css           # Tailwind base + 공용 유틸
-├── components/         # OnboardingModal · ApiKeyStatus · LanguageToggle · Toast
-├── routes/             # PersonaPage · AnalyzePage · HistoryPage
+├── components/         # OnboardingModal · ApiKeyStatus · LanguageToggle · Toast · ErrorBoundary
+├── routes/             # PersonaPage · AnalyzePage · HistoryPage · SettingsPage (Settings는 P8에서 생성)
 └── lib/
-    ├── config.ts       # 상수 단일 출처(모델·타임아웃·쿠키·DB)
+    ├── config.ts       # 상수 단일 출처(모델·타임아웃·저장소 키·DB)
     ├── types.ts        # 타입 계약 단일 출처
     ├── gemini.ts       # generate / extractJson / 에러 변환
     ├── image.ts        # fileToInlineImage — File → InlineImage (P5에서 생성)
     ├── prompts.ts      # buildPersonaPrompt / buildAnalyzePrompt / PERSONA_FIELDS
     ├── thread.ts       # parseThread / detectTarget — 최근 대화 스레드 파서 (P6에서 생성)
-    ├── drafts.ts       # 페르소나별 스레드 드래프트(localStorage) (P6에서 생성)
+    ├── drafts.ts       # 페르소나별 스레드 드래프트(localStorage) (P6에서 생성, 백업 헬퍼 3종은 P8에서 가산)
+    ├── dataManagement.ts # 백업 내보내기·가져오기·전체 삭제 (P8에서 생성)
+    ├── assets.ts       # publicAsset — BASE_URL 기준 public 자산 경로 (P8에서 생성)
     ├── db.ts           # IndexedDB 연결·트랜잭션 공용 레이어
     ├── persona.ts      # 페르소나 유스케이스
     ├── analysis.ts     # 메시지 분석 유스케이스
@@ -128,11 +138,13 @@ src/
     ├── store.ts        # Zustand
     ├── id.ts           # uuid()
     ├── dom.ts          # formatDate / getInitial
-    ├── *.test.ts       # vitest 단위 테스트 — thread · gemini(extractJson) · drafts (P6에서 생성)
-    └── repos/          # settingsRepo(쿠키) · personaRepo · analysisRepo (IndexedDB)
+    ├── *.test.ts       # vitest 단위 테스트 — thread · gemini(extractJson) · drafts · id (P6~P7에서 생성)
+    └── repos/          # settingsRepo(localStorage) · personaRepo · analysisRepo (IndexedDB)
 ```
 
 의존 방향은 한 방향이다: `routes/components → lib/persona·analysis → lib/repos·gemini·prompts·thread → lib/db·config·types`. 화면 코드는 `repos`·`gemini`를 직접 호출하지 않는다(유스케이스를 경유). 단, `ApiKeyStatus`/`OnboardingModal`은 스토어를 통해 `settingsRepo`에 닿는다. `image.ts`는 `dom.ts`와 같은 층의 순수 헬퍼라 화면이 직접 import한다 — 파일 선택은 브라우저 이벤트라 화면에서만 일어나고, 유스케이스는 이미 변환된 `InlineImage[]`만 받는다(§3.4.1).
+
+`dataManagement.ts`(§3.13)는 예외적으로 **유스케이스 계층에서 `repos`와 `db`를 함께 부른다** — 백업·전체 삭제는 페르소나·기록·드래프트·키를 가로지르는 작업이라 특정 도메인 모듈에 넣을 자리가 없다. 화면(`SettingsPage`)은 이 모듈만 부르고 저장소를 직접 만지지 않으므로 "화면 → 유스케이스 → 저장소" 방향은 그대로다. `assets.ts`(§3.14)는 `dom.ts`와 같은 층의 순수 헬퍼다.
 
 `thread.ts`와 `drafts.ts`도 화면이 직접 import한다. `thread.ts`는 순수 함수라 유스케이스(`analyzeReply`)와 화면(`AnalyzePage`)이 **같은 파서를 각자 부른다** — 화면은 타겟 미리보기·수동 교정 목록을 그리려고, 유스케이스는 실제 프롬프트에 넣을 타겟을 정하려고 부른다. 같은 입력에 같은 결과가 나오는 순수 함수라 두 곳에서 불러도 값이 갈라지지 않으며, 그래서 화면이 계산한 타겟을 유스케이스로 넘겨 줄 필요가 없다(수동 교정만 `targetOverride`로 넘긴다). `drafts.ts`는 브라우저 저장소에 붙는 헬퍼이고 도메인 계층은 드래프트를 알지 못한다.
 
@@ -259,8 +271,8 @@ export const TEXT_MODEL = 'gemini-3.1-flash-lite';   // 단일 모델(텍스트�
 export const TEXT_REQUEST_TIMEOUT_MS = 60_000;       // 텍스트 요청 타임아웃
 export const IMAGE_REQUEST_TIMEOUT_MS = 180_000;     // 이미지가 붙은 요청 타임아웃(P5에서 추가)
 
-export const API_KEY_COOKIE_NAME = 'pm_gemini_key';  // API 키 쿠키 이름
-export const API_KEY_COOKIE_MAX_AGE_DAYS = 365;      // 1년
+export const API_KEY_STORAGE_KEY = 'pm_gemini_key';      // API 키 localStorage 키(P8에서 쿠키에서 이동)
+export const LEGACY_COOKIE_KEY_NAME = 'pm_gemini_key';   // 쿠키에 저장하던 구버전 키 이름 — 읽으면 옮기고 지운다
 
 export const DB_NAME = 'persona-mirror';
 export const DB_VERSION = 1;
@@ -271,21 +283,32 @@ export const GEMINI_API_KEY_HELP_URL = 'https://aistudio.google.com/app/apikey';
 ```
 
 - 모델은 하나뿐이므로 `IMAGE_MODEL` 같은 상수는 두지 않는다. 이미지 입력이 바꾸는 것은 **타임아웃 하나**이며, 그래서 상수도 타임아웃만 늘렸다. 180초는 실측 근거가 없는 여유값이다 — 인라인 base64 페이로드가 크고 판독이 함께 일어나 60초로는 조기 실패할 수 있다는 판단에서 나왔고, P5 검증의 실측으로 재검토한다(§10 #15).
+- **두 상수의 값이 같은 것은 의도다.** 저장 매체만 쿠키에서 localStorage로 바뀌었을 뿐 키 이름은 `pm_gemini_key` 그대로다. 이름까지 바꾸면 이전 코드가 만든 쿠키를 찾을 근거가 사라진다. 상수를 둘로 나눈 이유는 **역할이 다르기 때문**이다 — 하나는 지금 읽고 쓰는 자리, 다른 하나는 지우려고 한 번 읽는 자리이며, 이전이 끝나면 후자만 지우면 된다(§3.3).
 - 모델명·저장소 이름·DB 이름은 **여기서만** 정의한다. 다른 모듈은 리터럴을 쓰지 않는다. 예외는 **다른 모듈이 참조하지 않는 저장소 키** 둘이다. UI 언어 키 `'pm_lang'`(localStorage)은 `i18n.ts` 내부 상수 `LANG_STORAGE_KEY`로 둔다 — `i18n.ts`는 P1에서 `config.ts`(P2)보다 먼저 만들어졌고 다른 모듈이 이 키를 보지 않는다. 스레드 드래프트 키 접두 `'pm_thread_draft:'`도 같은 이유로 `drafts.ts` 내부 상수로 둔다(§3.12).
 - `DB_NAME`은 코드네임(Persona Mirror)을 따른다. 표시명이 Persora로 확정된 뒤에도 이미 만들어진 로컬 DB와의 호환을 위해 **DB 이름은 바꾸지 않는다**(바꾸면 기존 데이터가 보이지 않게 됨).
 
-### 3.3 `src/lib/repos/settingsRepo.ts` — API 키(쿠키)
+### 3.3 `src/lib/repos/settingsRepo.ts` — API 키(localStorage, P8에서 쿠키에서 이동)
 
 ```ts
-export function getApiKey(): string | null;   // document.cookie 파싱 → decodeURIComponent
-export function setApiKey(key: string): void; // max-age=365일; path=/; SameSite=Lax; HTTPS면 Secure
-export function clearApiKey(): void;          // 같은 이름으로 max-age=0
+export function getApiKey(): string | null;   // localStorage → (없으면) 레거시 쿠키 1회 이전 → 메모리 폴백
+export function setApiKey(key: string): void; // localStorage 저장 + 레거시 쿠키 만료
+export function clearApiKey(): void;          // localStorage 삭제 + 레거시 쿠키 만료
 export function hasApiKey(): boolean;         // getApiKey() !== null
 ```
 
-- `HttpOnly`는 **불가**: 브라우저 JS가 Gemini 호출에 키를 직접 써야 한다.
-- 값은 `encodeURIComponent`로 저장하고 읽을 때 복원한다. 디코딩 실패 시 원문을 그대로 반환한다.
-- 저장소 선택 근거는 ADR-3.
+시그니처는 P2와 **완전히 같다.** 바뀐 것은 구현뿐이라 호출부(`store.ts`, `gemini.ts`)는 손대지 않는다.
+
+**`getApiKey` 절차(순서 고정)**
+1. `localStorage.getItem(API_KEY_STORAGE_KEY)` — 값이 있으면 그대로 반환.
+2. 없으면 **레거시 쿠키**(`LEGACY_COOKIE_KEY_NAME`)를 읽는다. 있으면 `setApiKey`로 localStorage에 옮기고 **쿠키를 만료시킨 뒤**(`max-age=0`) 그 값을 반환한다. 이 이전은 브라우저당 한 번만 일어난다 — 옮긴 뒤에는 1단계에서 끝나기 때문이다.
+3. 둘 다 없으면 모듈 스코프 메모리 값(있으면)을, 그것도 없으면 `null`을 반환한다.
+
+**저장소 접근 실패는 throw하지 않는다.** 프라이빗 모드·저장소 비활성에서 `localStorage`는 예외를 던지는데, 그때는 **모듈 스코프 변수에만** 키를 들고 현재 세션에서 동작한다. 새로고침하면 사라지지만 온보딩을 다시 거치면 되고, 키를 못 저장한다는 이유로 앱을 멈추는 것보다 낫다. `drafts.ts`(§3.12)의 폴백 원칙과 같다.
+
+- `setApiKey`·`clearApiKey`도 **레거시 쿠키를 함께 만료시킨다.** 이전 경로를 거치지 않고 키를 바꾸거나 지운 사용자에게도 잔존 쿠키가 남지 않게 하기 위함이다.
+- 쿠키 값은 `encodeURIComponent`로 저장돼 있었으므로 읽을 때 복원한다. 디코딩 실패 시 원문을 그대로 쓴다. localStorage에는 인코딩 없이 원문을 넣는다(쿠키 문법 제약이 없다).
+- `HttpOnly`는 **불가**: 브라우저 JS가 Gemini 호출에 키를 직접 써야 한다. 그래서 매체를 바꿔도 XSS 노출면은 줄지 않는다 — 이 전환이 없앤 것은 **자동 전송 경로**다.
+- 저장소 선택 근거는 **ADR-8**(ADR-3의 쿠키 결정을 대체한다). 실측은 [PRD §8 부속 결정 1](./PRD.md).
 
 ### 3.4 `src/lib/gemini.ts` — Gemini 클라이언트
 
@@ -493,7 +516,7 @@ export function useT(): typeof t;                       // locale 바뀌면 참�
 // store.ts (Zustand)
 export interface ToastEntry { id: number; message: string; tone: 'info' | 'error' | 'success' }
 export const useApp: UseBoundStore<StoreApi<{
-  apiKey: string;                                   // 쿠키 미러(초기값 getApiKey() ?? ''). 온보딩 게이트가 구독
+  apiKey: string;                                   // localStorage 미러(초기값 getApiKey() ?? ''). 온보딩 게이트가 구독
   selectedPersonaId: string | null;                 // 페르소나 탭 → 분석 탭 전달값
   toasts: ToastEntry[];
   setApiKey(key: string): void;                     // settingsRepo.setApiKey + 상태 갱신
@@ -503,7 +526,7 @@ export const useApp: UseBoundStore<StoreApi<{
   pushToast(message: string, tone?: ToastEntry['tone']): void; // 4초 후 자동 dismiss
   dismissToast(id: number): void;
 }>>;
-/** 스토어 밖(React 트리 밖)에서 키 존재 여부만 볼 때 쓰는 모듈 함수. 쿠키를 다시 읽지 않고 미러 값을 본다. */
+/** 스토어 밖(React 트리 밖)에서 키 존재 여부만 볼 때 쓰는 모듈 함수. 저장소를 다시 읽지 않고 미러 값을 본다. */
 export function hasApiKey(): boolean;                   // useApp.getState().apiKey.trim().length > 0
 
 // id.ts
@@ -519,13 +542,15 @@ export function getInitial(name: string): string;       // 아바타용 첫 글�
 - 로케일은 Zustand가 아니라 `i18n.ts`의 모듈 상태 + 구독으로 관리한다. 도메인 모듈(`prompts.ts`, `analysis.ts`)이 React 밖에서 `getLang()`/`t()`를 써야 하기 때문이다.
 - P6의 신규 키 영역은 `intent.*`(답장 의도 라벨)이며, 나머지 신규 문구는 기존 영역(`analyze.*`, `persona.detail.*`, `toast.*`)에 들어간다. 키 목록의 단일 출처는 `i18n.ts`이고 표는 [DESIGN §10.1](./DESIGN.md)에 있다. `intent.*`만 영역을 새로 만드는 이유는 `REPLY_INTENTS`(§3.1)가 라벨 키를 **데이터로 들고 있어서** 화면 소속이 아니라 프리셋 자체의 이름이기 때문이다.
 - 스레드 드래프트는 화면 밖으로 나가지 않는 임시 입력이라 **스토어에 올리지 않는다.** `AnalyzePage`의 로컬 상태와 `drafts.ts`(§3.12)만으로 다룬다.
+- P8의 신규 키 영역은 `settings.*`(설정 화면 전체)이며, 나머지는 기존 영역(`nav.settings`, `common.*`)에 들어간다. 표는 [DESIGN §10.1](./DESIGN.md).
+- `refreshApiKey()`는 P8에서 **실제 호출부가 생긴다.** 설정 탭의 전체 삭제가 `settingsRepo.clearApiKey()`를 거쳐 저장소를 비운 뒤 미러를 다시 맞춰야 온보딩 게이트가 즉시 다시 열린다(§3.13).
 
 ### 3.10 `components/` · `routes/` · `App.tsx` · `main.tsx` 책임
 
 | 파일 | 책임 | 데이터 경로 |
 |---|---|---|
 | `main.tsx` | `initI18n()` → `createRoot` → `<React.StrictMode><HashRouter><App/></HashRouter></…>` | — `<ErrorBoundary>`로 `<App/>`을 감싸 렌더 예외가 화면 전체를 비우지 않게 한다(P7-1). |
-| `App.tsx` | 상단바(로고·앱명·`ApiKeyStatus`·`LanguageToggle`), `<Routes>`(`/` → `/personas` redirect, `/personas`, `/analyze`, `/history`), 하단 탭 3개, `initDB()` 1회 호출, **`!apiKey`면 `<OnboardingModal/>` 렌더**(온보딩 게이트), `<ToastContainer/>` | `useApp` |
+| `App.tsx` | 상단바(로고·앱명·`ApiKeyStatus`·`LanguageToggle`), `<Routes>`(`/` → `/personas` redirect, `/personas`, `/analyze`, `/history`, **`/settings`**), **하단 탭 4개**, `initDB()` 1회 호출, **`!apiKey`면 `<OnboardingModal/>` 렌더**(온보딩 게이트), `<ToastContainer/>`. 로고 `src`는 `assets.ts`의 `APP_LOGO_SRC`(§3.14) — Pages 하위 경로에서 `/app-logo.png`는 404다 | `useApp`, `lib/assets.ts` |
 | `OnboardingModal` | 키 `password` 입력 + 발급 링크(`GEMINI_API_KEY_HELP_URL`) + "이 기기에만 저장" 동의 체크박스(고지 문구 수준은 §10 #8) → 저장. 빈 키/미동의는 토스트로 거부. 키가 있으면 `null` | `useApp.setApiKey` |
 | `ApiKeyStatus` | 키 있을 때만 헤더에 "● Gemini 준비됨". 클릭 → 인라인 입력(변경/취소/삭제). 키 없으면 `null`(모달이 점유) | `useApp` |
 | `LanguageToggle` | `한`/`EN` 세그먼트 필 | `setLang`, `useLocale` |
@@ -533,6 +558,7 @@ export function getInitial(name: string): string;       // 아바타용 첫 글�
 | `PersonaPage` | 목록(`listPersonaSummaries`) · 생성 바텀 시트(이름·나의 이름 + **텍스트/이미지 입력 토글** → 제출 전 검증(§3.7) → `createPersona`) · 상세 모달(`PERSONA_FIELDS` 11항목 = summary 블록 + 10 카드, 추가 키는 관대 표시, 나/상대 탭 → `getPersona`, **"추가 대화로 업데이트" 입력 + 버튼 → `updatePersona`**) · 삭제(`removePersona`) · "분석하기로" 진입(`setSelectedPersonaId`) | `lib/persona.ts`, `lib/image.ts` |
 | `AnalyzePage` | 페르소나 칩 선택(초기값: `useApp.selectedPersonaId`가 목록에 있으면 그것, 없으면 첫 번째) + **최근 대화 스레드 textarea**(입력할 때마다 `setThreadDraft`) + **자동 타겟 칩·수동 타겟 피커**(`parseThread`/`detectTarget`) + **답장 의도 칩 6종 + 직접 입력** → `analyzeReply` → 분석문 + 후보 3장(복사 버튼 `navigator.clipboard.writeText`) | `lib/analysis.ts`, `lib/persona.ts`, `lib/thread.ts`, `lib/drafts.ts`, `useApp` |
 | `HistoryPage` | `listAnalyses` 목록 · 카드 펼치기 · 삭제(`removeAnalysis`) | `lib/analysis.ts` |
+| `SettingsPage` (P8) | 백업 내보내기(`exportAppData` → `downloadBackup`) · 백업 가져오기(hidden `input[type=file]` → `JSON.parse` → `importAppData`) · 전체 삭제(`window.confirm` → `clearAllLocalAppData` → `setSelectedPersonaId(null)` + `refreshApiKey()`) · 개인정보·면책 고지 카드. 세 동작은 `busy` 상태 하나로 서로를 잠근다 | `lib/dataManagement.ts`, `useApp` |
 
 - `PersonaPage`의 이미지 모드 상태는 시트 안에 갇힌다(P5): 입력 모드(`'text' | 'image'`)와 선택한 `InlineImage[]`는 생성 시트의 로컬 상태이며, 시트를 닫으면 다른 입력값과 함께 버려진다(DESIGN §9 "입력 유지"). 파일 선택 → `fileToInlineImage`(§3.4.1) 변환 → 썸네일 표시 → 제출 시 `createPersona`의 `images`로 전달이라는 한 방향 흐름이고, 전역 스토어에 이미지를 올리지 않는다.
 - 모든 사용자/LLM 문자열은 JSX 텍스트 노드로만 렌더한다. `dangerouslySetInnerHTML` 사용 금지(§8). 썸네일은 사용자가 방금 고른 파일을 `data:` URL로 되돌려 `<img>`에 넣는 것이라 이 규칙과 무관하다.
@@ -582,6 +608,11 @@ export function detectTarget(parsed: ParsedThread): string;
 export function getThreadDraft(personaId: string): string;
 export function setThreadDraft(personaId: string, text: string): void;
 export function clearThreadDraft(personaId: string): void;
+
+// ── P8에서 가산(설정 탭의 백업·전체 삭제가 쓴다, §3.13) ──
+export function listThreadDrafts(): Record<string, string>;          // personaId → 드래프트 본문
+export function importThreadDrafts(drafts: Record<string, unknown>): void; // 문자열 값만 setThreadDraft로 복원
+export function clearAllThreadDrafts(): void;                        // 접두가 붙은 키 전부 삭제
 ```
 
 - 저장소는 **localStorage**, 키는 `pm_thread_draft:<personaId>` 접두 규칙이다. 페르소나마다 한 칸이며 서로 덮어쓰지 않는다.
@@ -589,6 +620,44 @@ export function clearThreadDraft(personaId: string): void;
 - **접근 실패는 throw하지 않는다.** 프라이빗 모드·저장소 비활성·용량 초과에서 `localStorage`는 예외를 던지는데, 그때는 읽기가 `''`를 돌려주고 쓰기는 조용히 넘어간다. 드래프트는 편의 기능이라 저장에 실패해도 분석 자체는 그대로 동작해야 한다(PRD FR-32).
 - 개인 데이터를 브라우저 밖으로 내보내지 않는다는 원칙은 IndexedDB와 같다(PRD DR-1). IndexedDB가 아니라 localStorage인 이유는 이 값이 **아직 레코드가 아닌 임시 입력**이고, 키-값 한 칸이면 충분해 스토어·인덱스·`DB_VERSION`을 건드릴 이유가 없기 때문이다.
 - `localStorage`를 스텁으로 갈아 끼우면 Node에서 검증 가능하므로 단위 테스트 대상이다(§9.2).
+- **P8에서 헬퍼 3종을 더하는 이유.** P6-2에서는 "그런 화면이 없다"는 이유로 일괄 조회·삭제를 두지 않았다. P8의 설정 탭이 그 화면이다. 셋 다 `localStorage`를 접두로 훑는 구현이며, 접두 상수는 여전히 이 모듈 안에만 있다 — `dataManagement.ts`는 키 형식을 알지 못하고 함수만 부른다. 접근 실패는 기존 함수들과 같이 조용히 넘어간다(백업이 드래프트 때문에 통째로 실패하면 안 된다).
+
+### 3.13 `src/lib/dataManagement.ts` — 백업·복원·전체 삭제 (P8에서 생성)
+
+```ts
+export interface PersoraBackup {
+  app: 'persora';              // 다른 앱의 JSON을 잘못 고른 경우를 걸러내는 표식
+  version: 1;                  // 백업 스키마 버전(레코드 스키마와 별개)
+  exported_at: string;         // ISO 8601
+  personas: PersonaRecord[];
+  analyses: AnalysisRecord[];
+  drafts: Record<string, string>;  // personaId → 스레드 드래프트
+}
+
+export interface ImportResult { personas: number; analyses: number; drafts: number }
+
+export async function exportAppData(): Promise<PersoraBackup>;
+export function downloadBackup(data: PersoraBackup): void;        // Blob → a[download] → revokeObjectURL
+export async function importAppData(raw: unknown): Promise<ImportResult>;
+export async function clearAllLocalAppData(): Promise<void>;
+```
+
+- **백업에 API 키는 넣지 않는다**(PRD DR-8). `PersoraBackup`에 키 필드가 아예 없으므로 실수로 담길 자리도 없다.
+- `exportAppData`는 `personaRepo.list()` + `analysisRepo.list()` + `listThreadDrafts()`를 모아 객체를 만들 뿐 파일을 만들지 않는다. 파일 생성(`downloadBackup`)을 분리한 이유는 전자가 순수 데이터 조립이고 후자만 DOM(`Blob`·`URL.createObjectURL`·임시 `<a>`)에 의존하기 때문이다. 파일명은 `persora-backup-<YYYY-MM-DD>.json`.
+- `importAppData`는 **먼저 검증하고 그다음 쓴다.** `app`이 `'persora'`가 아니거나 `version`이 `1`이 아니면 throw하고, `personas`·`analyses`가 배열이 아니어도 throw한다. 여기서 던지면 **저장소는 한 글자도 바뀌지 않는다**(PRD FR-36). `drafts`가 객체가 아니면 빈 객체로 취급한다 — 드래프트는 편의 데이터라 없다고 해서 가져오기를 막을 이유가 없다.
+- 쓰기는 `personas`·`analyses` 두 스토어를 **하나의 `readwrite` 트랜잭션**으로 묶어 `put`한다. 절반만 들어간 상태를 남기지 않기 위함이며, `put`이므로 **같은 `id`는 덮어쓰고 없는 것은 추가**된다(지우지 않는 병합). 드래프트는 IndexedDB 밖이라 `importThreadDrafts`로 따로 넣는다 — 실패해도 조용히 넘어간다.
+- **레코드 내용은 검증하지 않는다.** 필드가 빠진 페르소나가 들어와도 UI가 관대하게 표시하도록 이미 만들어져 있고(`PersonaFields`의 인덱스 시그니처, §3.1), 스키마 검사를 넣으면 앞으로 필드가 늘 때마다 백업 호환이 깨진다. 대신 최상위 표식(`app`/`version`)만 확인한다.
+- `clearAllLocalAppData`는 `clearApiKey()` → `clearAllThreadDrafts()` → 두 스토어 `clear()` 순으로 지운다. 화면은 이어서 `setSelectedPersonaId(null)`과 `refreshApiKey()`로 스토어 미러를 맞춘다(§3.10) — 미러를 갱신하지 않으면 키가 없어졌는데 온보딩 게이트가 열리지 않는다.
+- `DB_VERSION`은 **1 그대로다.** 이 모듈은 기존 스토어를 읽고 쓸 뿐 스키마를 건드리지 않는다.
+
+### 3.14 `src/lib/assets.ts` — public 자산 경로 (P8에서 생성)
+
+```ts
+export function publicAsset(path: string): string;   // `${import.meta.env.BASE_URL}${선행 슬래시 제거한 path}`
+export const APP_LOGO_SRC: string;                   // publicAsset('app-logo.png')
+```
+
+Pages 프로젝트 사이트는 `/persora/` 하위에 배포되므로 `<img src="/app-logo.png">`는 도메인 루트를 가리켜 404가 된다. Vite가 번들에 넣는 `import.meta.env.BASE_URL`(= `vite.config.ts`의 `base`)을 앞에 붙여 개발(`/`)과 배포(`/persora/`) 양쪽에서 같은 코드가 맞는 경로를 만든다. `index.html`의 아이콘 링크는 JS를 거치지 않으므로 이 모듈 대신 `./` 상대 경로로 해결한다(§2.1).
 
 ---
 
@@ -659,19 +728,21 @@ return response.text ?? '';
 |---|---|---|---|---|
 | ADR-1 | **Client-First** (브라우저 저장 + 사용자 키 직접 호출 + 정적 서버) | 요약 — 정본은 [PRD §8.2](./PRD.md#8-아키텍처-방향-결정-3단-사고) | 요약 — 정본은 [PRD §8.3](./PRD.md#8-아키텍처-방향-결정-3단-사고). 기각 대안: (a) 서버+로컬 Ollama, (b) 운영자 키 프록시 | 채택([PRD §8.4](./PRD.md#8-아키텍처-방향-결정-3단-사고)). 기술적 함의는 §1.3 |
 | ADR-2 | **Gemini 단일 flash 모델 + thinking off** (`gemini-3.1-flash-lite`, `thinkingBudget=0`) | 모바일 단건 UX는 지연이 핵심. 추론 토큰을 끌 수 있는 flash 계열이 유리하다는 문헌 근거(미실측), 멀티모달이라 P5 캡처 이미지도 같은 모델로 처리 가능 | ① thinking을 끄면 페르소나 추출 품질이 떨어질 수 있다 — 키가 없어 반증 불가(미확정). ② lite vs 비-lite flash: 둘 다 thinking을 끌 수 있다. lite를 택한 근거(비용·할당량·지연)는 실측이 없어 **선택 근거 미확정**. ③ 모델을 여러 개 두면 분기·타임아웃·오류 처리가 늘어 P0 규모에 과함 | 단일 모델 채택, `thinkingConfig` 무조건 적용. 지연·품질은 P3~P4 실사용에서 측정하고 품질 문제가 보이면 비-lite flash가 교체 후보(요약 — 정본은 [PRD §8.4 부속 결정 2](./PRD.md#8-아키텍처-방향-결정-3단-사고)) |
-| ADR-3 | **IndexedDB(개인 데이터) + 쿠키(API 키)** | 페르소나·기록은 수 KB~수백 KB의 구조화 레코드 → IndexedDB. 키는 한 줄 문자열이라 쿠키가 구현이 단순하고(만료 내장, 새로고침·재방문 유지) | 키를 localStorage에 둘 수도 있다. 그러나 XSS 노출 관점에서는 **둘이 동등**하다(둘 다 같은 origin JS가 읽는다). `HttpOnly` 쿠키는 브라우저가 키를 직접 써야 하므로 애초에 불가. 페르소나까지 쿠키/localStorage에 넣는 것은 용량(4KB/5MB)과 구조화 조회 면에서 부적합 | IndexedDB + 쿠키 채택(요약 — 정본은 [PRD §8.4 부속 결정 1](./PRD.md#8-아키텍처-방향-결정-3단-사고)) |
+| ADR-3 | ~~**IndexedDB(개인 데이터) + 쿠키(API 키)**~~ — **키 부분은 ADR-8이 대체한다**(P8). 레코드를 IndexedDB에 두는 결정은 그대로 유효 | 페르소나·기록은 수 KB~수백 KB의 구조화 레코드 → IndexedDB. 키는 한 줄 문자열이라 쿠키가 구현이 단순하고(만료 내장, 새로고침·재방문 유지) | 키를 localStorage에 둘 수도 있다. 그러나 XSS 노출 관점에서는 **둘이 동등**하다(둘 다 같은 origin JS가 읽는다). `HttpOnly` 쿠키는 브라우저가 키를 직접 써야 하므로 애초에 불가. 페르소나까지 쿠키/localStorage에 넣는 것은 용량(4KB/5MB)과 구조화 조회 면에서 부적합. **이 재사고는 "localStorage보다 나쁜가"라는 비교 축 하나만 세웠고, 쿠키 단독의 자동 전송 속성을 보지 않았다**(ADR-8) | IndexedDB + 쿠키 채택(P2~P7). 키 부분은 P8에서 뒤집혔다 |
 | ADR-4 | **HashRouter** | GitHub Pages 프로젝트 사이트는 하위 경로에 배포되고 서버 리라이트를 못 한다. `#/personas` 식 라우팅은 어떤 정적 호스트에서도 새로고침·직접 진입이 깨지지 않는다 | BrowserRouter + 404.html 리다이렉트 트릭도 있지만 호스트 의존적이고 SEO는 이 앱에 무의미. 해시 URL이 덜 예쁜 것은 모바일 웹 앱에서 체감이 작다 | HashRouter 채택. Express 미리보기의 SPA 폴백은 안전망으로만 둔다 |
 | ADR-5 | **Zustand 최소 전역 상태** | 화면 상태는 각 페이지의 `useState`로 충분하고, 전역으로 필요한 것은 API 키 미러(온보딩 게이트)·`selectedPersonaId`(탭 간 전달값)·토스트 큐 3개 | Context만으로도 가능하지만 Provider·리듀서 보일러플레이트 대비 이득이 없다. 온보딩 게이트·헤더 인디케이터·각 페이지가 같은 `apiKey` 미러를 구독해야 하고, 스토어 API(`useApp.getState()`)로 React 트리 밖에서도 상태를 읽을 수 있어 단순하다. Redux류는 규모 대비 과함 | Zustand 스토어 1개 채택. 로케일은 i18n 모듈이 자체 관리(도메인 코드가 React 밖에서 `t()` 사용) |
 | ADR-6 | **캡처 이미지 입력을 선택 모드로 가산** (`CreatePersonaInput.images?` + `generate(prompt, images?)` + 이미지 타임아웃 180s, 모델은 그대로 하나) | 텍스트로는 아예 넣을 수 없는 대화가 있다 — 타인 기기의 화면, 복사가 막혔거나 이미 지운 대화, 캡처만 떠 둔 대화. 모델이 멀티모달이라 별도 OCR·별도 모델 없이 같은 호출 경로에 이미지를 얹을 수 있다 | ① 스크린샷은 텍스트 프롬프트보다 훨씬 크고 인라인 base64로 실으면 원본 바이트보다 약 4/3로 더 늘어나, 요청이 무겁고 느릴 수 있다(장당 실제 크기 미측정) → 이미지 경로에만 180초 타임아웃(값은 실측 근거 없는 여유값, §10 #15). ② **캡처 한 장은 화면 한 장 분량의 발화만 담아 붙여넣기보다 인용 재료가 적을 수 있다 — 반증하지 못했다.** 정확도 비교 표본이 없다(§10 #16). ③ 캡처에는 프로필 사진·표시 이름 같은 부수 정보가 함께 실려 Google로 나간다 → 고지(PRD DR-4). ④ 텍스트를 대체하는 안은 ②가 미확정인 이상 검증된 경로를 버릴 근거가 없어 기각 | 텍스트를 **기본**, 이미지를 **선택 모드**로 둔다. 계약은 **가산**만 한다(선택 필드·선택 인자·타임아웃 상수 1개) — 텍스트 호출부는 손대지 않고, 실패하면 이미지 코드만 되돌리면 M1 동작이 남는다. 정확도·지연은 관찰 항목(요약 — 정본은 [PRD §8 부속 결정 3](./PRD.md#8-아키텍처-방향-결정-3단-사고)) |
 | ADR-7 | **분석 입력 계약 재설계** (`analyzeReply(personaId, { thread, intent, targetOverride? })` + `thread.ts` 파서 + `buildAnalyzePrompt` v2, 레코드는 선택 필드 3개만 가산) | 제품 의도는 "장기 페르소나 → 최근 맥락 → 마지막 메시지에 내 의도대로 답장"인데 v1 계약에는 최근 맥락과 답장 의도가 없다. `AnalysisRecord.message: string` 하나와 "…가 다음 메시지를 보냈습니다" 프롬프트가 단발 메시지를 전제한다 | ① "textarea에 스레드를 통째로 붙이면 모델이 알아서 읽는다"를 **실측으로 확인했다** — 상대 발화로 끝나는 6줄 스레드 3.52s, 마지막 줄이 내 발화인 변형 3.84s, 둘 다 분석·후보가 상대의 고민에 정확히 답했다. **"품질이 무너진다"는 공격은 표본 2건에서 반증됐다.** ② 그래도 남는 것 셋: 앱이 답장 대상을 모르고(내 발화까지 "받은 메시지"로 저장·표시), 답장 의도 슬롯이 없어 후보가 공감 3축에 고정되며, 프롬프트가 여러 화자 스레드에 단발 메시지 전제를 씌우는 계약 위반 상태다 — 지금 통하는 것은 모델의 관대함이지 설계가 아니다. ③ 파서를 두면 오검출이라는 새 실패 표면이 생긴다 → 자동 검출 결과를 **화면에 보여 주고 수동 교정**을 두는 것으로 완화(적중률은 미확정, §10 #19) | 재설계한다. 다만 근거는 "품질"이 아니라 **계약의 정직성**이다. 의도를 비우면 v1과 같은 공감 3축이 나오게 해 무회귀를 보장하고(§3.5), 레코드는 선택 필드 3개만 더해 `DB_VERSION`을 1로 유지한다. `analyzeMessage`는 하위 호환 래퍼로 남긴다. 정본은 [PRD §8 부속 결정 4](./PRD.md) |
+| ADR-8 | **API 키 저장소를 localStorage로 재결정** (`API_KEY_STORAGE_KEY` + 레거시 쿠키 1회 이전, §3.3) | ADR-3의 결론 그대로 — 쿠키는 구현이 단순하고 XSS 노출면이 localStorage와 같으니 배포를 앞두고도 바꿀 이유가 없다 | **반증을 실측했다(2026-09-05).** 정적 서버에 요청별 `Cookie` 헤더 로깅을 붙이고 새 프로필로 접속해 키를 저장한 뒤 새로고침·자산 요청을 냈다 — **키 저장 전 4건 중 0건, 저장 후 5건 중 5건**(`/`, JS, CSS, 로고 2회)이 키 쿠키를 실어 보냈다. 즉 GitHub Pages 같은 제3자 정적 호스트가 매 요청마다 키를 수신하며 접근 로그에 남을 수 있다. ADR-3의 재사고가 세운 축은 "localStorage와의 비교"뿐이었고, 쿠키가 **스스로 하는 일**은 검토 대상에 없었다. 막을 수단도 없다 — `SameSite`는 교차 사이트 요청만 막고 같은 사이트 자산 요청은 그대로 통과하며, `HttpOnly`는 JS가 키를 읽어야 해서 불가 | localStorage로 전환한다. XSS 노출면은 동등한데 쿠키에만 자동 전송 경로가 붙어 있고 끌 수 없다는 비대칭이 근거다. 키 이름은 `pm_gemini_key` 그대로 두고, 잔존 쿠키는 최초 읽기에서 1회 옮긴 뒤 만료시킨다. 온보딩·설정 고지 문구도 사실에 맞게 정정한다(정본은 [PRD §8 부속 결정 1](./PRD.md#8-아키텍처-방향-결정-3단-사고)) |
 
 ---
 
 ## 6. 배포 · 서버
 
 ### 6.1 원칙
-- 프로덕션은 **정적 호스팅**(GitHub Pages, P8). API 라우트·DB·세션·CORS 미들웨어 없음. Gemini는 브라우저가 직접 호출하므로 서버 측 CORS 설정도 불필요.
-- Pages 하위 경로(`base`)와 배포 workflow는 저장소/표시명이 확정되는 P8에서 결정한다(**미확정**).
+- 프로덕션은 **정적 호스팅**(GitHub Pages). API 라우트·DB·세션·CORS 미들웨어 없음. Gemini는 브라우저가 직접 호출하므로 서버 측 CORS 설정도 불필요.
+- 정적 호스트는 **개인 데이터도 API 키도 받지 않는다.** 이것이 성립하려면 브라우저가 요청에 값을 자동으로 붙이지 않아야 하므로, 키를 쿠키에 두지 않는다(ADR-8).
+- **Pages는 응답 헤더를 설정할 수 없다.** CSP·referrer 같은 정책은 `index.html`의 meta로만 전달할 수 있다(§8). 더 강한 헤더가 필요해지면 커스텀 도메인 + CDN/프록시를 검토해야 하며, 지금은 그 선까지 가지 않는다.
 
 ### 6.2 로컬 미리보기 `server/index.js` (P1)
 
@@ -700,6 +771,20 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 | 빌드 미리보기(Vite) | `npm run preview` | `0.0.0.0:8000` |
 | 빌드 미리보기(Express) | `npm start` | `0.0.0.0:8000` (`PORT`/`HOST` env로 변경) |
 
+### 6.4 GitHub Pages 배포 (P8)
+
+| 항목 | 값 |
+|---|---|
+| 배포 URL | `https://littleanti.github.io/persora/` (프로젝트 사이트) |
+| Vite `base` | `/persora/` — 번들이 참조하는 자산 URL의 접두. 코드에서는 `import.meta.env.BASE_URL`로 읽는다(§3.14) |
+| workflow | `.github/workflows/deploy-pages.yml` — `main` push(및 수동 실행) → `actions/checkout` → `actions/setup-node`(LTS, npm 캐시) → `npm ci` → `npm run build` → `actions/configure-pages` → `actions/upload-pages-artifact`(`./dist`) → `actions/deploy-pages` |
+| 권한/동시성 | `permissions: contents read · pages write · id-token write`, `concurrency: pages`(진행 중 배포는 취소) |
+
+- 라우팅은 **HashRouter**라 하위 경로 배포에서도 404 리라이트가 필요 없다(ADR-4). Pages에 `404.html` 트릭을 두지 않는 이유다.
+- 하위 경로 배포에서 깨지기 쉬운 것은 **`/`로 시작하는 절대 경로 자산**이다. 두 자리를 고친다 — JS에서 참조하는 로고는 `assets.ts`(§3.14), `index.html`의 아이콘 링크는 `./` 상대 경로(§2.1).
+- 빌드는 `npm run build`(= `tsc --noEmit && vite build`)이므로 **타입 에러가 있으면 배포가 진행되지 않는다.** 배포 파이프라인이 타입 게이트를 겸한다.
+- 로컬 `server/index.js`(§6.2)는 Pages에 배포되지 않는다. 그 서버의 `X-Content-Type-Options`·`Referrer-Policy` 헤더도 Pages에는 적용되지 않으므로, 프로덕션에서 유효한 것은 meta뿐이다.
+
 ---
 
 ## 7. 빌드 · 실행
@@ -724,7 +809,7 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 | `npm start` | `dist/`를 8000 포트로 서빙(A5) |
 | `npm test` | `vitest run` — 순수 모듈 단위 테스트(§9.2). P6에서 도입 |
 
-첫 실행 시 온보딩 모달에서 Google AI Studio 키를 등록한다. 키는 쿠키에 저장되고, 이후 모든 분석이 이 키로 동작한다.
+첫 실행 시 온보딩 모달에서 Google AI Studio 키를 등록한다. 키는 브라우저 localStorage에 저장되고, 이후 모든 분석이 이 키로 동작한다. 배포본은 `main` push 시 GitHub Actions가 만들어 Pages에 올린다(§6.4).
 
 ---
 
@@ -732,12 +817,39 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 
 | 항목 | 위협 | 대응 |
 |---|---|---|
-| **XSS** | 대화 원문·LLM 출력에 스크립트/HTML이 섞여 렌더되면 쿠키의 키가 탈취될 수 있음 | 모든 사용자/LLM 문자열은 React 텍스트 노드로만 렌더(`dangerouslySetInnerHTML` 금지). 마크다운/HTML 렌더링을 도입하려면 sanitizer가 선행 조건. P8에서 `index.html`에 CSP meta(`default-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com …`) 적용 — 정확한 정책은 P8에서 확정(미확정) |
-| **키 취급** | 브라우저에 평문 보관, JS에서 읽힘(설계상 불가피) | 쿠키 `SameSite=Lax`, HTTPS면 `Secure`. `HttpOnly` 불가. 피해 범위 축소로 "Google AI Studio에서 키를 Gemini API만 쓰도록 제한하고, 노출 의심 시 즉시 회전"을 안내. HTTP referrer 제한은 AI Studio에서 가능한지 미확인이고(§10 #11), 우리 origin의 XSS는 같은 referrer로 통과하며 탈취 후 비브라우저 클라이언트는 Referer를 임의로 넣을 수 있어 효과가 제한적이다. 헤더에서 언제든 삭제 가능 |
+| **XSS** | 대화 원문·LLM 출력에 스크립트/HTML이 섞여 렌더되면 저장된 키가 탈취될 수 있음 | 모든 사용자/LLM 문자열은 React 텍스트 노드로만 렌더(`dangerouslySetInnerHTML` 금지). 마크다운/HTML 렌더링을 도입하려면 sanitizer가 선행 조건. `index.html`에 CSP meta 적용(아래 정책) |
+| **키 취급** | 브라우저에 평문 보관, JS에서 읽힘(설계상 불가피) | **localStorage 보관**(ADR-8) — 쿠키와 달리 요청에 자동으로 실리지 않는다. `HttpOnly`는 브라우저가 키를 써야 해서 불가하므로 XSS 노출면 자체는 남는다. 피해 범위 축소로 "Google Cloud에서 키의 사용 API를 **Gemini API로 제한**하고, 노출 의심 시 즉시 회전"을 안내. HTTP referrer 제한은 AI Studio·Cloud 콘솔에서 가능한지 미확인이고(§10 #11), 우리 origin의 XSS는 같은 referrer로 통과하며 탈취 후 비브라우저 클라이언트는 Referer를 임의로 넣을 수 있어 효과가 제한적이다. 헤더 인디케이터·설정 탭에서 언제든 삭제 가능 |
+| **키의 전송 경로** | 저장 매체가 요청에 값을 자동으로 붙이면 제3자 호스트가 키를 수신 | 쿠키를 쓰지 않는다(ADR-8). 정적 자산 요청 5건 중 5건에 키가 실렸던 실측이 근거이며, 전환 후 같은 프로브로 **0건**임을 재확인하는 것이 P8 검증 항목이다(§9.7) |
 | **로깅** | 콘솔·오류 리포트로 키/대화 유출 | 키·대화·프롬프트·응답 원문을 `console.*`에 출력하지 않는다. 오류 토스트에는 SDK 메시지만 포함 |
-| **데이터 전송 고지** | 사용자가 대화가 어디로 가는지 모름 | 고지 내용: 페르소나 생성 시 대화 텍스트 **또는 첨부한 캡처 이미지**, 분석 시 페르소나 JSON + 받은 메시지가 **Google Gemini API로 직접 전송**되며, 우리 서버는 어떤 개인 데이터도 받지 않는다. 캡처는 대화 본문 외의 부수 정보(프로필 사진·표시 이름 등)까지 함께 실려 나간다는 점을 이미지 모드 힌트에 적는다(PRD DR-4). 브라우저 데이터 삭제 시 복구 불가도 함께 고지. 기본안은 온보딩 모달이며, 노출 위치·문구 수준은 §10 #8(미확정) |
-| **서버 표면** | 서버 취약점 | 정적 파일만 서빙, 입력 처리 코드 없음. `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` |
-| **의존성** | 공급망 | 런타임 의존성 최소(react, react-dom, react-router-dom, zustand, @google/genai, express, compression). 버전은 `package.json`에 고정 |
+| **데이터 전송 고지** | 사용자가 대화가 어디로 가는지 모름 | 고지 내용: 페르소나 생성 시 대화 텍스트 **또는 첨부한 캡처 이미지**, 분석 시 페르소나 JSON + 최근 대화 스레드가 **Google Gemini API로 직접 전송**되며, 우리 서버는 어떤 개인 데이터도 받지 않는다. 캡처는 대화 본문 외의 부수 정보(프로필 사진·표시 이름 등)까지 함께 실려 나간다는 점을 이미지 모드 힌트에 적는다(PRD DR-4). 브라우저 데이터 삭제 시 복구 불가와 백업 수단도 함께 고지. 노출 위치는 **온보딩 모달(최초 1회) + 설정 탭(상시 6항목)** 으로 확정(PRD FR-38) |
+| **백업 파일** | 내보낸 JSON이 브라우저 밖으로 나감 | 백업 스키마에 API 키 필드를 두지 않는다(§3.13, PRD DR-8). 대화 원문은 백업의 목적이라 포함되며, 파일 취급 주의는 설정 탭 고지로 다룬다 |
+| **서버 표면** | 서버 취약점 | 정적 파일만 서빙, 입력 처리 코드 없음. 로컬 Express는 `X-Content-Type-Options: nosniff`·`Referrer-Policy: no-referrer`를 헤더로 붙이지만, **GitHub Pages에는 이 헤더가 없다** — 프로덕션에서 유효한 것은 meta뿐이다(§6.4) |
+| **의존성** | 공급망 | 런타임 의존성 최소(react, react-dom, react-router-dom, zustand, @google/genai, express, compression). 버전은 `package.json`에 고정. `npm audit` 결과는 P8 검증에서 기록한다(**미실행**, §10 #23) |
+
+### 8.1 `index.html` meta 정책 (P8)
+
+```html
+<meta name="referrer" content="no-referrer" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://generativelanguage.googleapis.com https://*.googleapis.com; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
+```
+
+각 지시자의 근거:
+
+| 지시자 | 값 | 왜 |
+|---|---|---|
+| `default-src` | `'self'` | 명시하지 않은 자원 종류의 기본 차단선 |
+| `script-src` | `'self'` | 번들 스크립트만 실행한다. `'unsafe-inline'`·`'unsafe-eval'`을 넣지 않아 주입된 인라인 스크립트가 실행되지 않는다 — XSS 완화의 핵심 줄 |
+| `style-src` | `'self' 'unsafe-inline'` | Tailwind 빌드 CSS는 `'self'`로 충분하지만, React가 넣는 인라인 `style` 속성 때문에 `'unsafe-inline'`이 필요하다. 스타일 주입은 스크립트 실행으로 이어지지 않아 위험도가 낮다 |
+| `img-src` | `'self' data: blob:` | 캡처 썸네일이 `data:` URL이고(§3.10), 백업 다운로드가 `blob:`을 쓴다(§3.13) |
+| `connect-src` | `'self' https://generativelanguage.googleapis.com https://*.googleapis.com` | 브라우저가 직접 부르는 곳은 Gemini 엔드포인트 하나다. SDK가 다른 `*.googleapis.com` 하위를 부를 여지를 남겨 둔다 |
+| `object-src` | `'none'` | 플러그인 임베드를 쓰지 않는다 |
+| `base-uri` | `'self'` | 주입된 `<base>`로 상대 경로를 다른 출처로 돌리는 것을 막는다 |
+| `form-action` | `'self'` | 이 앱에는 서버로 제출하는 폼이 없다 |
+| `upgrade-insecure-requests` | — | HTTPS 배포에서 혼합 콘텐츠를 막는다. LAN HTTP 접속(개발)에서는 적용되지 않는다 |
+
+- **meta로 넣는 한계**: `frame-ancestors`·`report-uri`는 meta에서 무시된다. Pages가 헤더를 못 주므로 클릭재킹 방어는 이 정책에 포함되지 않는다 — 이 앱에는 인증 세션이나 상태 변경 GET이 없어 우선순위를 낮게 둔다.
+- `referrer` `no-referrer`는 Gemini 요청을 포함한 모든 나가는 요청에서 우리 URL을 숨긴다. 그 대가로 **referrer 기반 키 제한을 쓸 수 없게 되지만**, 그 제한의 효과가 애초에 제한적이라 손해가 아니다(위 "키 취급" 행).
+- **개발 서버(Vite HMR)와의 충돌 여부는 미확인이다.** `script-src 'self'`가 dev 서버의 HMR 클라이언트와 부딪힐 수 있다. P8 검증에서 `npm run dev`와 빌드본 양쪽을 열어 콘솔의 CSP 위반을 확인한다(§10 #22).
 
 ---
 
@@ -762,6 +874,8 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
   | `src/lib/gemini.test.ts` | `extractJson` 4경로(펜스 제거 / 첫 균형 블록 / 전체 파싱 / `{ raw }` 폴백). 도입 트리거가 정한 "함께 추가한다"에 해당 |
   | `src/lib/drafts.test.ts` | `getThreadDraft`/`setThreadDraft`/`clearThreadDraft` — 저장·복원·페르소나별 분리, 공백 입력 시 키 삭제, `localStorage` 스텁이 예외를 던져도 throw하지 않고 폴백 |
 
+P7에서 `src/lib/id.test.ts`가, P8에서 `drafts.test.ts`의 케이스가 더해진다 — P8이 `drafts.ts`에 일괄 조회·복원·삭제 3종을 가산하므로(§3.12), "순수 모듈이 바뀌면 그 테스트도 함께 갱신한다"는 규칙을 그대로 따른다. `dataManagement.ts`는 IndexedDB와 DOM(`Blob`·`URL`)에 의존해 shim 없이 Node에서 돌지 않으므로 브라우저 스모크가 검증 수단이다.
+
 - 프롬프트 빌더는 아직 대상에 넣지 않는다. 긴 문자열 템플릿이라 스냅샷 성격의 테스트가 되기 쉽고, 문구를 다듬을 때마다 깨져 신호 대비 잡음이 크다. 필요해지면 "의도가 있을 때 라벨 3종이 바뀐다" 같은 **분기 한 줄**만 검사하는 형태로 넣는다(미확정).
 - IndexedDB CRUD는 Node용 IndexedDB shim 없이 브라우저 스모크로 대신한다(shim 도입 여부 미확정). `image.ts`의 `fileToInlineImage`도 `FileReader`(DOM API)에 의존해 같은 이유로 브라우저 스모크가 검증 수단이다.
 
@@ -773,10 +887,10 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 
 | ID | 확인 방법 |
 |---|---|
-| A1 키 미등록 시 온보딩 모달 | 쿠키 삭제 후 진입 → 모달이 화면 점유(스모크) |
+| A1 키 미등록 시 온보딩 모달 | localStorage 키 삭제 후 진입 → 모달이 화면 점유(스모크) |
 | A2 키 등록 후 생성·분석·기록 동작 | 수동 시나리오(실키 필요) |
-| A3 네트워크 분리 | DevTools Network: 우리 서버(4121/8000)엔 정적 요청만, LLM은 `generativelanguage.googleapis.com` 직접 |
-| A4 새로고침·재방문 유지 | 새로고침 후 IndexedDB 레코드·쿠키 키 유지(Application 탭) |
+| A3 네트워크 분리 | DevTools Network: 우리 서버(4121/8000/Pages)엔 정적 요청만, LLM은 `generativelanguage.googleapis.com` 직접. **더해서 우리 origin으로 가는 요청 헤더에 키가 없는지**를 서버 측 요청 로그(`Cookie` 헤더)로 확인한다 — P8 이전에는 이 확인이 빠져 있었다(ADR-8) |
+| A4 새로고침·재방문 유지 | 새로고침 후 IndexedDB 레코드·localStorage 키 유지(Application 탭) |
 | A5 빌드·서빙 | `npm run build` 무에러 + `npm start` 후 8000 응답 |
 | A6 모바일 동일 동작 | 같은 Wi-Fi 휴대폰에서 `http://[PC IP]:8000` 접속, A1~A4 반복 |
 
@@ -808,12 +922,26 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 
 **돌리지 않은 것** — 단위 테스트(§9.2)는 M1까지 도입하지 않았으므로 전 구간 "미실행"이다. A6(같은 Wi-Fi 실기기 접속)도 **미실행**이며, 자동화 뷰포트 390/360px 확인이 그것을 대신하지 못한다.
 
-### 9.6 P6에서 수행할 검증(계획 — 아직 미실행)
+### 9.6 P6 검증(계획 — P6-1·P6-2에서 모두 실행했다. 결과 수치는 [`LOG.md`](./LOG.md))
 
 - `npm test` — §9.2의 세 파일. 이 단계부터 커밋 직전 게이트에 들어간다([PLAN §1.3](./PLAN.md)).
 - `npx tsc --noEmit`, `npx vite build`.
 - UI 스모크 — 스레드 붙여넣기 → 타겟 칩 표시 → 피커로 다른 메시지 선택 → 의도 칩 전환·직접 입력 → 페르소나 전환 시 드래프트 복원 → 상세 모달의 "추가 대화로 업데이트".
-- **실키 의도 스티어링** — 같은 스레드에 `decline`(정중한 거절)을 주고 후보 세 개의 방향이 공감 3축에서 벗어나는지, 의도를 비웠을 때는 v1과 같은 3축 라벨이 그대로 나오는지 한 번에 비교한다. 이 확인 전까지 §10 #20은 미확정이다.
+- **실키 의도 스티어링** — 같은 스레드에 `decline`(정중한 거절)을 주고 후보 세 개의 방향이 공감 3축에서 벗어나는지, 의도를 비웠을 때는 v1과 같은 3축 라벨이 그대로 나오는지 비교한다. **표본 1건으로 확인됐다**(§10 #20) — 프리셋 6종 전체 검증은 남아 있다.
+
+### 9.7 P8에서 수행할 검증(계획 — 아직 미실행)
+
+| # | 항목 | 방법 | 통과 기준 |
+|---|---|---|---|
+| 1 | **키가 요청에 실리지 않는다** | ADR-8의 쿠키 프로브를 그대로 재실행 — 정적 서버에 요청별 `Cookie` 헤더 로깅을 붙이고 새 프로필로 키 저장 후 새로고침·자산 요청 | 우리 서버가 받은 요청 중 **키를 실은 요청 0건** |
+| 2 | 레거시 쿠키 1회 이전 | 쿠키에 키를 심어 둔 프로필로 접속 | localStorage에 키가 생기고 `document.cookie`에서 키가 사라지며, 헤더 인디케이터가 그대로 "준비됨" |
+| 3 | 설정 탭 왕복 | 백업 내보내기 → 전체 삭제 → 가져오기 | 내보낸 JSON에 키 필드 없음, 삭제 후 온보딩 모달 재등장, 가져오기 후 페르소나·기록·드래프트 복원 |
+| 4 | CSP 위반 | 빌드본과 `npm run dev` 양쪽에서 전 탭을 돌며 콘솔 확인 | 앱 동작을 막는 CSP 위반 0. dev에서 HMR이 막히면 그 사실을 기록하고 대응을 정한다(§10 #22) |
+| 5 | 게이트 | `npm test` · `npx tsc --noEmit` · `npx vite build` | 0 실패 / 0 에러 / 성공 |
+| 6 | 의존성 | `npm audit` | 결과를 **사실대로** 기록. 조치 여부는 심각도를 보고 판단 |
+| 7 | 배포 후 Acceptance | Pages URL에서 A1~A4 재확인 | 하위 경로에서 자산·라우팅·저장소가 로컬과 같게 동작 |
+
+7번은 `main` push 이후에만 가능하므로 이 단계에서 **미확정으로 남을 수 있다.**
 
 ---
 
@@ -825,14 +953,14 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 | 2 | `responseMimeType: 'application/json'` 필요 여부 | 도입하지 않음 — LOG에 파싱 결과가 적힌 실호출(P2 `extractJson`, P3 11필드, P4 후보 3개)에서 실패가 없었다. 표본이 작으므로 실패가 보이면 재검토 |
 | 3 | ~~브라우저 직접 호출(CORS) 통과 여부, 오류 객체 형태~~ **확인됨(P2)**: 브라우저→`generativelanguage.googleapis.com` 직접 호출 CORS 통과. 무효 키는 HTTP 400 + `error.code=400/status=INVALID_ARGUMENT/reason=API_KEY_INVALID`로 도착하고 SDK 오류 메시지에 그 JSON이 포함된다 → §4.1 분류 규칙(메시지 "api key" 포함 → 인증 오류) 유효. 방법·수치는 LOG P2 | P2 완료 |
 | 4 | ~~이미지 경로의 타임아웃 값과 `generate` 시그니처 확장 방식~~ **확정(P5 docs)**: `generate(prompt, images?)`로 선택 인자를 가산하고, 이미지가 있을 때만 `IMAGE_REQUEST_TIMEOUT_MS = 180_000`을 쓴다. 모델은 분기하지 않는다(§3.4·§4·ADR-6) | 완료 |
-| 5 | GitHub Pages `base` 경로·workflow·CSP 정확한 정책 | P8 |
+| 5 | ~~GitHub Pages `base` 경로·workflow·CSP 정확한 정책~~ **확정(P8 docs)**: 프로젝트 사이트 `https://littleanti.github.io/persora/`, `base: '/persora/'`, `.github/workflows/deploy-pages.yml`(main push → `npm ci` → `npm run build` → Pages), CSP·referrer는 meta로(§6.4·§8.1) | 완료 |
 | 6 | ~~페르소나 생성에서 JSON 파싱 실패(`raw`) 시 처리~~ **확정(P3)**: 원문 보존 저장(§3.7) | P3 docs |
 | 7 | IndexedDB `list()`의 메모리 정렬 → 인덱스 커서 전환 기준 | 데이터 규모 문제 발생 시 |
-| 8 | 데이터 전송(DR-4)·휘발성(DR-6) 고지의 노출 위치(기본안 온보딩 모달)·문구 수준 | P2 온보딩 문구 작성 시 PRD/DESIGN과 맞춤 |
+| 8 | ~~데이터 전송(DR-4)·휘발성(DR-6) 고지의 노출 위치·문구 수준~~ **확정(P8)**: 온보딩 모달 intro·동의(최초 1회, 짧게) + 설정 탭 개인정보 카드(상시, 6항목). 온보딩 intro는 쿠키 전환에 맞춰 "이 브라우저(localStorage/IndexedDB)에 저장" 으로 정정 | 완료 |
 | 9 | ~~표시명(코드네임 "Persona Mirror" → 정식명)~~ **확정(M1 직전)**: Persora. `DB_NAME`·쿠키명은 유지 | 완료 |
 | 10 | ~~`gemini-3.1-flash-lite` 모델명 유효성·`thinkingConfig` 수락 여부~~ **확인(P2~P4)**: 실키 호출 4회가 모두 정상 응답을 돌려줬다. 모델명도 `thinkingConfig`도 거부되지 않았다 | 완료 |
-| 11 | AI Studio 키의 API/referrer 제한 UI 존재 여부(§8 안내 문구의 전제) | 미확인 — P2 온보딩 문구는 이 전제 없이 작성했다. P8 보안 점검에서 확인 |
-| 12 | 첫 로드 JS 529.88 kB(gzip 131.68 kB)에 코드 스플리팅을 도입할지 | 배포 경로가 정해지는 P8 직전에 판단. 대부분이 `@google/genai` 번들이라 분할 대상은 LLM 호출 경로다 |
+| 11 | AI Studio 키의 API/referrer 제한 UI 존재 여부(§8 안내 문구의 전제) | **미확인.** 콘솔을 열어 확인하지 않았다. 안내 문구는 "Google Cloud에서 사용 API를 Gemini API로 제한"을 권하는 형태로 쓰고, referrer 제한은 효과가 제한적이라는 단서를 함께 적는다. `no-referrer` meta를 넣으면 referrer 기반 제한은 애초에 쓸 수 없다(§8.1) |
+| 12 | 첫 로드 JS에 코드 스플리팅을 도입할지 | **도입하지 않고 배포한다.** P7 빌드 기준 JS 544.45 kB(gzip 136.37 kB)이고 대부분이 `@google/genai` 번들이다. 정적 호스트에서 1회 로드 후 캐시되는 자산이라 체감 비용을 아직 재지 않았고, 근거 없이 분할하면 LLM 호출 경로만 늦어질 수 있다. 배포 후 실제 로드 시간을 보고 판단한다 |
 | 13 | ~~상세 모달 백드롭이 화면 최상단 약 20px를 덮지 않는 것으로 보임~~ **원인 확정(P7-3 실측)**: 오버레이가 `space-y-5` section의 비-첫 자식이라 `margin-top: 20px`이 주입되고, margin은 `position: fixed` 요소도 밀어낸다(top 20, `elementFromPoint(200,2)`가 오버레이 아님). 수정: `createPortal(document.body)` — 적용 후 실측 top 0, 헤더까지 덮임 | P7-3 완료 |
 | 14 | 실기기 확인(A6, 같은 Wi-Fi 휴대폰) | **미실행.** 자동화 뷰포트 390/360px만 확인했다. P7 실사용에서 수행 |
 | 15 | 캡처 이미지 요청의 지연·페이로드 크기와 `IMAGE_REQUEST_TIMEOUT_MS = 180_000`의 적정성  — P5 실측: 캡처 1장(162 KB, base64 약 216 KB) 4.95s(표본 1) | **미실측.** 장당 base64 크기도 요청 지연도 잰 적이 없고, 180초는 근거 없는 여유값이다. P5 검증에서 실제 카카오톡 캡처 1장으로 생성해 지연을 재고, 값이 과하거나 모자라면 상수 1곳을 고친다 |
@@ -842,3 +970,7 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 | 19 | 스레드 파서(§3.11)의 실제 적중률 | **미확정.** 카카오톡 내보내기 형식과 `이름: 내용` 두 가지만 상정했다. 다른 메신저 형식·이름 표기 흔들림·라벨 없는 붙여넣기에서 화자와 타겟이 얼마나 맞는지 표본이 없다. 오검출은 수동 교정(PRD FR-30)으로 복구되는 것이 완화책이다. P6 검증에서 몇 형태를 넣어 보고 판단은 P7 실사용으로 넘긴다 |
 | 20 | ~~답장 의도가 실제로 후보 방향을 바꾸는지~~ **실측 확인(P6-1, 표본 1)**: 같은 스레드에 `decline` 의도를 주자 후보 3개가 모두 상대의 요청을 부드럽게 거절하는 방향으로 바뀌고(3.86s), 라벨도 의도에 맞게 생성됨. 말투 보존. 표본이 1건이라 프리셋 6종 전체 검증은 남아 있다 | P6-1 완료 |
 | 21 | 스레드 드래프트(§3.12)를 IndexedDB로 옮길 필요가 있는지 | 미확정 — localStorage 한 칸으로 시작한다. 스레드가 매우 길거나 페르소나가 많아 용량이 문제가 되면 그때 다시 본다 |
+| 22 | CSP meta가 개발 서버(Vite HMR)와 충돌하는지 | **미확인.** `script-src 'self'`가 dev 서버의 HMR 클라이언트와 부딪히면 `npm run dev`가 깨진다. P8 검증에서 dev와 빌드본 양쪽의 콘솔 CSP 위반을 확인하고, dev만 문제라면 정책을 약화하는 대신 개발 환경 쪽에서 예외를 두는 방향을 먼저 본다(§9.7) |
+| 23 | 의존성 취약점(`npm audit`) | **미실행.** 보안 점검 항목인데 아직 돌리지 않았다. P8 검증에서 실행하고 결과를 사실대로 LOG에 적는다. 조치 여부는 심각도와 런타임 도달 가능성을 보고 판단 |
+| 24 | 배포 후 Acceptance A1~A4 재확인 | **미실행.** Pages URL은 `base '/persora/'` 하위 경로라 자산 경로·HashRouter·저장소 origin이 로컬과 달라지는 첫 환경이다. `main` push 이후에만 확인할 수 있다(§9.7 7번) |
+| 25 | 백업 스키마 `version`을 올릴 기준 | 미확정 — 지금은 1. 레코드 필드는 계속 선택 필드로 가산되므로 구 백업이 그대로 읽힌다. 읽을 수 없게 되는 변경이 생길 때만 올리고, 그때 마이그레이션을 어떻게 할지 정한다 |
