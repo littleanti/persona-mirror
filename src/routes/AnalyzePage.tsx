@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { AnalysisRecord, PersonaSummary } from '@/lib/types';
+import type { AnalysisRecord, InlineImage, PersonaSummary } from '@/lib/types';
 import { REPLY_INTENTS } from '@/lib/types';
 import { analyzeReply } from '@/lib/analysis';
 import { getInitial } from '@/lib/dom';
+import { fileToInlineImage } from '@/lib/image';
 import { listPersonaSummaries } from '@/lib/persona';
 import { parseThread, detectTarget } from '@/lib/thread';
 import { getThreadDraft, setThreadDraft } from '@/lib/drafts';
 import { useApp } from '@/lib/store';
 import { useT } from '@/lib/useI18n';
+
+// 최근 대화 입력 모드 — 기본은 텍스트, 캡처 이미지는 선택 모드(DESIGN §6.1).
+type InputMode = 'text' | 'image';
 
 // 의도 칩에서 "직접 입력"을 고르면 아래 자유 입력 필드가 나타난다(DESIGN §6.1).
 const CUSTOM_INTENT = '__custom__';
@@ -25,7 +29,9 @@ export default function AnalyzePage() {
   const translate = useT();
 
   const [personas, setPersonas] = useState<PersonaSummary[]>([]);
+  const [mode, setMode] = useState<InputMode>('text');
   const [thread, setThread] = useState('');
+  const [images, setImages] = useState<InlineImage[]>([]);
   const [intentKey, setIntentKey] = useState(''); // '' = 기본(공감), 프리셋 키, 또는 CUSTOM_INTENT
   const [customIntent, setCustomIntent] = useState('');
   const [targetOverride, setTargetOverride] = useState(''); // 사용자가 피커에서 직접 고른 타겟('' = 자동 검출)
@@ -54,12 +60,14 @@ export default function AnalyzePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 페르소나 전환 시: 그 페르소나의 드래프트로 스레드를 갈아 끼우고 수동 타겟·피커를 초기화한다
-  // (DESIGN §6.1) — 다른 대화의 문장을 타겟으로 들고 갈 이유가 없다.
+  // 페르소나 전환 시: 그 페르소나의 드래프트로 스레드를 갈아 끼우고 수동 타겟·피커를 초기화하며
+  // 고른 캡처도 비운다(DESIGN §6.1) — 다른 대화의 문장·캡처를 들고 갈 이유가 없다. 입력 모드
+  // 자체는 유지한다.
   useEffect(() => {
     setThread(getThreadDraft(selectedPersonaId ?? ''));
     setTargetOverride('');
     setPickOpen(false);
+    setImages([]);
   }, [selectedPersonaId]);
 
   const selectedPersona = personas.find((p) => p.id === selectedPersonaId);
@@ -83,14 +91,26 @@ export default function AnalyzePage() {
 
   const intentValue = intentKey === CUSTOM_INTENT ? customIntent.trim() : intentKey;
 
+  // 캡처 이미지 추가(여러 장 누적). 페르소나 생성 시트와 같은 변환 헬퍼를 쓴다(TRD §3.4.1).
+  const onFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+    try {
+      const next = await Promise.all(Array.from(files).map(fileToInlineImage));
+      setImages((current) => [...current, ...next]);
+    } catch {
+      pushToast(translate('toast.imageLoadFail'), 'error');
+    }
+  };
+
   const onAnalyze = async () => {
-    // 검증 순서(DESIGN §6.2): ① 페르소나 미선택 ② 스레드 공백 ③ 키 없음 — v1과 같은 순서·같은 키.
+    // 검증 순서(DESIGN §6.2): ① 페르소나 미선택 ② 모드별 입력 검사(텍스트: 스레드 공백 /
+    // 이미지: 0장) ③ 키 없음. ①·③은 모드와 무관하게 같은 순서·같은 키(v1과 동일).
     if (!selectedPersonaId) {
       pushToast(translate('toast.selectPersona'), 'error');
       return;
     }
-    if (!thread.trim()) {
-      pushToast(translate('toast.enterMessage'), 'error');
+    if (mode === 'image' ? images.length === 0 : !thread.trim()) {
+      pushToast(translate(mode === 'image' ? 'toast.addImage' : 'toast.enterMessage'), 'error');
       return;
     }
     if (!apiKey) {
@@ -100,9 +120,10 @@ export default function AnalyzePage() {
     setAnalyzing(true);
     try {
       const next = await analyzeReply(selectedPersonaId, {
-        thread: thread.trim(),
+        thread: mode === 'image' ? '' : thread.trim(),
         intent: intentValue,
-        targetOverride,
+        targetOverride: mode === 'image' ? '' : targetOverride,
+        images: mode === 'image' ? images : undefined,
       });
       setResult(next);
     } catch (err) {
@@ -173,72 +194,112 @@ export default function AnalyzePage() {
 
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{translate('analyze.threadLabel')}</p>
-        <div className="rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-soft-sm">
-          <textarea
-            value={thread}
-            onChange={(e) => onThreadChange(e.target.value)}
-            rows={7}
-            placeholder={translate('analyze.threadPlaceholder')}
-            className="w-full bg-transparent px-5 pt-4 pb-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none resize-none leading-relaxed"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void onAnalyze();
-            }}
-          />
-          <div className="px-4 pb-3 pt-1 border-t border-slate-100 space-y-2">
-            {targetPreview ? (
-              <p className="text-xs text-slate-500">
-                <span className="font-semibold text-indigo-600">{translate('analyze.target')}</span>{' '}
-                <span className="text-slate-700">"{truncate(targetPreview, 60)}"</span>
-              </p>
-            ) : (
-              <p className="text-xs text-slate-400">{translate('analyze.targetEmpty')}</p>
-            )}
 
-            {parsedThread && parsedThread.lines.some((line) => line.text.trim()) && (
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setPickOpen((v) => !v)}
-                  className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
-                >
-                  {translate('analyze.pickTarget')} {pickOpen ? '▲' : '▾'}
-                </button>
-                {pickOpen && (
-                  <div className="mt-1 max-h-40 overflow-y-auto space-y-1">
-                    {parsedThread.lines
-                      .filter((line) => line.text.trim())
-                      .map((line, index) => {
-                        const speakerLabel =
-                          line.speaker === 'me'
-                            ? selectedPersona?.my_name || '나'
-                            : line.speaker === 'other'
-                              ? selectedPersona?.name
-                              : line.label || '?';
-                        const lineText = line.text.trim();
-                        const active = targetPreview === lineText;
-                        return (
-                          <button
-                            key={index}
-                            type="button"
-                            onClick={() => {
-                              setTargetOverride(lineText);
-                              setPickOpen(false);
-                            }}
-                            className={`w-full text-left rounded-lg px-2.5 py-1.5 text-xs transition-colors ${
-                              active ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'
-                            }`}
-                          >
-                            <span className="font-semibold mr-1.5 text-slate-400">{speakerLabel}</span>
-                            {truncate(lineText, 50)}
-                          </button>
-                        );
-                      })}
+        <div className="flex rounded-2xl bg-slate-100 p-1 text-xs font-semibold">
+          {(['text', 'image'] as InputMode[]).map((item) => (
+            <button
+              key={item}
+              onClick={() => setMode(item)}
+              className={`flex-1 rounded-xl px-3 py-2 transition-colors ${
+                mode === item ? 'bg-white text-indigo-600 shadow-soft-sm' : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              {item === 'text' ? translate('analyze.tabText') : translate('analyze.tabImage')}
+            </button>
+          ))}
+        </div>
+
+        {mode === 'text' ? (
+          <div className="rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-soft-sm">
+            <textarea
+              value={thread}
+              onChange={(e) => onThreadChange(e.target.value)}
+              rows={7}
+              placeholder={translate('analyze.threadPlaceholder')}
+              className="w-full bg-transparent px-5 pt-4 pb-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none resize-none leading-relaxed"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void onAnalyze();
+              }}
+            />
+            <div className="px-4 pb-3 pt-1 border-t border-slate-100 space-y-2">
+              {targetPreview ? (
+                <p className="text-xs text-slate-500">
+                  <span className="font-semibold text-indigo-600">{translate('analyze.target')}</span>{' '}
+                  <span className="text-slate-700">"{truncate(targetPreview, 60)}"</span>
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400">{translate('analyze.targetEmpty')}</p>
+              )}
+
+              {parsedThread && parsedThread.lines.some((line) => line.text.trim()) && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setPickOpen((v) => !v)}
+                    className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+                  >
+                    {translate('analyze.pickTarget')} {pickOpen ? '▲' : '▾'}
+                  </button>
+                  {pickOpen && (
+                    <div className="mt-1 max-h-40 overflow-y-auto space-y-1">
+                      {parsedThread.lines
+                        .filter((line) => line.text.trim())
+                        .map((line, index) => {
+                          const speakerLabel =
+                            line.speaker === 'me'
+                              ? selectedPersona?.my_name || '나'
+                              : line.speaker === 'other'
+                                ? selectedPersona?.name
+                                : line.label || '?';
+                          const lineText = line.text.trim();
+                          const active = targetPreview === lineText;
+                          return (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => {
+                                setTargetOverride(lineText);
+                                setPickOpen(false);
+                              }}
+                              className={`w-full text-left rounded-lg px-2.5 py-1.5 text-xs transition-colors ${
+                                active ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'
+                              }`}
+                            >
+                              <span className="font-semibold mr-1.5 text-slate-400">{speakerLabel}</span>
+                              {truncate(lineText, 50)}
+                            </button>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <label className="flex flex-col items-center justify-center gap-2 min-h-32 rounded-2xl border-2 border-dashed border-slate-200 bg-white text-slate-400 text-sm font-medium cursor-pointer hover:border-indigo-300 hover:text-indigo-500 transition-colors">
+              <input type="file" accept="image/*" multiple hidden onChange={(e) => void onFiles(e.target.files)} />
+              <span>{translate('analyze.imageDropzone')}</span>
+            </label>
+            {images.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {images.map((img, index) => (
+                  <div key={`${img.data.slice(0, 12)}-${index}`} className="relative w-16 h-16 overflow-hidden rounded-xl border border-slate-200">
+                    <img src={`data:${img.mimeType};base64,${img.data}`} alt="" className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => setImages((current) => current.filter((_, i) => i !== index))}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/70 text-white text-xs leading-none"
+                    >
+                      x
+                    </button>
                   </div>
-                )}
+                ))}
               </div>
             )}
+            <p className="text-xs text-slate-400 leading-relaxed">{translate('analyze.imageHint')}</p>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="space-y-2">

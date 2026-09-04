@@ -101,10 +101,15 @@ export const REPLY_INTENTS: ReadonlyArray<{ key: ReplyIntentKey; labelKey: strin
   { key: 'persuade', labelKey: 'intent.persuade' },
 ];
 
-/** 분석(답장 생성) 입력(TRD §3.1). */
+/**
+ * 분석(답장 생성) 입력(TRD §3.1). 두 모드가 있고 필드로 구분한다.
+ * - 텍스트 모드: thread에 스레드 원문, images는 비움. 파싱·타겟 검출·수동 교정이 모두 여기서만 동작
+ * - 이미지 모드: images에 캡처, thread는 ''. 답장 대상은 모델이 캡처에서 직접 판별한다
+ */
 export interface AnalyzeReplyInput {
   personaId: string;
-  thread: string; // 붙여넣은 최근 대화 원문
+  thread: string; // 붙여넣은 최근 대화 원문(이미지 모드는 '')
   intent: string; // 프리셋 키 · 자유 텍스트 · '' (미지정)
-  targetOverride?: string; // 사용자가 직접 고른 답장 대상. 비면 자동 검출을 쓴다
+  targetOverride?: string; // 사용자가 직접 고른 답장 대상. 비면 자동 검출을 쓴다(텍스트 모드 전용)
+  images?: InlineImage[]; // 있으면 이미지 모드
 }

@@ -1,6 +1,6 @@
 # PLAN — Persora 구현 계획
 
-> 문서 버전: 2.0 · 갱신일: 2026-09-05 · 상태: P9 착수 — 메시지 분석에 캡처 이미지 입력(§3 표·§4 체크리스트가 단일 출처). P8 배포 URL 확인은 여전히 main push 후
+> 문서 버전: 2.1 · 갱신일: 2026-09-05 · 상태: P9 완료(§3 표·§4 체크리스트가 단일 출처)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -19,6 +19,7 @@
 | 1.8 | 2026-09-05 | P8 착수(보안 점검·배포): §2 트리에 `dataManagement.ts`·`assets.ts`·`SettingsPage.tsx`·`.github/workflows/`, §3 P8 행을 진행중 + 산출물 확정, §4 P8 체크리스트 상세화(docs 완료·구현 대기·검증 계획), §7 리스크에 키 저장 매체·Pages 헤더 불가·백업 가져오기 추가, §8 미확정 갱신 |
 | 1.9 | 2026-09-05 | P8 완료 반영(§3 상태·§4 체크) |
 | 2.0 | 2026-09-05 | P9 착수(분석 이미지 입력): §3 표에 P9 행 추가(진행중)·P8 완료 표기 유지, §4 P9 체크리스트, §6 순서 그림·의존 근거에 P9, §7 리스크에 분석 이미지 경로 가산, §8 미확정 갱신(이미지 모드 타겟 오판율·분석 이미지 지연) |
+| 2.1 | 2026-09-05 | P9 완료 반영(§3 상태·§4 체크) |
 
 > 기준 문서: [`./PRD.md`](./PRD.md) 1.4(요구사항·Acceptance), [`./TRD.md`](./TRD.md) 1.8(아키텍처·모듈 계약), [`./DESIGN.md`](./DESIGN.md) 1.5(화면·토큰). 변경 이력은 [`./LOG.md`](./LOG.md)에만 적고, 이 문서는 **현재 계획**만 서술한다. 단계가 끝날 때마다 §3 상태와 §4 체크리스트를 갱신하고 문서 버전을 0.1 올린다(M1에서 1.0에 도달했고, 이후 P5부터 1.1·1.2로 이어간다).
 
@@ -150,7 +151,7 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + P6의 5개(`lib/thread.t
 | **P7** 안정화 | 실사용(PC·LAN 휴대폰)에서 드러난 버그 수정 | 재현된 버그별 `fix` 커밋(파일은 버그마다), 필요 시 `*.test.ts` | 알려진 재현 버그 0. 각 fix에 원인 가설·반증·종합이 LOG와 커밋 본문에 있음 | `npm test`, `tsc`/`build`, 버그별 재현 스모크 | **완료** |
 | **P8** 보안 점검·GitHub Pages 배포 | 배포 전에 키 취급을 실제로 점검하고, 그 결과로 **저장 매체를 바꾼다.** 함께 설정 탭(백업·전체 삭제·고지)·CSP·Pages 배포를 넣는다([PRD §8 부속 결정 1](./PRD.md) / TRD ADR-8) | `lib/config.ts`(`API_KEY_STORAGE_KEY`·`LEGACY_COOKIE_KEY_NAME`), `lib/repos/settingsRepo.ts`(localStorage + 레거시 쿠키 1회 이전), `lib/dataManagement.ts`(신규), `lib/drafts.ts`(list/import/clearAll 가산) + `lib/drafts.test.ts`, `routes/SettingsPage.tsx`(신규), `App.tsx`(탭 4개·`/settings`), `lib/assets.ts`(신규), `lib/i18n.ts`(`settings.*`·`nav.settings`·`common.saving`, `onboarding.intro` 정정), `index.html`(CSP·referrer meta, 아이콘 상대 경로), `vite.config.ts`(`base: '/persora/'`), `.github/workflows/deploy-pages.yml`(신규), `README.md`(배포·개인정보·키 제한) | 키가 우리 호스트로 가는 요청에 **실리지 않는다**(쿠키 프로브 재실행 0건). 설정 탭에서 백업 내보내기 → 전체 삭제 → 가져오기 왕복이 성립하고 백업에 키가 없다. 빌드본에서 CSP 위반 0. `main` push 후 Pages URL에서 A1~A4 재확인 | 쿠키 프로브 재실행, `npm test`, `tsc`/`build`, UI 스모크(설정 탭), `npm audit`, 배포 후 브라우저 확인(DevTools Network·Application) | **완료**(배포 URL 재확인은 push 후) |
 
-| **P9** 메시지 분석에 캡처 이미지 입력 | 분석 탭도 캡처만으로 답장을 받을 수 있게 한다. 텍스트 붙여넣기는 기본 모드로 남기고 이미지를 **선택 모드로 가산**([PRD §8 부속 결정 5](./PRD.md) / TRD ADR-9) | `lib/types.ts`(`AnalyzeReplyInput.images?`), `lib/analysis.ts`(`analyzeReply` 이미지 분기 — 파싱 생략·`useImages` 전달·플레이스홀더 저장), `lib/prompts.ts`(`buildAnalyzePrompt`에 `useImages?` 플래그와 두 블록 분기), `routes/AnalyzePage.tsx`(입력 모드 세그먼트·드롭존·썸네일 그리드·모드별 검증), `lib/i18n.ts`(`analyze.tabText`·`tabImage`·`imageDropzone`·`imageHint`·`imagePlaceholder`) | 캡처만으로 분석이 끝까지 동작하고 결과가 기록에 남는다. **텍스트 경로 회귀 없음**(`images` 미전달 시 P6~P8과 동일한 요청). 이미지 모드에서는 타겟 칩·피커가 렌더되지 않고, 기록 미리보기에 캡처 장수 플레이스홀더가 보인다. `DB_VERSION` 1 유지 | `npm test`, `tsc`/`build`, UI 스모크(모드 토글·0장 거부·썸네일·텍스트 무회귀), **실제 캡처로 분석 1회 실키 실행**(지연 실측 + 답장 대상 판별 관찰) | **진행중** |
+| **P9** 메시지 분석에 캡처 이미지 입력 | 분석 탭도 캡처만으로 답장을 받을 수 있게 한다. 텍스트 붙여넣기는 기본 모드로 남기고 이미지를 **선택 모드로 가산**([PRD §8 부속 결정 5](./PRD.md) / TRD ADR-9) | `lib/types.ts`(`AnalyzeReplyInput.images?`), `lib/analysis.ts`(`analyzeReply` 이미지 분기 — 파싱 생략·`useImages` 전달·플레이스홀더 저장), `lib/prompts.ts`(`buildAnalyzePrompt`에 `useImages?` 플래그와 두 블록 분기), `routes/AnalyzePage.tsx`(입력 모드 세그먼트·드롭존·썸네일 그리드·모드별 검증), `lib/i18n.ts`(`analyze.tabText`·`tabImage`·`imageDropzone`·`imageHint`·`imagePlaceholder`) | 캡처만으로 분석이 끝까지 동작하고 결과가 기록에 남는다. **텍스트 경로 회귀 없음**(`images` 미전달 시 P6~P8과 동일한 요청). 이미지 모드에서는 타겟 칩·피커가 렌더되지 않고, 기록 미리보기에 캡처 장수 플레이스홀더가 보인다. `DB_VERSION` 1 유지 | `npm test`, `tsc`/`build`, UI 스모크(모드 토글·0장 거부·썸네일·텍스트 무회귀), **실제 캡처로 분석 1회 실키 실행**(지연 실측 + 답장 대상 판별 관찰) | **완료** |
 
 **단계 번호 재편.** 1.2까지 P6은 안정화, P7은 보안·배포였다. 분석 재설계를 그 앞에 넣으면서 두 단계를 P7·P8로 한 칸씩 밀었다. 순서를 이렇게 둔 이유는 §6에 적는다. 다른 문서(PRD §10·§11, TRD §10, DESIGN §12)의 단계 참조도 같은 규칙으로 옮겼다.
 
@@ -299,20 +300,20 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + P6의 5개(`lib/thread.t
 - [x] LOG `진행중` 항목 추가 → `docs(p9)` 커밋
 
 **② 구현(대기)**
-- [ ] `lib/types.ts` — `AnalyzeReplyInput`에 `images?: InlineImage[]` **선택 필드로 가산**. `AnalysisRecord`·`DB_VERSION`은 손대지 않는다(TRD §3.1)
-- [ ] `lib/prompts.ts` — `buildAnalyzePrompt` 입력에 `useImages?: boolean` 추가. 참이면 최근 대화 흐름 블록을 "첨부 캡처를 읽어라 + 말풍선 좌/우·이름표로 화자 구분 + 여러 장은 위→아래·앞→뒤"로, 답장 대상 지시를 "캡처 속 대화에서 상대의 마지막 메시지를 찾아내라"로 교체. **나머지 블록과 출력 JSON 계약은 두 모드 동일**(TRD §3.5)
-- [ ] `lib/analysis.ts` — `analyzeReply`가 `images`를 받아 `useImages` 판정 → 이미지 모드면 `parseThread`/`detectTarget` **호출하지 않고** `targetMessage=''` → `buildAnalyzePrompt(..., useImages)` → `generate(prompt, input.images)`. 저장 시 `message`·`target_message`에 `t('analyze.imagePlaceholder', { n })`, `thread`에 `''`(TRD §3.8)
-- [ ] `routes/AnalyzePage.tsx` — 입력 모드 세그먼트(기본 텍스트, 두 모드 입력값 각각 보존)·드롭존(`<label>` + hidden `input[type=file][accept=image/*][multiple]`)·썸네일 그리드(64×64, 개별 제거, `fileToInlineImage` 변환 실패 → `toast.imageLoadFail`)·모드별 검증 ① 페르소나 ② 텍스트 공백/이미지 0장 ③ 키(DESIGN §6.2). 이미지 모드에서는 타겟 칩·피커를 렌더하지 않고, 페르소나 전환 시 고른 캡처를 비운다
-- [ ] `lib/i18n.ts` — ko/en에 `analyze.tabText`·`analyze.tabImage`·`analyze.imageDropzone`·`analyze.imageHint`·`analyze.imagePlaceholder`. `imageHint`에 촬영 지침과 **캡처가 Google로 전송된다는 한 줄** 포함(PRD DR-4). 토스트는 `toast.addImage`·`toast.imageLoadFail`을 재사용하고 새로 만들지 않는다
+- [x] `lib/types.ts` — `AnalyzeReplyInput`에 `images?: InlineImage[]` **선택 필드로 가산**. `AnalysisRecord`·`DB_VERSION`은 손대지 않는다(TRD §3.1)
+- [x] `lib/prompts.ts` — `buildAnalyzePrompt` 입력에 `useImages?: boolean` 추가. 참이면 최근 대화 흐름 블록을 "첨부 캡처를 읽어라 + 말풍선 좌/우·이름표로 화자 구분 + 여러 장은 위→아래·앞→뒤"로, 답장 대상 지시를 "캡처 속 대화에서 상대의 마지막 메시지를 찾아내라"로 교체. **나머지 블록과 출력 JSON 계약은 두 모드 동일**(TRD §3.5)
+- [x] `lib/analysis.ts` — `analyzeReply`가 `images`를 받아 `useImages` 판정 → 이미지 모드면 `parseThread`/`detectTarget` **호출하지 않고** `targetMessage=''` → `buildAnalyzePrompt(..., useImages)` → `generate(prompt, input.images)`. 저장 시 `message`·`target_message`에 `t('analyze.imagePlaceholder', { n })`, `thread`에 `''`(TRD §3.8)
+- [x] `routes/AnalyzePage.tsx` — 입력 모드 세그먼트(기본 텍스트, 두 모드 입력값 각각 보존)·드롭존(`<label>` + hidden `input[type=file][accept=image/*][multiple]`)·썸네일 그리드(64×64, 개별 제거, `fileToInlineImage` 변환 실패 → `toast.imageLoadFail`)·모드별 검증 ① 페르소나 ② 텍스트 공백/이미지 0장 ③ 키(DESIGN §6.2). 이미지 모드에서는 타겟 칩·피커를 렌더하지 않고, 페르소나 전환 시 고른 캡처를 비운다
+- [x] `lib/i18n.ts` — ko/en에 `analyze.tabText`·`analyze.tabImage`·`analyze.imageDropzone`·`analyze.imageHint`·`analyze.imagePlaceholder`. `imageHint`에 촬영 지침과 **캡처가 Google로 전송된다는 한 줄** 포함(PRD DR-4). 토스트는 `toast.addImage`·`toast.imageLoadFail`을 재사용하고 새로 만들지 않는다
 
 **③ 검증(대기 — 계획은 TRD §9.8)**
-- [ ] `npm test` 0 실패 / `npx tsc --noEmit` 0 에러 / `npx vite build` 성공
-- [ ] **텍스트 경로 무회귀** — 같은 스레드로 분석했을 때 타겟 칩·수동 교정·드래프트 복원·의도 칩이 그대로 동작
-- [ ] UI 스모크(이미지 모드) — 모드 토글, 0장 제출 거부(`toast.addImage`), 캡처 첨부 → 썸네일 → 개별 제거, 모드 왕복 시 양쪽 입력값 유지, 이미지 모드에서 타겟 칩·피커 미렌더
-- [ ] **실키 1회** — 실제 카카오톡 대화 캡처로 분석 실행. 후보 3개 파싱 성공 여부와 **지연을 Resource Timing으로 실측**(TRD §10 #28)
-- [ ] **답장 대상 판별 관찰** — 위 호출에서 캡처의 맨 아래 상대 메시지에 답했는지 눈으로 확인하고 **표본 1건의 관찰로만** 기록한다(TRD §10 #27). 적중률을 주장하지 않는다
-- [ ] 기록 확인 — 목록 미리보기에 캡처 장수 플레이스홀더가 보이고 기존 텍스트 기록도 그대로 렌더
-- [ ] LOG `완료`(검증 결과 정정 반영) → `feat(analyze)` 커밋
+- [x] `npm test` 0 실패 / `npx tsc --noEmit` 0 에러 / `npx vite build` 성공
+- [x] **텍스트 경로 무회귀** — 같은 스레드로 분석했을 때 타겟 칩·수동 교정·드래프트 복원·의도 칩이 그대로 동작
+- [x] UI 스모크(이미지 모드) — 모드 토글, 0장 제출 거부(`toast.addImage`), 캡처 첨부 → 썸네일 → 개별 제거, 모드 왕복 시 양쪽 입력값 유지, 이미지 모드에서 타겟 칩·피커 미렌더
+- [x] **실키 1회** — 실제 카카오톡 대화 캡처로 분석 실행. 후보 3개 파싱 성공 여부와 **지연을 Resource Timing으로 실측**(TRD §10 #28)
+- [x] **답장 대상 판별 관찰** — 위 호출에서 캡처의 맨 아래 상대 메시지에 답했는지 눈으로 확인하고 **표본 1건의 관찰로만** 기록한다(TRD §10 #27). 적중률을 주장하지 않는다
+- [x] 기록 확인 — 목록 미리보기에 캡처 장수 플레이스홀더가 보이고 기존 텍스트 기록도 그대로 렌더
+- [x] LOG `완료`(검증 결과 정정 반영) → `feat(analyze)` 커밋
 
 ## 5. 마일스톤 M1 (= P4 완료, MVP)
 

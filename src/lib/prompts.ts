@@ -161,8 +161,10 @@ export function buildAnalyzePrompt(input: {
   thread: string;
   targetMessage: string;
   intent: string;
+  useImages?: boolean;
 }, lang: Lang = 'ko'): string {
   const { persona: record, thread, targetMessage, intent } = input;
+  const useImages = !!input.useImages;
   const { name, my_name, persona, my_persona } = record;
   const myName = my_name.trim();
   const langDirective = outputLangDirective(lang);
@@ -218,12 +220,22 @@ ${mySpeech}
 2. 모든 답변은 그 감정을 먼저 알아주고 받아들이는 말로 시작하세요. 조언·해결·화제 전환은 반드시 그 다음입니다.
 3. 다음은 절대 금지: 섣부른 조언/훈수, 감정 축소("별거 아냐", 성급한 "괜찮아질 거야"), 영혼 없는 진부한 위로, 질문만 줄줄이 늘어놓는 심문, ${name}의 감정을 평가·판단하기.`;
 
-  // 최근 대화 흐름 블록(단기 맥락). 파싱 결과가 아니라 붙여넣은 원문을 그대로 싣는다.
-  // thread가 비어 있으면 블록 전체를 생략한다.
-  const threadBlock = thread.trim() ? `\n[최근 대화 흐름] (시간 순서, 맨 아래가 최신):\n${thread.trim()}\n` : '';
+  // 최근 대화 흐름 블록(단기 맥락).
+  // - 텍스트 모드: 파싱 결과가 아니라 붙여넣은 원문을 그대로 싣는다. thread가 비면 블록 전체를 생략한다.
+  // - 이미지 모드: 첨부된 채팅 캡처 이미지에서 대화를 직접 읽도록 지시한다(useImages 분기, TRD §3.5).
+  const threadBlock = useImages
+    ? `\n[최근 대화 흐름] — 첨부된 채팅 캡처 이미지에 들어 있습니다. 이미지를 꼼꼼히 읽어 대화 내용을 파악하세요.
+- 말풍선의 좌/우 위치와 이름표를 근거로 각 발화가 누구의 것인지 판별하세요.
+- 여러 장이면 위→아래, 앞→뒤 순서로 시간 흐름을 이어서 해석하세요.\n`
+    : thread.trim()
+      ? `\n[최근 대화 흐름] (시간 순서, 맨 아래가 최신):\n${thread.trim()}\n`
+      : '';
 
-  // 답장 대상(타겟) 지시 — 스레드 안에 이미 있는 문장을 한 번 더 못 박는다.
-  const targetBlock = `위 대화에서 ${name}이(가) ${receiverLabel}에게 보낸 마지막 메시지(= 답장할 대상)는 다음과 같습니다:\n"${targetMessage}"`;
+  // 답장 대상(타겟) 지시. 텍스트 모드는 스레드 안에 이미 있는 문장을 한 번 더 못 박고,
+  // 이미지 모드는 클라이언트가 타겟을 모르므로 모델이 캡처에서 직접 찾게 한다.
+  const targetBlock = useImages
+    ? `위 캡처 이미지 속 대화에서 ${name}이(가) ${receiverLabel}에게 보낸 마지막 메시지(= 답장할 대상)를 찾아내세요.`
+    : `위 대화에서 ${name}이(가) ${receiverLabel}에게 보낸 마지막 메시지(= 답장할 대상)는 다음과 같습니다:\n"${targetMessage}"`;
 
   // 후보 생성 지침 + JSON 스켈레톤 — 의도 유무로 분기.
   // 의도 미지정: 기존 공감 3축 그대로(무회귀). 의도 지정: 그 목표를 향한 3가지 다른 방식.

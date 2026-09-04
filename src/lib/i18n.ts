@@ -94,6 +94,12 @@ const MESSAGES: Record<Lang, Dict> = {
     'analyze.targetEmpty': '대화를 붙여넣으면 답장할 마지막 메시지를 자동으로 잡아드려요.',
     'analyze.pickTarget': '다른 메시지에 답장하기',
     'analyze.intentLabel': '답장 의도',
+    'analyze.tabText': '✍️ 텍스트',
+    'analyze.tabImage': '🖼️ 캡처 이미지',
+    'analyze.imageDropzone': '카카오톡·문자 캡처 이미지 선택',
+    'analyze.imageHint':
+      '🖼️ 캡처의 맨 아래 상대 메시지에 답장해요. 답장할 메시지가 잘 보이게, 여러 장이면 시간 순서대로 올려주세요. 캡처 이미지도 Google로 전송됩니다.',
+    'analyze.imagePlaceholder': '[채팅 캡처 이미지 {n}장으로 분석한 답장]',
 
     // 답장 의도 라벨(REPLY_INTENTS와 짝) — TRD §3.9
     'intent.none': '기본(공감)',
@@ -287,6 +293,12 @@ const MESSAGES: Record<Lang, Dict> = {
     'analyze.targetEmpty': 'Paste a conversation and we’ll pick the last message to reply to.',
     'analyze.pickTarget': 'Reply to a different message',
     'analyze.intentLabel': 'Reply intent',
+    'analyze.tabText': '✍️ Text',
+    'analyze.tabImage': '🖼️ Screenshots',
+    'analyze.imageDropzone': 'Select chat screenshots',
+    'analyze.imageHint':
+      '🖼️ We reply to the other person’s last message at the bottom of the screenshot. Make sure it’s visible, and upload multiple screenshots in time order. Screenshots are also sent to Google.',
+    'analyze.imagePlaceholder': '[Reply analyzed from {n} chat screenshot(s)]',
 
     // Reply intent labels (paired with REPLY_INTENTS) — TRD §3.9
     'intent.none': 'Default (empathy)',
