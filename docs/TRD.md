@@ -1,6 +1,6 @@
 # TRD — Persora 기술 요구사항·설계
 
-> 문서 버전: 1.0 · 갱신일: 2026-09-05 · 상태: M1(MVP) 기준선 — §3 계약을 실제 코드(`src/lib/*`)와 대조해 정정. 기준: [PRD 1.0](./PRD.md) / [PLAN 1.0](./PLAN.md) / [DESIGN 1.0](./DESIGN.md)
+> 문서 버전: 1.1 · 갱신일: 2026-09-05 · 상태: P5 착수 — 멀티모달(캡처 이미지) 입력 계약 확정, 구현 진행중. 기준: [PRD 1.1](./PRD.md) / [PLAN 1.1](./PLAN.md) / [DESIGN 1.1](./DESIGN.md)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -13,8 +13,9 @@
 | 0.6 | 2026-09-05 | P4 완료: §10 #1에 분석 프롬프트 지연 실측(3.49s) 추가 |
 | 0.7 | 2026-09-05 | 표시명 Persora 확정: §3.2 DB_NAME 주석, §7 package name, §10 #9 종결 |
 | 1.0 | 2026-09-05 | M1 기준선: §3 계약을 코드와 대조해 정정(§3.7 `splitPersonaRaw` 가시성, §3.9 `store.ts`의 `hasApiKey`), §4.1 오류 표에 섞여 있던 지연 실측치를 §9·§10으로 이동, §9.5 "M1까지 실제로 수행한 검증" 추가, §10 미확정 정리 |
+| 1.1 | 2026-09-05 | P5 착수: 멀티모달 계약 확정 — §3.1 `InlineImage`·`CreatePersonaInput.images?`, §3.2 `IMAGE_REQUEST_TIMEOUT_MS`, §3.4 `generate(prompt, images?)`, §3.4.1 `image.ts`(신규), §3.5 `buildPersonaPrompt` 이미지 분기, §3.7 `createPersona`의 이미지 전달·플레이스홀더 저장, §3.10 `PersonaPage` 입력 토글, §4 멀티모달 `contents` 구성·타임아웃 표, §5 ADR-6, §10 #4 종결 + 미확정 2건 추가 |
 
-> 이 문서는 **현재 확정된 설계**를 서술한다. 변경 이력은 [`LOG.md`](./LOG.md)에만 적는다. §3의 시그니처는 모든 구현 작업이 따라야 하는 **계약**이며, 계약을 바꿀 때는 코드보다 이 문서를 먼저 갱신한다(CLAUDE.md 그라운드 룰 2). M1(P4 완료) 시점에 §3의 식별자는 모두 `src/` 아래에 실재하며, 1.0에서 코드와 한 줄씩 대조해 어긋난 서술을 코드 기준으로 정정했다. P5 이후에 만들 것은 그 사실을 문장에 밝혀 둔다.
+> 이 문서는 **현재 확정된 설계**를 서술한다. 변경 이력은 [`LOG.md`](./LOG.md)에만 적는다. §3의 시그니처는 모든 구현 작업이 따라야 하는 **계약**이며, 계약을 바꿀 때는 코드보다 이 문서를 먼저 갱신한다(CLAUDE.md 그라운드 룰 2). M1(P4 완료) 시점에 §3의 식별자는 모두 `src/` 아래에 실재하며, 1.0에서 코드와 한 줄씩 대조해 어긋난 서술을 코드 기준으로 정정했다. **1.1에서 추가한 멀티모달 계약(`InlineImage`, `image.ts`, `IMAGE_REQUEST_TIMEOUT_MS`, `generate`의 두 번째 인자)은 P5에서 만들 것이며 아직 코드에 없다** — 해당 자리마다 그 사실을 밝혀 둔다.
 
 ---
 
@@ -77,7 +78,7 @@
 | 전역 상태 | Zustand 4 | 전역으로 필요한 것은 API 키 미러·토스트 큐·탭 간 전달값 정도라 최소 스토어 1개로 충분(ADR-5) |
 | 스타일 | Tailwind CSS 3 + 커스텀 토큰 | 모바일 우선, 토큰(`brand-gradient`, `shadow-soft`, `animate-slide-up` 등)은 [DESIGN.md](./DESIGN.md)가 단일 출처 |
 | LLM | `@google/genai` ^2.7.0 (Gemini) | 브라우저에서 직접 `generateContent` 호출. P1 `package.json`에 고정 — 2.x의 breaking change는 Interactions API 한정이라 `generateContent` 경로는 영향 없음. M1 번들에서 첫 로드 JS 529.88 kB(gzip 131.68 kB) 중 대부분을 차지한다(§10 #12) |
-| 모델 | `gemini-3.1-flash-lite` 단일 + `thinkingBudget=0` | thinking을 끌 수 있는 flash 계열이 단건 지연에 유리하다는 문헌 근거(지연 단축 효과·기본 thinking 사용 여부는 미실측), 멀티모달이라 P5 캡처 이미지도 같은 경로로 갈 수 있음(ADR-2) |
+| 모델 | `gemini-3.1-flash-lite` 단일 + `thinkingBudget=0` | thinking을 끌 수 있는 flash 계열이 단건 지연에 유리하다는 문헌 근거(지연 단축 효과·기본 thinking 사용 여부는 미실측). **멀티모달이라 캡처 이미지도 같은 모델로 처리한다** — 별도 비전 모델을 두지 않으므로 모델 분기·오류 처리가 늘지 않는다(ADR-2·ADR-6). 이미지가 붙은 요청만 타임아웃을 180초로 바꾼다(§4) |
 | 저장 | IndexedDB(개인 데이터) + 쿠키(API 키) | ADR-3 |
 | i18n | 자체 사전(`ko`/`en`) + `t()` | 문구가 적어 라이브러리 불필요. 프롬프트 JSON 키는 언어와 무관하게 고정 |
 | 서버 | 정적 호스팅(GitHub Pages, P7) + Node Express 4.x(`^4.19`) 미리보기 | 로컬에서 같은 Wi-Fi 휴대폰으로 실기기 테스트(A6). Express 5는 와일드카드 라우트 문법이 달라 §6.2 코드가 그대로 돌지 않음 |
@@ -111,6 +112,7 @@ src/
     ├── config.ts       # 상수 단일 출처(모델·타임아웃·쿠키·DB)
     ├── types.ts        # 타입 계약 단일 출처
     ├── gemini.ts       # generate / extractJson / 에러 변환
+    ├── image.ts        # fileToInlineImage — File → InlineImage (P5에서 생성)
     ├── prompts.ts      # buildPersonaPrompt / buildAnalyzePrompt / PERSONA_FIELDS
     ├── db.ts           # IndexedDB 연결·트랜잭션 공용 레이어
     ├── persona.ts      # 페르소나 유스케이스
@@ -122,7 +124,7 @@ src/
     └── repos/          # settingsRepo(쿠키) · personaRepo · analysisRepo (IndexedDB)
 ```
 
-의존 방향은 한 방향이다: `routes/components → lib/persona·analysis → lib/repos·gemini·prompts → lib/db·config·types`. 화면 코드는 `repos`·`gemini`를 직접 호출하지 않는다(유스케이스를 경유). 단, `ApiKeyStatus`/`OnboardingModal`은 스토어를 통해 `settingsRepo`에 닿는다.
+의존 방향은 한 방향이다: `routes/components → lib/persona·analysis → lib/repos·gemini·prompts → lib/db·config·types`. 화면 코드는 `repos`·`gemini`를 직접 호출하지 않는다(유스케이스를 경유). 단, `ApiKeyStatus`/`OnboardingModal`은 스토어를 통해 `settingsRepo`에 닿는다. `image.ts`는 `dom.ts`와 같은 층의 순수 헬퍼라 화면이 직접 import한다 — 파일 선택은 브라우저 이벤트라 화면에서만 일어나고, 유스케이스는 이미 변환된 `InlineImage[]`만 받는다(§3.4.1).
 
 ### 3.1 `src/lib/types.ts`
 
@@ -163,11 +165,26 @@ export interface PersonaSummary {
   summary: string;            // persona.summary ?? ''
 }
 
-/** 페르소나 생성 입력(텍스트). P5에서 캡처 이미지 입력을 선택 필드로 확장할 계획 */
+/**
+ * 멀티모달 입력용 인라인 이미지(P5에서 추가). Gemini `inlineData` 파트에 그대로 실린다.
+ * data는 base64 문자열이며 `data:image/png;base64,` 같은 data URL 접두는 제외한다.
+ */
+export interface InlineImage {
+  mimeType: string;           // 예: 'image/png', 'image/jpeg'
+  data: string;               // base64 (data URL 접두 제외)
+}
+
+/**
+ * 페르소나 생성 입력. 두 모드가 있고 필드로 구분한다(PRD FR-7).
+ * - 텍스트 모드: conversation에 대화 텍스트, images는 비움
+ * - 이미지 모드: images에 캡처, conversation은 표시용 플레이스홀더(§3.7)
+ * images는 선택 필드이므로 기존 텍스트 호출부는 그대로 컴파일된다(가산 원칙).
+ */
 export interface CreatePersonaInput {
   name: string;
   my_name: string;
   conversation: string;
+  images?: InlineImage[];     // P5에서 추가
 }
 
 /** 분석 결과의 답변 후보 1개 */
@@ -192,8 +209,9 @@ export interface AnalysisRecord {
 ### 3.2 `src/lib/config.ts`
 
 ```ts
-export const TEXT_MODEL = 'gemini-3.1-flash-lite';   // 단일 모델
+export const TEXT_MODEL = 'gemini-3.1-flash-lite';   // 단일 모델(텍스트·이미지 공용)
 export const TEXT_REQUEST_TIMEOUT_MS = 60_000;       // 텍스트 요청 타임아웃
+export const IMAGE_REQUEST_TIMEOUT_MS = 180_000;     // 이미지가 붙은 요청 타임아웃(P5에서 추가)
 
 export const API_KEY_COOKIE_NAME = 'pm_gemini_key';  // API 키 쿠키 이름
 export const API_KEY_COOKIE_MAX_AGE_DAYS = 365;      // 1년
@@ -206,6 +224,7 @@ export const STORE_ANALYSES = 'analyses';
 export const GEMINI_API_KEY_HELP_URL = 'https://aistudio.google.com/app/apikey';
 ```
 
+- 모델은 하나뿐이므로 `IMAGE_MODEL` 같은 상수는 두지 않는다. 이미지 입력이 바꾸는 것은 **타임아웃 하나**이며, 그래서 상수도 타임아웃만 늘렸다. 180초는 실측 근거가 없는 여유값이다 — 인라인 base64 페이로드가 크고 판독이 함께 일어나 60초로는 조기 실패할 수 있다는 판단에서 나왔고, P5 검증의 실측으로 재검토한다(§10 #15).
 - 모델명·저장소 이름·DB 이름은 **여기서만** 정의한다. 다른 모듈은 리터럴을 쓰지 않는다. 예외 하나: UI 언어 저장 키 `'pm_lang'`(localStorage)은 `i18n.ts` 내부 상수 `LANG_STORAGE_KEY`로 둔다 — `i18n.ts`는 P1에서 `config.ts`(P2)보다 먼저 만들어지고, 다른 모듈이 이 키를 참조하지 않기 때문이다.
 - `DB_NAME`은 코드네임(Persona Mirror)을 따른다. 표시명이 Persora로 확정된 뒤에도 이미 만들어진 로컬 DB와의 호환을 위해 **DB 이름은 바꾸지 않는다**(바꾸면 기존 데이터가 보이지 않게 됨).
 
@@ -225,12 +244,18 @@ export function hasApiKey(): boolean;         // getApiKey() !== null
 ### 3.4 `src/lib/gemini.ts` — Gemini 클라이언트
 
 ```ts
-/** 저장된 키로 프롬프트를 보내고 응답 텍스트를 돌려준다. 키가 없으면 호출 전에 throw(err.keyNotSet). */
-export async function generate(prompt: string): Promise<string>;
+/**
+ * 저장된 키로 프롬프트를 보내고 응답 텍스트를 돌려준다. 키가 없으면 호출 전에 throw(err.keyNotSet).
+ * images가 한 장 이상이면 멀티모달 요청으로 구성하고 타임아웃을 IMAGE_REQUEST_TIMEOUT_MS로 바꾼다(§4).
+ * 모델은 두 경로가 같다(TEXT_MODEL 하나).
+ */
+export async function generate(prompt: string, images?: InlineImage[]): Promise<string>;
 
 /** LLM 응답 텍스트에서 JSON 객체를 추출한다. 실패해도 throw하지 않고 { raw } 를 돌려준다. */
 export function extractJson(text: string): Record<string, unknown>;
 ```
+
+`images`는 **선택 인자**다. 기존 호출부(`createPersona`의 텍스트 경로, `analyzeMessage`)는 인자를 하나만 넘기므로 시그니처 확장만으로 회귀가 생기지 않는다. `images`가 `undefined`이거나 빈 배열이면 M1과 완전히 같은 요청(문자열 `contents` + 60초)이 나간다.
 
 `extractJson` 절차(순서 고정):
 1. ` ```json ` / ` ``` ` 펜스를 제거하고 `trim`.
@@ -238,7 +263,19 @@ export function extractJson(text: string): Record<string, unknown>;
 3. 실패하면 정리된 텍스트 **전체**를 `JSON.parse`.
 4. 그것도 실패하면 `{ raw: cleaned }` 반환. 호출자는 `'raw' in result`로 파싱 실패를 판별한다.
 
-P5에서 `generate(prompt, images?)`로 멀티모달 인자를 추가할 계획이며, 그때 이미지 경로 타임아웃 상수를 별도로 둔다(값 미확정). 호출 상세·에러 변환은 §4.
+호출 상세(멀티모달 `contents` 구성 포함)·에러 변환은 §4. 오류 분류는 두 경로가 같은 규칙을 쓴다(§4.1) — 이미지 전용 오류 코드를 새로 두지 않는다.
+
+#### 3.4.1 `src/lib/image.ts` — File → InlineImage (P5에서 생성)
+
+```ts
+/** 선택한 이미지 파일을 Gemini inlineData 파트에 실을 수 있는 형태로 바꾼다. */
+export function fileToInlineImage(file: File): Promise<InlineImage>;
+```
+
+- `FileReader.readAsDataURL`로 읽어 얻은 data URL에서 **첫 쉼표 뒤**만 잘라 `data`에 담는다(`data:image/png;base64,` 접두 제거). 쉼표가 없으면 읽은 문자열을 그대로 쓴다.
+- `mimeType`은 `file.type`을 쓰고, 브라우저가 비워 두면 `'image/png'`로 둔다.
+- 읽기 실패(`reader.onerror`)는 reject한다. 화면이 잡아 `toast.imageLoadFail`을 띄운다(§3.10).
+- 이 모듈은 DOM API(`FileReader`)에 의존하므로 Node 단위 테스트 대상이 아니다(§9.2).
 
 ### 3.5 `src/lib/prompts.ts` — 프롬프트
 
@@ -254,6 +291,9 @@ export function buildAnalyzePrompt(input: { persona: PersonaRecord; message: str
 
 **페르소나 프롬프트 계약**
 - 요청 필드(= `PERSONA_FIELDS` 키): `summary`, `communication_style`, `speech_level`, `vocabulary_examples[]`, `sentence_style`, `emoji_symbol_usage`, `texting_habits`, `emotional_tendencies`, `what_they_value`, `how_they_seek_response`, `relationship_dynamics`. 각 키에는 "실제 대화에서 인용할 것"을 요구하는 설명을 붙인다(추상적 설명 금지, 어미 패턴·문장 예시·이모지 실물 나열).
+- **입력 소스 블록은 `input.images` 유무로 분기한다**(P5에서 추가). 나머지 블록(분석 지시·JSON 형식·언어 지시)은 두 모드가 완전히 같다 — 출력 계약을 하나로 유지하기 위해서다.
+  - 텍스트 모드: `대화 기록:` 뒤에 `conversation`을 그대로 붙인다.
+  - 이미지 모드: 대화 텍스트 대신 **"대화 기록은 첨부된 채팅 캡처 이미지에 들어 있으니 이미지를 꼼꼼히 읽어 파악하라"** 는 지시를 넣고, 두 가지를 덧붙인다 — ① 말풍선의 좌/우 위치와 이름표를 근거로 각 발화가 누구의 것인지 판별할 것, ② 여러 장이면 위→아래, 앞→뒤 순서로 시간 흐름을 이어서 해석할 것. 이미지 모드에서는 `conversation`이 플레이스홀더 문자열이므로 프롬프트에 넣지 않는다(§3.7).
 - `my_name`이 비면 최상위에 `PERSONA_FIELDS` 하나(상대만). `my_name`이 있으면 `{ "other_persona": {…}, "my_persona": {…} }` 이중 구조로 요청하고, **`my_persona`의 `sentence_style`·`vocabulary_examples`·`texting_habits`에는 내가 실제로 보낸 문장을 그대로 인용**하라고 지시한다 — 이것이 뒤에 "내 말투로 답장"을 만드는 재료다.
 - 마지막에 "반드시 아래 JSON 형식으로만 응답. 다른 텍스트·설명·마크다운 금지"를 명시한다.
 
@@ -316,13 +356,18 @@ export function removePersona(id: string): Promise<void>;
 ```
 
 `createPersona` 흐름:
-1. `buildPersonaPrompt(input, getLang())`
-2. `generate(prompt)` — 실패는 §4의 사용자 친화 Error로 그대로 전파(화면이 토스트)
+1. `buildPersonaPrompt(input, getLang())` — `input.images`가 있으면 프롬프트가 이미지 분기로 조립된다(§3.5)
+2. `generate(prompt, input.images)` — `images`가 없으면 M1과 동일한 텍스트 요청. 실패는 §4의 사용자 친화 Error로 그대로 전파(화면이 토스트)
 3. `extractJson(text)` → `my_name`이 있으면 `raw.other_persona`/`raw.my_persona`로 분리(없으면 `raw` 전체를 상대 페르소나, `my_persona = {}`). 분리 헬퍼는 `splitPersonaRaw(raw, myName): { personaData, myPersonaData }`이며, 현재 사용처가 `createPersona` 하나뿐이라 **모듈 내부 함수로 두고 export하지 않는다**. 재분석 경로가 생겨 다른 모듈이 쓰게 되면 그때 export한다. **JSON 파싱 실패(`'raw' in result`)는 거부하지 않고 원문을 보존해 저장한다** — 상대 페르소나가 `{ raw: text }`가 되고, `PersonaFields`의 인덱스 시그니처 덕에 상세 화면이 알 수 없는 키를 관대하게 표시하므로 사용자는 원문을 보고 삭제 후 재시도할 수 있다. (3단 사고: 1차 — 거부가 깔끔하다 / 2차 — 거부하면 사용자가 얻는 것이 없고 실패 원인을 볼 수도 없다, 반대로 저장하면 쓰레기 레코드가 남지만 삭제 한 번으로 정리된다 / 종합 — 원문 보존 저장. 실패율은 실호출에서 관찰해 `responseMimeType` 도입 여부(§10 #2)의 근거로 쓴다.)
 4. `{ id: uuid(), name, my_name(trim), created_at: now ISO, conversation, persona, my_persona }` 구성
 5. `personaRepo.put(record)` → 반환
 
-입력 검증(이름 필수, 대화가 너무 짧으면 거부)은 화면(`PersonaPage`)이 호출 전에 수행한다.
+입력 검증(이름 필수, 텍스트 모드면 대화가 너무 짧을 때 거부, 이미지 모드면 0장일 때 거부)은 화면(`PersonaPage`)이 호출 전에 수행한다.
+
+**이미지 모드의 `conversation`**(P5). `PersonaRecord.conversation`은 상세 모달의 "원본 대화 기록 보기"가 읽는 필드다(DESIGN §5.3). 이미지 모드에는 저장할 대화 텍스트가 없으므로, 화면이 `createPersona`를 부르기 전에 **캡처 장수를 담은 i18n 플레이스홀더**(`persona.create.imagePlaceholder`, 예: "[채팅 캡처 이미지 3장으로 생성된 페르소나]")를 `conversation`에 넣는다. `createPersona`는 받은 문자열을 그대로 저장할 뿐 이 규칙을 알지 못한다.
+
+- **이미지 자체는 레코드에 넣지 않는다.** `PersonaRecord`에 이미지 필드를 두지 않으므로 스키마와 `DB_VERSION`은 그대로다(1). base64 캡처를 IndexedDB에 쌓으면 레코드가 수 MB로 커지는데, 페르소나가 만들어진 뒤 이미지를 다시 쓸 경로가 없다.
+- 그 대가로 **이미지 모드로 만든 페르소나는 근거 대화를 되짚어 볼 수 없다.** 상세에는 플레이스홀더 한 줄만 남는다. 텍스트 모드가 기본인 이유 중 하나이며(PRD §8 부속 결정 3), 필요가 확인되면 그때 저장 방식을 다시 논의한다(§10 #16).
 
 ### 3.8 `src/lib/analysis.ts` — 메시지 분석 유스케이스
 
@@ -390,11 +435,12 @@ export function getInitial(name: string): string;       // 아바타용 첫 글�
 | `ApiKeyStatus` | 키 있을 때만 헤더에 "● Gemini 준비됨". 클릭 → 인라인 입력(변경/취소/삭제). 키 없으면 `null`(모달이 점유) | `useApp` |
 | `LanguageToggle` | `한`/`EN` 세그먼트 필 | `setLang`, `useLocale` |
 | `Toast` | `toasts` 큐 렌더, 클릭 시 dismiss. 위치·톤 색은 DESIGN.md | `useApp` |
-| `PersonaPage` | 목록(`listPersonaSummaries`) · 생성 바텀 시트(이름·나의 이름·대화 textarea → 제출 전 검증(§3.7) → `createPersona`) · 상세 모달(`PERSONA_FIELDS` 11항목 = summary 블록 + 10 카드, 추가 키는 관대 표시, 나/상대 탭 → `getPersona`) · 삭제(`removePersona`) · "분석하기로" 진입(`setSelectedPersonaId`) | `lib/persona.ts` |
+| `PersonaPage` | 목록(`listPersonaSummaries`) · 생성 바텀 시트(이름·나의 이름 + **텍스트/이미지 입력 토글** → 제출 전 검증(§3.7) → `createPersona`) · 상세 모달(`PERSONA_FIELDS` 11항목 = summary 블록 + 10 카드, 추가 키는 관대 표시, 나/상대 탭 → `getPersona`) · 삭제(`removePersona`) · "분석하기로" 진입(`setSelectedPersonaId`) | `lib/persona.ts`, `lib/image.ts` |
 | `AnalyzePage` | 페르소나 칩 선택(초기값: `useApp.selectedPersonaId`가 목록에 있으면 그것, 없으면 첫 번째) + 받은 메시지 textarea → `analyzeMessage` → 분석문 + 후보 3장(복사 버튼 `navigator.clipboard.writeText`) | `lib/analysis.ts`, `lib/persona.ts`, `useApp` |
 | `HistoryPage` | `listAnalyses` 목록 · 카드 펼치기 · 삭제(`removeAnalysis`) | `lib/analysis.ts` |
 
-- 모든 사용자/LLM 문자열은 JSX 텍스트 노드로만 렌더한다. `dangerouslySetInnerHTML` 사용 금지(§8).
+- `PersonaPage`의 이미지 모드 상태는 시트 안에 갇힌다(P5): 입력 모드(`'text' | 'image'`)와 선택한 `InlineImage[]`는 생성 시트의 로컬 상태이며, 시트를 닫으면 다른 입력값과 함께 버려진다(DESIGN §9 "입력 유지"). 파일 선택 → `fileToInlineImage`(§3.4.1) 변환 → 썸네일 표시 → 제출 시 `createPersona`의 `images`로 전달이라는 한 방향 흐름이고, 전역 스토어에 이미지를 올리지 않는다.
+- 모든 사용자/LLM 문자열은 JSX 텍스트 노드로만 렌더한다. `dangerouslySetInnerHTML` 사용 금지(§8). 썸네일은 사용자가 방금 고른 파일을 `data:` URL로 되돌려 `<img>`에 넣는 것이라 이 규칙과 무관하다.
 - 비동기 실패는 각 화면이 `catch`해 `pushToast(err.message, 'error')`로 표시한다. 유스케이스는 이미 사용자 언어의 메시지를 담은 `Error`를 던진다(§4).
 
 ---
@@ -404,20 +450,39 @@ export function getInitial(name: string): string;       // 아바타용 첫 글�
 ```ts
 // gemini.ts 내부(개요)
 const ai = new GoogleGenAI({ apiKey });                 // 호출마다 생성(키 변경 즉시 반영, 생성 비용 미미)
+
+const useImages = !!images && images.length > 0;        // P5
+const timeoutMs = useImages ? IMAGE_REQUEST_TIMEOUT_MS : TEXT_REQUEST_TIMEOUT_MS;
+
+// 텍스트만이면 문자열 그대로, 이미지가 있으면 parts 배열로 멀티모달 구성
+const contents = useImages
+  ? [{ role: 'user', parts: [
+      { text: prompt },
+      ...images.map((img) => ({ inlineData: { mimeType: img.mimeType, data: img.data } })),
+    ] }]
+  : prompt;
+
 const response = await ai.models.generateContent({
-  model: TEXT_MODEL,                                    // 'gemini-3.1-flash-lite'
-  contents: prompt,                                     // 텍스트는 문자열 그대로
+  model: TEXT_MODEL,                                    // 'gemini-3.1-flash-lite' — 두 경로 공통
+  contents,
   config: {
-    httpOptions: { timeout: TEXT_REQUEST_TIMEOUT_MS },  // 60s
+    httpOptions: { timeout: timeoutMs },                // 60s / 180s
     thinkingConfig: { thinkingBudget: 0 },              // 추론 토큰 제거 → 지연 단축(실측은 미확정)
   },
 });
 return response.text ?? '';
 ```
 
-- **단일 모델**: 모든 호출이 `TEXT_MODEL` 하나를 쓰고 `thinkingConfig`를 항상 함께 보낸다. 모델명·설정은 `config.ts`에서만 바꾼다.
+- **단일 모델**: 모든 호출이 `TEXT_MODEL` 하나를 쓰고 `thinkingConfig`를 항상 함께 보낸다. 이미지가 붙어도 모델은 바뀌지 않는다 — `gemini-3.1-flash-lite`가 멀티모달이라 별도 비전 모델이 필요 없다(ADR-6). 모델명·설정은 `config.ts`에서만 바꾼다.
+- **파트 순서**: 텍스트 프롬프트가 첫 파트이고 이미지가 그 뒤에 화면 순서대로 붙는다. 프롬프트가 "여러 장이면 위→아래, 앞→뒤로 이어 해석하라"고 지시하므로(§3.5), 화면이 넘기는 배열 순서 = 사용자가 첨부한 순서 = 대화의 시간 순서라는 전제가 성립해야 한다. 화면은 선택한 파일을 **추가된 순서 그대로** 배열에 쌓고 재정렬하지 않는다.
+- **요청 경로별 파라미터**
+
+  | 경로 | `contents` | 타임아웃 | 모델 | 실측 지연 |
+  |---|---|---|---|---|
+  | 텍스트(페르소나 생성·메시지 분석) | 프롬프트 문자열 | `TEXT_REQUEST_TIMEOUT_MS` 60s | `TEXT_MODEL` | 1.94s / 6.57s / 5.87s / 3.49s (각 1회, §9.5) |
+  | 캡처 이미지(페르소나 생성) | `[{ role:'user', parts:[{text}, …{inlineData}] }]` | `IMAGE_REQUEST_TIMEOUT_MS` 180s | `TEXT_MODEL`(동일) | **미실측** — P5 검증에서 실제 캡처로 측정(§10 #15) |
 - **thinkingBudget=0**: flash-lite가 기본적으로 내부 추론(thinking) 토큰을 써 단건 응답이 길어질 수 있다는 것은 문헌 근거이며 실측하지 않았다(기본 thinking 사용 여부·지연 단축 효과 모두 **미실측**). 우리 출력은 정형 JSON이라 추론을 꺼도 형식 준수에는 영향이 작을 것으로 본다. 모델명과 `thinkingConfig`가 API에서 수락되는지, 품질·지연 차이는 어떤지는 P3 첫 실호출부터 실사용으로 확인한다(**미확정**, §10 #1·#10).
-- **타임아웃**: `httpOptions.timeout = 60_000`. 초과 시 SDK가 던지는 오류(`AbortError`/"timeout")를 `err.timeout`으로 변환한다.
+- **타임아웃**: `httpOptions.timeout`은 텍스트 60초, 이미지가 붙으면 180초. 초과 시 SDK가 던지는 오류(`AbortError`/"timeout")를 `err.timeout`으로 변환한다 — 두 경로가 같은 문구를 쓴다(§4.1). 사용자에게는 어느 타임아웃에 걸렸는지 구분해 알리지 않는다.
 - **키 사전 검증 호출 없음**: 온보딩은 키를 저장만 한다. 키 유효성은 첫 실제 호출의 인증 오류로 드러나며, 그때 키 재입력을 유도한다. (별도 검증 호출은 할당량을 소모하고 온보딩을 느리게 하므로 두지 않는다.)
 - **JSON 강제**: 프롬프트의 "JSON만 출력" 지시 + `extractJson` 방어 파싱으로 시작한다. `responseMimeType: 'application/json'` 옵션의 필요 여부는 실호출에서 파싱 실패율을 본 뒤 결정한다(**미확정**).
 - **응답 비어 있음**: 안전 필터 등으로 `response.text`가 `undefined`면 `''`로 취급 → `extractJson`이 `{ raw: '' }` → 호출자 폴백 경로. 별도 사용자 안내 문구는 미확정.
@@ -431,7 +496,7 @@ return response.text ?? '';
 | 0 | 호출 전 `getApiKey()`가 null | 키 없음 | `err.keyNotSet` | 온보딩 게이트가 이미 열려 있어야 정상 |
 | 1 | 메시지에 `API key`/`API_KEY_INVALID`/`PERMISSION_DENIED`/`unauthorized`/`forbidden`, 또는 `status === 403`/`403` 포함 | **인증(403 또는 키 관련 메시지)** | `err.invalidKey` | 토스트 문구(`err.invalidKey`)로 헤더에서 키를 바꾸라고 안내 — 편집 상태를 자동으로 열지는 않음(`generate`는 plain `Error`만 던져 화면이 종류를 식별하지 않는다) |
 | 2 | `Failed to fetch`/`network` | 네트워크 | `err.network` | 토스트 |
-| 3 | `name === 'AbortError'`/`timeout`/`timed out`/`aborted` | 타임아웃(60s) | `err.timeout` | 토스트 |
+| 3 | `name === 'AbortError'`/`timeout`/`timed out`/`aborted` | 타임아웃(텍스트 60s / 이미지 180s) | `err.timeout` | 토스트 |
 | 4 | `429`/`quota`/`rate limit` | 요청 과다(할당량) | `err.rateLimit` | 토스트 |
 | 5 | `500`/`503` | 서비스 일시 오류 | `err.serviceTemp` | 토스트 |
 | 6 | 그 외 | 일반 | `err.aiGeneric` (`{msg}` 포함) | 토스트 |
@@ -450,6 +515,7 @@ return response.text ?? '';
 | ADR-3 | **IndexedDB(개인 데이터) + 쿠키(API 키)** | 페르소나·기록은 수 KB~수백 KB의 구조화 레코드 → IndexedDB. 키는 한 줄 문자열이라 쿠키가 구현이 단순하고(만료 내장, 새로고침·재방문 유지) | 키를 localStorage에 둘 수도 있다. 그러나 XSS 노출 관점에서는 **둘이 동등**하다(둘 다 같은 origin JS가 읽는다). `HttpOnly` 쿠키는 브라우저가 키를 직접 써야 하므로 애초에 불가. 페르소나까지 쿠키/localStorage에 넣는 것은 용량(4KB/5MB)과 구조화 조회 면에서 부적합 | IndexedDB + 쿠키 채택(요약 — 정본은 [PRD §8.4 부속 결정 1](./PRD.md#8-아키텍처-방향-결정-3단-사고)) |
 | ADR-4 | **HashRouter** | GitHub Pages 프로젝트 사이트는 하위 경로에 배포되고 서버 리라이트를 못 한다. `#/personas` 식 라우팅은 어떤 정적 호스트에서도 새로고침·직접 진입이 깨지지 않는다 | BrowserRouter + 404.html 리다이렉트 트릭도 있지만 호스트 의존적이고 SEO는 이 앱에 무의미. 해시 URL이 덜 예쁜 것은 모바일 웹 앱에서 체감이 작다 | HashRouter 채택. Express 미리보기의 SPA 폴백은 안전망으로만 둔다 |
 | ADR-5 | **Zustand 최소 전역 상태** | 화면 상태는 각 페이지의 `useState`로 충분하고, 전역으로 필요한 것은 API 키 미러(온보딩 게이트)·`selectedPersonaId`(탭 간 전달값)·토스트 큐 3개 | Context만으로도 가능하지만 Provider·리듀서 보일러플레이트 대비 이득이 없다. 온보딩 게이트·헤더 인디케이터·각 페이지가 같은 `apiKey` 미러를 구독해야 하고, 스토어 API(`useApp.getState()`)로 React 트리 밖에서도 상태를 읽을 수 있어 단순하다. Redux류는 규모 대비 과함 | Zustand 스토어 1개 채택. 로케일은 i18n 모듈이 자체 관리(도메인 코드가 React 밖에서 `t()` 사용) |
+| ADR-6 | **캡처 이미지 입력을 선택 모드로 가산** (`CreatePersonaInput.images?` + `generate(prompt, images?)` + 이미지 타임아웃 180s, 모델은 그대로 하나) | 텍스트로는 아예 넣을 수 없는 대화가 있다 — 타인 기기의 화면, 복사가 막혔거나 이미 지운 대화, 캡처만 떠 둔 대화. 모델이 멀티모달이라 별도 OCR·별도 모델 없이 같은 호출 경로에 이미지를 얹을 수 있다 | ① 스크린샷은 텍스트 프롬프트보다 훨씬 크고 인라인 base64로 실으면 원본 바이트보다 약 4/3로 더 늘어나, 요청이 무겁고 느릴 수 있다(장당 실제 크기 미측정) → 이미지 경로에만 180초 타임아웃(값은 실측 근거 없는 여유값, §10 #15). ② **캡처 한 장은 화면 한 장 분량의 발화만 담아 붙여넣기보다 인용 재료가 적을 수 있다 — 반증하지 못했다.** 정확도 비교 표본이 없다(§10 #16). ③ 캡처에는 프로필 사진·표시 이름 같은 부수 정보가 함께 실려 Google로 나간다 → 고지(PRD DR-4). ④ 텍스트를 대체하는 안은 ②가 미확정인 이상 검증된 경로를 버릴 근거가 없어 기각 | 텍스트를 **기본**, 이미지를 **선택 모드**로 둔다. 계약은 **가산**만 한다(선택 필드·선택 인자·타임아웃 상수 1개) — 텍스트 호출부는 손대지 않고, 실패하면 이미지 코드만 되돌리면 M1 동작이 남는다. 정확도·지연은 관찰 항목(요약 — 정본은 [PRD §8 부속 결정 3](./PRD.md#8-아키텍처-방향-결정-3단-사고)) |
 
 ---
 
@@ -520,7 +586,7 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 | **XSS** | 대화 원문·LLM 출력에 스크립트/HTML이 섞여 렌더되면 쿠키의 키가 탈취될 수 있음 | 모든 사용자/LLM 문자열은 React 텍스트 노드로만 렌더(`dangerouslySetInnerHTML` 금지). 마크다운/HTML 렌더링을 도입하려면 sanitizer가 선행 조건. P7에서 `index.html`에 CSP meta(`default-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com …`) 적용 — 정확한 정책은 P7에서 확정(미확정) |
 | **키 취급** | 브라우저에 평문 보관, JS에서 읽힘(설계상 불가피) | 쿠키 `SameSite=Lax`, HTTPS면 `Secure`. `HttpOnly` 불가. 피해 범위 축소로 "Google AI Studio에서 키를 Gemini API만 쓰도록 제한하고, 노출 의심 시 즉시 회전"을 안내. HTTP referrer 제한은 AI Studio에서 가능한지 미확인이고(§10 #11), 우리 origin의 XSS는 같은 referrer로 통과하며 탈취 후 비브라우저 클라이언트는 Referer를 임의로 넣을 수 있어 효과가 제한적이다. 헤더에서 언제든 삭제 가능 |
 | **로깅** | 콘솔·오류 리포트로 키/대화 유출 | 키·대화·프롬프트·응답 원문을 `console.*`에 출력하지 않는다. 오류 토스트에는 SDK 메시지만 포함 |
-| **데이터 전송 고지** | 사용자가 대화가 어디로 가는지 모름 | 고지 내용: 페르소나 생성 시 대화 텍스트, 분석 시 페르소나 JSON + 받은 메시지가 **Google Gemini API로 직접 전송**되며, 우리 서버는 어떤 개인 데이터도 받지 않는다. 브라우저 데이터 삭제 시 복구 불가도 함께 고지. 기본안은 온보딩 모달이며, 노출 위치·문구 수준은 §10 #8(미확정) |
+| **데이터 전송 고지** | 사용자가 대화가 어디로 가는지 모름 | 고지 내용: 페르소나 생성 시 대화 텍스트 **또는 첨부한 캡처 이미지**, 분석 시 페르소나 JSON + 받은 메시지가 **Google Gemini API로 직접 전송**되며, 우리 서버는 어떤 개인 데이터도 받지 않는다. 캡처는 대화 본문 외의 부수 정보(프로필 사진·표시 이름 등)까지 함께 실려 나간다는 점을 이미지 모드 힌트에 적는다(PRD DR-4). 브라우저 데이터 삭제 시 복구 불가도 함께 고지. 기본안은 온보딩 모달이며, 노출 위치·문구 수준은 §10 #8(미확정) |
 | **서버 표면** | 서버 취약점 | 정적 파일만 서빙, 입력 처리 코드 없음. `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` |
 | **의존성** | 공급망 | 런타임 의존성 최소(react, react-dom, react-router-dom, zustand, @google/genai, express, compression). 버전은 `package.json`에 고정 |
 
@@ -536,7 +602,7 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 ### 9.2 단위 테스트(M1 이후 도입 계획)
 - 도구: `vitest`(devDependency), `npm test` = `vitest run`.
 - 대상은 **DOM·네트워크 없이 순수하게 검증 가능한 모듈**부터: `extractJson`(펜스/균형 블록/전체 파싱/raw 폴백 4경로), 프롬프트 빌더의 분기(`my_name` 유무, `lang`), 유틸(`formatDate`, `getInitial`).
-- IndexedDB CRUD는 Node용 IndexedDB shim 없이 브라우저 스모크로 대신한다(shim 도입 여부 미확정).
+- IndexedDB CRUD는 Node용 IndexedDB shim 없이 브라우저 스모크로 대신한다(shim 도입 여부 미확정). `image.ts`의 `fileToInlineImage`도 `FileReader`(DOM API)에 의존해 같은 이유로 브라우저 스모크가 검증 수단이다.
 
 ### 9.3 UI 스모크(마일스톤)
 - `npm run dev`(4121) + 브라우저 자동화로: 키 없을 때 온보딩 모달 표시 → 키 입력 + 동의 → 저장 후 모달 닫힘·헤더 "● Gemini 준비됨" → 탭 이동 → 페르소나 생성 시트 열림.
@@ -590,7 +656,7 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 | 1 | `gemini-3.1-flash-lite` + `thinkingBudget=0`의 지연·JSON 준수율·페르소나 품질 | **부분 확인(M1)**: 실키 4회 모두 정상 응답·JSON 파싱 성공, 지연 1.94s/6.57s/5.87s/3.49s(§9.5). 남은 미확정 — 표본이 각 1회라 분산·준수율을 말할 수 없고, **thinking off의 효과는 off 상태만 재서 미실측**이다. P6 실사용에서 표본을 늘린다 |
 | 2 | `responseMimeType: 'application/json'` 필요 여부 | 도입하지 않음 — LOG에 파싱 결과가 적힌 실호출(P2 `extractJson`, P3 11필드, P4 후보 3개)에서 실패가 없었다. 표본이 작으므로 실패가 보이면 재검토 |
 | 3 | ~~브라우저 직접 호출(CORS) 통과 여부, 오류 객체 형태~~ **확인됨(P2)**: 브라우저→`generativelanguage.googleapis.com` 직접 호출 CORS 통과. 무효 키는 HTTP 400 + `error.code=400/status=INVALID_ARGUMENT/reason=API_KEY_INVALID`로 도착하고 SDK 오류 메시지에 그 JSON이 포함된다 → §4.1 분류 규칙(메시지 "api key" 포함 → 인증 오류) 유효. 방법·수치는 LOG P2 | P2 완료 |
-| 4 | P5 이미지 경로의 타임아웃 값과 `generate` 시그니처 확장 방식 | P5 설계 |
+| 4 | ~~이미지 경로의 타임아웃 값과 `generate` 시그니처 확장 방식~~ **확정(P5 docs)**: `generate(prompt, images?)`로 선택 인자를 가산하고, 이미지가 있을 때만 `IMAGE_REQUEST_TIMEOUT_MS = 180_000`을 쓴다. 모델은 분기하지 않는다(§3.4·§4·ADR-6) | 완료 |
 | 5 | GitHub Pages `base` 경로·workflow·CSP 정확한 정책 | P7 |
 | 6 | ~~페르소나 생성에서 JSON 파싱 실패(`raw`) 시 처리~~ **확정(P3)**: 원문 보존 저장(§3.7) | P3 docs |
 | 7 | IndexedDB `list()`의 메모리 정렬 → 인덱스 커서 전환 기준 | 데이터 규모 문제 발생 시 |
@@ -601,3 +667,5 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 | 12 | 첫 로드 JS 529.88 kB(gzip 131.68 kB)에 코드 스플리팅을 도입할지 | 배포 경로가 정해지는 P7 직전에 판단. 대부분이 `@google/genai` 번들이라 분할 대상은 LLM 호출 경로다 |
 | 13 | 상세 모달 백드롭이 화면 최상단 약 20px를 덮지 않는 것으로 보임(P3 스크린샷 관찰) | **원인 미조사.** 닫기·조작에는 영향이 없어 M1에서 추적하지 않았다. P6 안정화에서 열린 오버레이의 `getBoundingClientRect().top`을 실측해 진단한다 |
 | 14 | 실기기 확인(A6, 같은 Wi-Fi 휴대폰) | **미실행.** 자동화 뷰포트 390/360px만 확인했다. P6 실사용에서 수행 |
+| 15 | 캡처 이미지 요청의 지연·페이로드 크기와 `IMAGE_REQUEST_TIMEOUT_MS = 180_000`의 적정성 | **미실측.** 장당 base64 크기도 요청 지연도 잰 적이 없고, 180초는 근거 없는 여유값이다. P5 검증에서 실제 카카오톡 캡처 1장으로 생성해 지연을 재고, 값이 과하거나 모자라면 상수 1곳을 고친다 |
+| 16 | 캡처 이미지로 만든 페르소나의 정확도(텍스트 대비)와 캡처 장수 상한·압축 도입 여부 | **미확정.** 같은 대화를 두 모드로 만들어 비교한 표본이 없다(ADR-6 반증 실패 항목). 장수 상한과 리사이즈도 두지 않고 시작하며, #15 실측 뒤 필요가 보이면 넣는다. 이미지를 레코드에 저장하지 않는 결정(§3.7)의 재논의도 이 관찰에 달렸다. P5 검증에서 1회 관찰하고 판단은 P6 실사용으로 넘긴다 |

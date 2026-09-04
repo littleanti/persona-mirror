@@ -1,6 +1,6 @@
 # DESIGN — Persora 화면·인터랙션 설계
 
-> 문서 버전: 1.0 · 갱신일: 2026-09-05 · 상태: M1(MVP) 기준선 — 구현된 화면과 대조해 정정
+> 문서 버전: 1.1 · 갱신일: 2026-09-05 · 상태: P5 착수 — 생성 시트에 텍스트/캡처 이미지 입력 토글 설계 확정, 구현 진행중
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -9,6 +9,7 @@
 | 0.2 | 2026-09-05 | P3 착수: 콘텐츠 폭 `max-w-2xl`(D1·§3), 생성 실패 행에 원문 보존 저장 반영(§5.2) |
 | 0.3 | 2026-09-05 | 표시명 Persora 확정(머리말 주석, 와이어프레임 앱명, U1 종결) |
 | 1.0 | 2026-09-05 | M1 기준선: §5.1 헤더 버튼 문구를 구현과 일치시킴, §10.1 키 영역에 `btn.*` 추가, "0.1 범위" 표현을 M1 기준으로 정리, §12 미확정 정리 + 상세 모달 백드롭 관찰 추가 |
+| 1.1 | 2026-09-05 | P5 착수: §5.2 생성 시트에 입력 모드 세그먼트·드롭존·썸네일 그리드·이미지 모드 검증 순서 추가, §5.3 이미지 모드의 원본 대화 표시 정정, §8.2 로딩에 이미지 요청 180초, §10.1 `persona.create.*`·`toast.*` 신규 키, §12에 U18~U20 추가 |
 
 관련 문서: 제품 요구는 [`./PRD.md`](./PRD.md), 모듈 계약·저장·LLM 호출은 [`./TRD.md`](./TRD.md), 단계 계획은 [`./PLAN.md`](./PLAN.md), 변경 이력은 [`./LOG.md`](./LOG.md). 이 문서는 **현재 시점의 설계 상태**만 서술하고, 변경 사유·이력은 LOG에 남긴다.
 
@@ -288,6 +289,10 @@ export default {
 ││ 상대방 이름            나의 이름 (선택)  ││  2열 grid
 ││ [ 예) 김민준     ]     [ 예) 나      ]   ││  rounded-xl input
 ││                                          ││
+││ ┌──────────────┬───────────────────────┐ ││  입력 모드 세그먼트(§2.5)
+││ │ ✍️ 텍스트     │  🖼️ 캡처 이미지        │ ││  기본 = 텍스트
+││ └──────────────┴───────────────────────┘ ││
+││                                          ││
 ││ ┌──────────────────────────────────────┐ ││
 ││ │ 김민준: 야 오늘 뭐해?                │ ││  textarea flex-1 min-h-[10rem]
 ││ │ 나: 집에 있어. 왜?                   │ ││  placeholder = 대화 예시 4줄
@@ -302,17 +307,42 @@ export default {
 │└──────────────────────────────────────────┘│     + "페르소나 생성 중..."
 └────────────────────────────────────────────┘
 ```
+
+**캡처 이미지 모드**(세그먼트에서 "🖼️ 캡처 이미지" 선택 — 이름 입력 두 칸과 하단 생성 버튼은 그대로다)
+
+```
+││ ┌──────────────┬───────────────────────┐ ││
+││ │ ✍️ 텍스트     │ [🖼️ 캡처 이미지]       │ ││  활성: bg-white text-indigo-600
+││ └──────────────┴───────────────────────┘ ││
+││                                          ││
+││ ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐ ││  드롭존 = <label> + hidden input
+││ │                                      │ ││  border-2 dashed, flex-1 min-h-32
+││ │   카카오톡·문자 캡처 이미지 선택     │ ││  hover: border-indigo-300
+││ │                                      │ ││
+││ └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘ ││
+││ ┌────┐ ┌────┐ ┌────┐                    ││  썸네일 그리드(flex-wrap gap-2)
+││ │▨ ⓧ│ │▨ ⓧ│ │▨ ⓧ│                    ││  64×64 rounded-xl, 우상단 제거 ×
+││ └────┘ └────┘ └────┘                    ││
+││ 🖼️ AI가 캡처에서 대화를 직접 읽어         ││  hint text-xs slate-400
+││ 페르소나를 만들어요. 여러 장을 시간      ││
+││ 순서대로 올리면 더 정확해요. 캡처        ││
+││ 이미지도 Google로 전송됩니다.            ││
+```
 | 요소 | 규칙 |
 |---|---|
 | 컨테이너 | 백드롭 `fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm flex items-end justify-center`; 시트 `w-full max-w-lg h-[92dvh] flex flex-col bg-white border border-slate-200 rounded-t-3xl shadow-soft-lg animate-slide-up` |
-| 본문 | `px-5 pb-6 flex-1 min-h-0 overflow-y-auto flex flex-col gap-3`. textarea가 `flex-1`로 남은 높이를 채운다(D3) |
-| 입력 | 상대방 이름(필수), 나의 이름(선택 — 비우면 `my_name: ""`), 대화 textarea(`rows=8`, `resize-none`, `leading-relaxed`) |
-| 검증(제출 시, 순서대로 토스트) | ① 이름 공백 → `toast.enterName` ② 키 없음 → `status.noKey` ③ 대화 trim 길이 < 20(PRD FR-7의 임시값) → `toast.convTooShort`. 힌트의 "10줄 이상 권장"은 안내이고 거부 기준은 20자다 — 둘은 다른 개념 |
-| 로딩 | 버튼 `disabled` + 라벨 `페르소나 생성 중...`. 시트는 열린 채 유지, 백드롭 닫기 비활성(§1.1 A) |
-| 성공 | 토스트 `toast.personaCreated {name}`(성공) → 폼 초기화 → 시트 닫힘 → 목록 재조회 |
-| 실패 | 토스트에 `Error.message`(TRD `gemini.ts`가 만든 사용자 문구) 그대로. 없으면 `toast.personaCreateFail`. 시트와 입력은 **유지**(재시도 가능). LLM 응답이 JSON이 아니면 실패로 보지 않고 원문을 보존해 저장한다(PRD FR-11) — 목록 요약은 비고, 상세 모달이 `raw` 항목으로 원문을 보여 준다 |
-| 취소 | 닫기(X)·백드롭 → 입력 폐기. ESC는 M1에 없다(§12 U6) |
-| 확장 예정 | P5에서 캡처 이미지(멀티모달) 입력을 이 시트에 추가할 계획(PLAN 참조). M1 화면에는 없으며, 그때 이 절을 갱신한다 |
+| 본문 | `px-5 pb-6 flex-1 min-h-0 overflow-y-auto flex flex-col gap-3`. textarea(텍스트 모드)와 드롭존(이미지 모드)이 각각 `flex-1`로 남은 높이를 채운다(D3) |
+| 입력 | 상대방 이름(필수), 나의 이름(선택 — 비우면 `my_name: ""`), 그리고 **입력 모드에 따라** 대화 textarea(`rows=8`, `resize-none`, `leading-relaxed`) 또는 캡처 이미지 드롭존 |
+| 입력 모드 세그먼트 | 이름 두 칸 **아래**, 대화 입력 **위**에 놓는다(무엇을 넣을지 고른 뒤 넣는 순서). §2.5 세그먼트 탭 레시피 그대로 — 컨테이너 `flex rounded-2xl bg-slate-100 p-1 text-xs font-semibold`, 각 버튼 `flex-1 rounded-xl px-3 py-2`, 활성 `bg-white text-indigo-600 shadow-soft-sm`. 라벨은 `persona.create.tabText`("✍️ 텍스트") / `persona.create.tabImage`("🖼️ 캡처 이미지"). **기본은 텍스트**(PRD §8 부속 결정 3) |
+| 모드 전환 | 두 모드의 입력값은 **각각 보존**한다 — 텍스트로 돌아오면 붙여넣던 대화가 남아 있고, 이미지로 돌아오면 고른 썸네일이 남아 있다. 전환만으로 값을 지우면 잘못 누른 사용자가 입력을 잃는다(§12 U14와 같은 종류의 손실). 제출 시에는 **현재 선택된 모드의 값만** 보낸다 |
+| 드롭존(이미지 모드) | `<label>` 안에 `<input type="file" accept="image/*" multiple hidden>`을 넣어 라벨 전체가 클릭 영역이 된다. 모양 `flex flex-1 flex-col items-center justify-center gap-2 min-h-32 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-slate-400 text-sm font-medium cursor-pointer`, 호버 `border-indigo-300 text-indigo-500`. 문구 `persona.create.imageDropzone`. 선택한 파일은 `fileToInlineImage`(TRD §3.4.1)로 변환해 **기존 목록 뒤에 이어 붙인다** — 여러 번 나눠 고를 수 있고 순서는 고른 순서 그대로다(TRD §4 파트 순서 전제). 변환 실패 → 토스트 `toast.imageLoadFail` |
+| 썸네일 그리드 | 드롭존 아래 `flex flex-wrap gap-2`. 각 항목 `relative w-16 h-16 overflow-hidden rounded-xl border border-slate-200`에 `<img class="w-full h-full object-cover" alt="">`(장식이므로 빈 alt), 우상단에 제거 버튼 `absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/70 text-white text-xs`. 제거는 확인 없이 즉시(다시 고르면 되므로). 0장이면 그리드를 렌더하지 않는다 |
+| 힌트 | 텍스트 모드 `persona.create.textHint`("📋 대화가 많을수록 더 정확한 페르소나가 만들어져요. 최소 10줄 이상 권장합니다."), 이미지 모드 `persona.create.imageHint`("🖼️ AI가 캡처에서 대화를 직접 읽어 페르소나를 만들어요. 여러 장을 시간 순서대로 올리면 더 정확해요. 캡처 이미지도 Google로 전송됩니다."). 마지막 문장이 PRD DR-4의 캡처 전송 고지다 — 온보딩 동의 문구는 그대로 두고 여기 한 줄만 더한다 |
+| 검증(제출 시, 순서대로 토스트) | ① 이름 공백 → `toast.enterName` ② 키 없음 → `status.noKey` ③ **모드별**: 텍스트 모드는 대화 trim 길이 < 20(PRD FR-7의 임시값) → `toast.convTooShort`, 이미지 모드는 이미지 0장 → `toast.addImage`. 앞 두 검사는 모드와 무관하게 같은 순서로 먼저 돈다. 힌트의 "10줄 이상 권장"은 안내이고 거부 기준은 20자다 — 둘은 다른 개념 |
+| 로딩 | 버튼 `disabled` + 라벨 `페르소나 생성 중...`(`persona.create.loading`, 두 모드 공통). 시트는 열린 채 유지, 백드롭 닫기 비활성(§1.1 A). 이미지 요청은 타임아웃이 180초라 텍스트보다 오래 기다릴 수 있다(§8.2) |
+| 성공 | 토스트 `toast.personaCreated {name}`(성공) → 폼 초기화(모드도 텍스트로 되돌림, 썸네일 비움) → 시트 닫힘 → 목록 재조회 |
+| 실패 | 토스트에 `Error.message`(TRD `gemini.ts`가 만든 사용자 문구) 그대로. 없으면 `toast.personaCreateFail`. 시트와 입력은 **유지**(재시도 가능 — 고른 캡처도 남는다). LLM 응답이 JSON이 아니면 실패로 보지 않고 원문을 보존해 저장한다(PRD FR-11) — 목록 요약은 비고, 상세 모달이 `raw` 항목으로 원문을 보여 준다 |
+| 취소 | 닫기(X)·백드롭 → 입력 폐기(고른 캡처 포함). ESC는 없다(§12 U6) |
 
 ### 5.3 상세 모달
 하단에서 올라오는 시트형 모달(`items-end`, `max-h-[92dvh] overflow-y-auto`, `animate-slide-up`). 생성 시트와 같은 컨테이너 스타일이라 시각적 일관성을 갖는다.
@@ -356,7 +386,7 @@ export default {
 | 필드 표시 순서 | `PERSONA_FIELDS` 순서(TRD): summary(상단 블록) → communication_style, speech_level, vocabulary_examples, sentence_style, emoji_symbol_usage, texting_habits, emotional_tendencies, what_they_value, how_they_seek_response, relationship_dynamics. 라벨은 i18n `persona.field.*` |
 | 값 렌더 | 배열 → 태그(`rounded-full bg-indigo-50 text-indigo-600 text-xs`), 문자열 → `text-sm whitespace-pre-wrap`. 객체가 오면 값들을 ` / `로 이어 문자열화(LLM이 스키마를 벗어나도 깨지지 않게). 빈 값 항목은 숨김. 알 수 없는 키는 키 이름을 라벨로 그대로 표시 |
 | 나/상대 탭 | `my_name`이 있고 `my_persona`가 비어 있지 않을 때만 세그먼트 표시. 기본 탭 = 상대. 탭에 따라 summary 블록·항목 카드가 교체된다 |
-| 원본 대화 | 기본 접힘. 펼치면 `pre text-xs whitespace-pre-wrap max-h-48 overflow-y-auto` |
+| 원본 대화 | 기본 접힘. 펼치면 `pre text-xs whitespace-pre-wrap max-h-48 overflow-y-auto`. **캡처 이미지 모드로 만든 페르소나는 여기에 플레이스홀더 한 줄만 있다**("[채팅 캡처 이미지 3장으로 생성된 페르소나]") — 이미지는 저장하지 않으므로 근거 대화를 되짚어 볼 수 없다(TRD §3.7). 토글·레이아웃은 그대로 두고 별도 안내를 덧붙이지 않는다 |
 | 삭제 | `window.confirm("\"{name}\" 페르소나를 삭제할까요?")` → 확인 시 `removePersona` → 토스트 `toast.personaDeleted` → 모달 닫힘 → 목록 재조회. 실패 → `toast.deleteFail` |
 | 이 페르소나로 분석 | `useApp.setSelectedPersonaId(id)`(TRD §3.9 Zustand 스토어) 후 `#/analyze`로 이동, 토스트 `toast.personaSelected` |
 | 상세 로딩 | 카드 탭 → `getPersona` 동안 `z-40` 딤(`bg-slate-900/20 backdrop-blur-sm`) + 중앙 `불러오는 중...` 카드. 실패 → `toast.loadDetailFail` |
@@ -478,10 +508,10 @@ export default {
 | 상황 | 표현 |
 |---|---|
 | 목록 로딩(페르소나/기록/칩) | 텍스트 `불러오는 중...`(`text-slate-400 text-sm text-center py-8`) |
-| LLM 호출(생성) | 제출 버튼 `disabled` + 라벨 교체(`페르소나 생성 중...`). 다른 입력은 편집 가능하되 제출 불가 |
+| LLM 호출(생성) | 제출 버튼 `disabled` + 라벨 교체(`페르소나 생성 중...`). 다른 입력은 편집 가능하되 제출 불가. 캡처 이미지 모드도 같은 표시를 쓴다 — 타임아웃이 180초로 더 길지만 남은 시간을 알 수 없어 진행률·예상 시간을 넣지 않는다(§12 U10·U19) |
 | LLM 호출(분석) | 버튼 `disabled` + 라벨 `메시지 분석 중...` + 말풍선 점 3개 인디케이터 |
 | 상세 조회 | 화면 전체 딤(`slate-900/20`) + 중앙 카드 `불러오는 중...` |
-| 진행률 | 표시하지 않음(LLM 응답 시간을 예측할 수 없음; 지연 수치는 미실측). 텍스트 요청 타임아웃 60초는 TRD의 `gemini.ts`가 오류로 변환해 토스트로 알린다 |
+| 진행률 | 표시하지 않음(LLM 응답 시간을 예측할 수 없음). 요청 타임아웃(텍스트 60초 / 캡처 이미지 180초)은 TRD의 `gemini.ts`가 오류로 변환해 토스트로 알린다. 두 경로의 타임아웃 문구는 같다 |
 
 ### 8.3 빈 상태
 | 화면 | 구성 |
@@ -537,15 +567,16 @@ export default {
 | `btn.*` | 화면 하나에만 쓰이는 주 버튼 라벨 | `btn.saveKey`(온보딩 "키 저장하고 시작하기") |
 | `status.*` | 헤더 키 상태 | `status.ready`, `status.noKey` |
 | `onboarding.*` | 온보딩 모달 | `onboarding.welcomeTitle`, `onboarding.welcomeDesc`, `onboarding.intro`, `onboarding.keyLabel`, `onboarding.consent`, `onboarding.helpCta`, `onboarding.saveKey` |
-| `persona.*` | 페르소나 탭·생성·상세 | `persona.empty.title`, `persona.create.title`, `persona.create.otherName`, `persona.create.convPlaceholder`, `persona.detail.title`, `persona.detail.convToggle`, `persona.field.communication_style` … `persona.field.relationship_dynamics` |
+| `persona.*` | 페르소나 탭·생성·상세 | `persona.empty.title`, `persona.create.title`, `persona.create.otherName`, `persona.create.convPlaceholder`, `persona.create.textHint`, `persona.create.tabText`, `persona.create.tabImage`, `persona.create.imageDropzone`, `persona.create.imageHint`, `persona.create.imagePlaceholder`, `persona.detail.title`, `persona.detail.convToggle`, `persona.field.communication_style` … `persona.field.relationship_dynamics` |
 | `analyze.*` | 분석 탭 | `analyze.selectPersona`, `analyze.messagePlaceholder`, `analyze.run`, `analyze.aiLabel`, `analyze.candidatesTitle`, `analyze.reason`, `analyze.copy`, `analyze.copied`, `analyze.noPersonaHint`, `analyze.loading` |
 | `history.*` | 기록 탭 | `history.empty`, `history.candidatesTitle`, `history.delete`, `history.confirmDelete` |
-| `toast.*` | 사용자 행위 결과 알림 | `toast.keySaved`, `toast.keyDeleted`, `toast.invalidKeyFormat`, `toast.confirmLocalOnly`, `toast.enterName`, `toast.convTooShort`, `toast.personaCreated`, `toast.personaCreateFail`, `toast.personaDeleted`, `toast.personaSelected`, `toast.selectPersona`, `toast.enterMessage`, `toast.analyzeFail`, `toast.copyFail`, `toast.historyDeleted`, `toast.deleteFail`, `toast.loadDetailFail`, `toast.load*Fail` |
+| `toast.*` | 사용자 행위 결과 알림 | `toast.keySaved`, `toast.keyDeleted`, `toast.invalidKeyFormat`, `toast.confirmLocalOnly`, `toast.enterName`, `toast.convTooShort`, `toast.addImage`, `toast.imageLoadFail`, `toast.personaCreated`, `toast.personaCreateFail`, `toast.personaDeleted`, `toast.personaSelected`, `toast.selectPersona`, `toast.enterMessage`, `toast.analyzeFail`, `toast.copyFail`, `toast.historyDeleted`, `toast.deleteFail`, `toast.loadDetailFail`, `toast.load*Fail` |
 | `err.*` | Gemini/저장소 오류(gemini.ts·db.ts가 사용) | `err.invalidKey`, `err.network`, `err.rateLimit`, `err.timeout`, `err.serviceTemp`, `err.aiGeneric`, `err.keyNotSet`, `err.dbOpen` |
 | `parse.*` | LLM 응답 JSON 파싱 실패 폴백 문구(analysis.ts가 사용, TRD §3.8) | `parse.failAnalysis`, `parse.failLabel`, `parse.failReason` |
 
 - 필드 라벨 키의 세부 이름은 `PersonaFields`의 속성명과 **동일**하게 둔다(`persona.field.<속성명>`) — 알 수 없는 키가 와도 `t()` 폴백으로 속성명이 그대로 표시된다.
 - 보간 파라미터는 `{name}`, `{my}`, `{n}`, `{date}`, `{msg}`처럼 의미가 드러나는 이름을 쓴다.
+- `persona.create.imagePlaceholder`(`{n}` 보간)는 화면 라벨이 아니라 **저장되는 값**이다 — 캡처 이미지 모드에서 `PersonaRecord.conversation` 자리에 들어가 상세 모달의 "원본 대화 기록"에 그대로 보인다(TRD §3.7). 그래서 생성 당시 언어로 굳고, 나중에 UI 언어를 바꿔도 번역되지 않는다(위 §10의 저장 데이터 규칙과 같다). 영역을 따로 만들지 않고 생성 시트 영역(`persona.create.*`)에 둔다 — 이 문자열을 만드는 곳이 생성 시트 하나뿐이기 때문이다.
 - 최종 키 목록은 `src/lib/i18n.ts`가 단일 출처다. 이 표와 어긋나면 이 표를 갱신한다(1.0에서 `btn.*` 추가가 그 사례다).
 
 ---
@@ -591,3 +622,6 @@ M1 시점에 종결된 항목은 취소선과 결과만 남긴다. 나머지는 
 | U14 | 생성 시트 백드롭 오클릭으로 입력 유실(§1.1 A) | 감수한다(확인 대화상자 없음). 실사용에서 발생 빈도를 관찰해 대응 필요 여부 판단 | P6 |
 | U15 | 온보딩 고지 문구·위치(PRD DR-4 Gemini 전송·민감정보 주의, DR-6 복구 불가) | 기본안은 온보딩 모달 intro/동의 문구. 세부 문구는 P2 온보딩 문구 작성 시 PRD/TRD와 맞춤 | P2 docs |
 | U16 | 색 대비 AA 미달(red-500/red-50 3.44, emerald-600/emerald-50 3.58, §11) | 배지·버튼 라벨에 한정해 감수. 더 진한 단계로 조정할지 검토(예: emerald-700/emerald-50은 5.21로 통과, red-600/red-50은 4.41로 여전히 미달) | P6 |
+| U18 | 캡처 장수 상한과 썸네일 그리드가 시트를 넘칠 때의 처리 | 상한을 두지 않고 시작한다(§5.2). 많이 고르면 그리드가 길어져 드롭존이 밀려 올라가는데, 시트 본문이 `overflow-y-auto`라 스크롤로 닿을 수는 있다. 몇 장부터 불편한지는 **미확인** — 상한·리사이즈 도입은 지연 실측(PRD §11)과 함께 판단 | P5 실측 후 |
+| U19 | 이미지 생성 대기 중 표시 | 텍스트와 같은 버튼 라벨 교체만 쓴다. 타임아웃이 180초로 길지만 **실제 지연을 재지 않아** 기대 시간 문구를 넣을 근거가 없다(U10과 같은 이유) | P5 실측 후 |
+| U20 | 드롭존이 실제 드래그 앤 드롭을 받지는 않음 | 이름은 드롭존이지만 동작은 **파일 선택 다이얼로그**다(`<label>` + hidden `<input type="file">`). 주 사용 환경이 모바일이라 드래그 앤 드롭의 이득이 작다고 보고 `onDrop` 처리를 넣지 않았다. 데스크톱 실사용에서 요구되면 추가 | P6 |
