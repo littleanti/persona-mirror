@@ -28,3 +28,6 @@ desktop.ini
 # 로그
 *.log
 npm-debug.log*
+
+# 브라우저 자동화(Playwright MCP) 산출물
+.playwright-mcp/

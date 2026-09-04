@@ -109,7 +109,7 @@ P0 시점에 M1(P4 완료)까지 만들 파일이다. 괄호는 생성 단계. P
 | 단계 | 목표 | 산출물(파일) | 출구 조건 | 검증 방법 | 상태 |
 |---|---|---|---|---|---|
 | **P0** 초기화·문서 초안 | 코드 0줄에서 제품·기술·화면·계획을 먼저 고정 | `LICENSE`, `CLAUDE.md`, `.gitignore`, `docs/LOG.md`(완료), `docs/PRD.md`·`TRD.md`·`DESIGN.md`·`PLAN.md` 0.1 | 4문서가 서로 모순 없이 P1~P4 계약을 제공. Client-First 결정과 기각 대안이 3단 사고로 기록됨 | 비대상(문서만) | **완료** |
-| **P1** 스캐폴드·앱 셸 | 빈 페이지라도 배포 가능한 골격 | `package.json`(persona-mirror 0.1.0, engines.node >= 20), Vite+React 18+TS strict+Tailwind 설정, `index.html`, `main.tsx`, `App.tsx`(상단바: 로고+앱명+언어 토글 / 하단 탭 3개), `index.css`, `i18n.ts`·`useI18n.ts`, `store.ts`, `Toast.tsx`, `LanguageToggle.tsx`, 라우트 3개 placeholder, `server/index.js` + `npm start`, `README.md` 초안 | `npm run dev`로 셸이 뜨고 탭 전환·언어 토글이 동작. `npm run build` 무에러, `npm start`로 dist 서빙 | `tsc --noEmit`, `vite build`, 브라우저 육안(PC) | **진행중** |
+| **P1** 스캐폴드·앱 셸 | 빈 페이지라도 배포 가능한 골격 | `package.json`(persona-mirror 0.1.0, engines.node >= 20), Vite+React 18+TS strict+Tailwind 설정, `index.html`, `main.tsx`, `App.tsx`(상단바: 로고+앱명+언어 토글 / 하단 탭 3개), `index.css`, `i18n.ts`·`useI18n.ts`, `store.ts`, `Toast.tsx`, `LanguageToggle.tsx`, 라우트 3개 placeholder, `server/index.js` + `npm start`, `README.md` 초안 | `npm run dev`로 셸이 뜨고 탭 전환·언어 토글이 동작. `npm run build` 무에러, `npm start`로 dist 서빙 | `tsc --noEmit`, `vite build`, 브라우저 육안(PC) | **완료** |
 | **P2** API 키 온보딩·Gemini 클라이언트 | 키 없으면 앱을 잠그고, 있으면 Gemini를 부를 준비 | `config.ts`, `repos/settingsRepo.ts`(쿠키 1년, SameSite=Lax), `gemini.ts`(generate/extractJson/에러 변환), `OnboardingModal.tsx`, `ApiKeyStatus.tsx`, `App.tsx` 온보딩 게이트, `store.ts` apiKey 상태 | 키 미등록 시 모달이 화면 점유(A1). 키+동의 저장 → 모달 닫힘 → 헤더 "● Gemini 준비됨". 새로고침 후 유지. 인디케이터로 변경/삭제, 삭제 시 모달 재등장 | `tsc`/`build`, UI 스모크(모달 → 저장 → 인디케이터 → 새로고침). **임의(무효) 키로 `generate` 1회 호출** → CORS 통과 여부·SDK 오류 객체 형태 확인(기대: 인증 오류가 SDK 오류로 도착; 결과를 LOG에, 미실행이면 미실행으로). **실키 실호출(품질·지연)은 키 부재 시 미확정** | 대기 |
 | **P3** 페르소나 생성·목록·상세·삭제 | 대화 텍스트 → 상대/나 페르소나 JSON → IndexedDB | `types.ts`, `db.ts`, `repos/personaRepo.ts`, `persona.ts`, `prompts.ts`(PERSONA_FIELDS, buildPersonaPrompt), `id.ts`, `dom.ts`, `store.ts`(`selectedPersonaId` 추가), `PersonaPage.tsx`(목록·생성 바텀 시트·상세 모달) | **키 불필요(필수)**: 생성 시트 열림·닫힘, 빈 이름·키 없음·짧은 대화(trim < 20)가 순서대로 토스트로 거부됨, 빈 목록 상태, `tsc`/`build` 통과. **키 필요(미확정 허용)**: 생성 → 목록 카드 → 상세(나/상대 탭, PERSONA_FIELDS 11항목) → 삭제, 재방문 시 목록 유지(A4) — 실키가 없으면 "미확정"으로 LOG에 기재하고 단계를 닫는다 | `tsc`/`build`, UI 스모크(시트 열림·닫힘, 빈 목록 상태, 유효성 토스트). **생성 품질·지연은 키 필요, 미확정** | 대기 |
 | **P4** 메시지 분석 v1·기록 → **M1** | 페르소나 선택 + 받은 메시지 1건 → 심리 분석 + 답변 후보 3개, 기록 저장 | `analysis.ts`, `repos/analysisRepo.ts`, `prompts.ts`(buildAnalyzePrompt), `types.ts`(CandidateReply·AnalysisRecord), `AnalyzePage.tsx`(페르소나 칩 + textarea + 결과·후보 복사), `HistoryPage.tsx`(목록·펼치기·삭제) | **키 불필요(필수)**: `buildAnalyzePrompt`가 3축 정식 라벨("깊은 공감·수용형" / "공감 + 함께 해결형" / "공감 + 분위기 전환형", PRD FR-13)·말투 보존 지시·JSON-only 지시를 포함(코드 리뷰), `analyzeMessage`가 `{ raw }` 폴백 시 후보 1개로 정규화(코드 리뷰), AnalyzePage 검증 토스트 3종·복사 토스트 동작, 기록 탭 빈 상태·펼치기 UI(UI 스모크). **키 필요(미확정 허용)**: 실제 분석 → 기록 저장·펼치기·삭제, 라벨·말투 준수율 관찰. **M1 출구(§5)**: 문서 1.0, 표시명 확정, package 1.0.0 | `tsc`/`build`, UI 스모크(전 탭), LAN 휴대폰 접속(A6), DevTools Network(A3). **분석 품질·라벨·말투 준수율은 키 필요, 미확정** | 대기 |
@@ -128,17 +128,17 @@ P0 시점에 M1(P4 완료)까지 만들 파일이다. 괄호는 생성 단계. P
 - [x] LOG: P0 `완료`, P1 `진행중` 추가 → `docs: PRD/TRD/DESIGN/PLAN 0.1 초안` 커밋
 
 ### P1 — 스캐폴드·앱 셸
-- [ ] docs: TRD 스택·빌드 절, DESIGN 셸 확정, LOG `진행중`
-- [ ] `package.json`(name `persona-mirror`, version 0.1.0, `engines.node >= 20`, scripts `dev`/`build`/`preview`/`start`)
-- [ ] `tsconfig.json`(strict), `vite.config.ts`(`@` → `src`, dev host 0.0.0.0), `tailwind.config.js`(brand-gradient · brand-gradient-subtle · avatar-gradient · soft/glow shadow · slide-up/fade-in · Pretendard 스택), `postcss.config.js`
-- [ ] `index.html`(`#root`, 앱 아이콘·theme-color), `public/` 아이콘·로고
-- [ ] `src/main.tsx`(HashRouter), `src/App.tsx`(상단바 + 하단 탭 3개 + `<Routes>`), `src/index.css`
-- [ ] `lib/i18n.ts`(ko/en 사전, `t()`, 로케일 모듈 상태 + `onLangChange` 구독, localStorage `pm_lang`), `lib/useI18n.ts`, `lib/store.ts`(toasts; apiKey·selectedPersonaId는 P2/P3에서 추가), `components/Toast.tsx`, `components/LanguageToggle.tsx`
-- [ ] `routes/PersonaPage.tsx`·`AnalyzePage.tsx`·`HistoryPage.tsx` — 제목만 있는 placeholder
-- [ ] `server/index.js`(Express, `dist/` 정적 서빙, SPA fallback, `PORT` 기본 8000, host 0.0.0.0) + `npm start`
-- [ ] `README.md` 초안(실행 방법·접속 방법)
-- [ ] 검증: `npx tsc --noEmit` 0 에러, `npx vite build` 성공, `npm start` 후 PC 접속
-- [ ] LOG `완료` → `feat: 앱 스캐폴드와 셸` 커밋
+- [x] docs: TRD 스택·빌드 절, DESIGN 셸 확정, LOG `진행중`
+- [x] `package.json`(name `persona-mirror`, version 0.1.0, `engines.node >= 20`, scripts `dev`/`build`/`preview`/`start`)
+- [x] `tsconfig.json`(strict), `vite.config.ts`(`@` → `src`, dev host 0.0.0.0), `tailwind.config.js`(brand-gradient · brand-gradient-subtle · avatar-gradient · soft/glow shadow · slide-up/fade-in · Pretendard 스택), `postcss.config.js`
+- [x] `index.html`(`#root`, 앱 아이콘·theme-color), `public/` 아이콘·로고
+- [x] `src/main.tsx`(HashRouter), `src/App.tsx`(상단바 + 하단 탭 3개 + `<Routes>`), `src/index.css`
+- [x] `lib/i18n.ts`(ko/en 사전, `t()`, 로케일 모듈 상태 + `onLangChange` 구독, localStorage `pm_lang`), `lib/useI18n.ts`, `lib/store.ts`(toasts; apiKey·selectedPersonaId는 P2/P3에서 추가), `components/Toast.tsx`, `components/LanguageToggle.tsx`
+- [x] `routes/PersonaPage.tsx`·`AnalyzePage.tsx`·`HistoryPage.tsx` — 제목만 있는 placeholder
+- [x] `server/index.js`(Express, `dist/` 정적 서빙, SPA fallback, `PORT` 기본 8000, host 0.0.0.0) + `npm start`
+- [x] `README.md` 초안(실행 방법·접속 방법)
+- [x] 검증: `npx tsc --noEmit` 0 에러, `npx vite build` 성공, `npm start` 후 PC 접속
+- [x] LOG `완료` → `feat: 앱 스캐폴드와 셸` 커밋
 
 ### P2 — API 키 온보딩·Gemini 클라이언트
 - [ ] docs: TRD §3 계약(`config.ts` / `settingsRepo.ts` / `gemini.ts` / `OnboardingModal` / `ApiKeyStatus`), DESIGN 온보딩 모달·헤더 인디케이터, LOG `진행중` → `docs(p2)` 커밋
