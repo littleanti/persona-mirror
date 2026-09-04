@@ -2,7 +2,7 @@
 
 > 규칙(CLAUDE.md 그라운드 룰 2): 최신 항목을 맨 위에 둔다. 각 항목은 태그(`[feat]`/`[fix]`/`[test]`/`[docs]`/`[chore]`), 절대 날짜, 변경 파일, 상태(`진행중`/`완료`/`완료(미검증)`)를 적는다. 코드 변경은 착수 전에 `진행중` 항목을 먼저 추가하고, 검증 후 `완료`로 바꾸며 실제 변경 파일을 정정한다. 검증을 돌리지 않았으면 "검증 비대상" 또는 "미실행"으로 사실대로 적는다. 원인 진단·설계 선택·수치 판단에는 그라운드 룰 1의 3단 사고(1차 사고 / 비판적 재사고 / 종합)를 남긴다.
 
-## 2026-09-05 — [fix] P7-3 페이지 오버레이(백드롭)가 화면 최상단 20px를 덮지 않음 — 진행중
+## 2026-09-05 — [fix] P7-3 페이지 오버레이(백드롭)가 화면 최상단 20px를 덮지 않음 — 완료
 
 - 증상/재현(실측): 상세 모달이 열린 상태에서 `fixed inset-0` 오버레이의 `getBoundingClientRect().top = 20`, computed `margin-top = 20px`, 부모는 `<section class="max-w-2xl mx-auto px-4 py-6 space-y-5">`. `document.elementFromPoint(200, 2)`가 오버레이가 아니어서 헤더 윗부분이 덮이지 않는다(P3에서 스크린샷으로 관찰한 것과 동일, TRD §10 #13 / DESIGN U17).
 - 1차 사고: z-index나 sticky 헤더가 오버레이 위에 그려지는 문제일 것이다.
@@ -10,6 +10,8 @@
 - 종합: ②. PersonaPage의 오버레이 3개(생성 시트·상세 모달·상세 로딩)를 body 포털로 렌더한다. 규칙화: 페이지 안에서 `fixed` 오버레이를 렌더할 때는 항상 포털(DESIGN §2.6).
 - 변경 예정 파일: `src/routes/PersonaPage.tsx`, `docs/DESIGN.md`, `docs/TRD.md`
 - 검증 계획: 오버레이 top 0·`elementFromPoint(200, 2)`가 오버레이, 백드롭 닫기·X 닫기 정상, 닫은 뒤 body에 포털 잔존 노드 0, tsc/build/test.
+- 변경 파일(실제): `src/routes/PersonaPage.tsx`(오버레이 3개를 `createPortal(document.body)`로 렌더; 닫기 판정·내부 마크업은 그대로), `docs/TRD.md`·`docs/DESIGN.md`·`docs/PLAN.md`(상태 종결)
+- 검증: `npm test` → 4 files, 30/30 통과 / `npx tsc --noEmit` → 0 에러 / `npx vite build` → js 544.45 kB(gzip 136.37 kB), 83 modules. 브라우저 실측(Playwright, 390×844): 오버레이 `top = 0`, `margin-top = 0px`, 부모 = `BODY`, `elementFromPoint(200, 2)`가 오버레이 안(헤더까지 덮임). 드래그 후 백드롭에서 손 떼기 → 시트 유지(P7-1 무회귀), X 닫기 → 닫힘, 닫은 뒤 body에 잔존 노드 0, 백드롭 탭 → 닫힘.
 
 ## 2026-09-05 — [fix] P7-2 LAN IP(http)로 접속하면 페르소나 생성이 "crypto.randomUUID is not a function"으로 실패 — 완료
 

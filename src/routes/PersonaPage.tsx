@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import type { InlineImage, PersonaFields, PersonaRecord, PersonaSummary } from '@/lib/types';
 import { formatDate, getInitial } from '@/lib/dom';
@@ -167,7 +168,7 @@ function CreatePersonaDialog({
     }
   };
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-end justify-center"
       onMouseDown={(e) => {
@@ -275,7 +276,8 @@ function CreatePersonaDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -361,7 +363,7 @@ function PersonaDetailDialog({
     }
   };
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-end justify-center"
       onMouseDown={(e) => {
@@ -481,7 +483,8 @@ function PersonaDetailDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -592,11 +595,13 @@ export default function PersonaPage() {
         </div>
       )}
 
-      {detailLoading && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/20 backdrop-blur-sm">
-          <div className="rounded-2xl bg-white px-5 py-4 shadow-soft-lg text-sm text-slate-500">{translate('common.loading')}</div>
-        </div>
-      )}
+      {detailLoading &&
+        createPortal(
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/20 backdrop-blur-sm">
+            <div className="rounded-2xl bg-white px-5 py-4 shadow-soft-lg text-sm text-slate-500">{translate('common.loading')}</div>
+          </div>,
+          document.body,
+        )}
 
       <CreatePersonaDialog open={createOpen} onClose={() => setCreateOpen(false)} onCreated={() => void load()} />
       <PersonaDetailDialog

@@ -1,6 +1,6 @@
 # PLAN — Persora 구현 계획
 
-> 문서 버전: 1.6 · 갱신일: 2026-09-05 · 상태: P7 안정화 진행중 — 버그 3건 재현·등록(§3 표·§4 체크리스트가 단일 출처)
+> 문서 버전: 1.7 · 갱신일: 2026-09-05 · 상태: P7 완료 — 다음은 P8 보안 점검·배포(§3 표·§4 체크리스트가 단일 출처)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -15,6 +15,7 @@
 | 1.4 | 2026-09-05 | P6-1 완료 반영(§4 체크) |
 | 1.5 | 2026-09-05 | P6-2 완료 반영(§3 상태·§4 체크) |
 | 1.6 | 2026-09-05 | P7 착수: 버그 3건 재현·LOG 등록 |
+| 1.7 | 2026-09-05 | P7 완료 반영(fix 3건) |
 
 > 기준 문서: [`./PRD.md`](./PRD.md) 1.2(요구사항·Acceptance), [`./TRD.md`](./TRD.md) 1.3(아키텍처·모듈 계약), [`./DESIGN.md`](./DESIGN.md) 1.2(화면·토큰). 변경 이력은 [`./LOG.md`](./LOG.md)에만 적고, 이 문서는 **현재 계획**만 서술한다. 단계가 끝날 때마다 §3 상태와 §4 체크리스트를 갱신하고 문서 버전을 0.1 올린다(M1에서 1.0에 도달했고, 이후 P5부터 1.1·1.2로 이어간다).
 
@@ -134,7 +135,7 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + **P6에서 만들 5개**
 | **P6** 분석 단계 재설계 | 분석 입력을 "받은 메시지 1건"에서 **페르소나 + 최근 대화 스레드 + 답장 의도**로 바꿔 제품 의도의 세 레이어를 모두 계약에 담는다([PRD §8 부속 결정 4](./PRD.md) / TRD ADR-7) | 아래 P6-1·P6-2 | 스레드를 붙여넣으면 답장 대상이 화면에 보이고 틀리면 고칠 수 있다. 의도를 지정하면 후보 방향이 그 목표를 따른다. **의도를 비우면 v1과 같은 공감 3축이 나온다(무회귀)**. 기존 기록·페르소나가 그대로 읽힌다(`DB_VERSION` 1 유지) | `npm test`, `tsc`/`build`, UI 스모크, 실키 의도 스티어링 비교 | **완료** |
 | ┗ **P6-1** 스레드·타겟·의도 + vitest | v2의 뼈대. 파서·프롬프트·유스케이스·화면을 한 번에 갈아 끼운다 | `lib/thread.ts`(신규), `lib/types.ts`(`AnalysisRecord.thread?`/`target_message?`/`intent?`, `ReplyIntentKey`, `REPLY_INTENTS`, `AnalyzeReplyInput`), `lib/prompts.ts`(`buildAnalyzePrompt` v2 + `intentDirective`), `lib/analysis.ts`(`analyzeReply` + `analyzeMessage` 래퍼), `routes/AnalyzePage.tsx`(스레드 textarea·타겟 칩·의도 칩), `lib/i18n.ts`(`analyze.thread*`·`analyze.target`·`analyze.intentLabel`·`intent.*`), `package.json`(vitest + `npm test`), `lib/thread.test.ts`, `lib/gemini.test.ts` | 스레드 입력으로 분석이 끝까지 동작하고 타겟 칩이 상대의 마지막 발화를 가리킨다. 의도 빈 값에서 v1과 같은 3축 라벨 | `npm test` 0 실패, `tsc`/`build`, UI 스모크, 실키 1회 이상 | **완료** |
 | ┗ **P6-2** 드래프트·타겟 교정·페르소나 업데이트 | v2를 실제로 반복해 쓸 수 있게 만드는 보완 | `lib/drafts.ts`(신규) + `lib/drafts.test.ts`, `routes/AnalyzePage.tsx`(드래프트 복원·자동 저장, 타겟 피커), `lib/analysis.ts`(`targetOverride` 반영), `lib/persona.ts`(`updatePersona`), `lib/types.ts`(`PersonaRecord.updated_at?`), `routes/PersonaPage.tsx`(상세 모달 "추가 대화로 업데이트"), `lib/i18n.ts`(`analyze.pickTarget`, `persona.detail.update*`, `toast.persona*`) | 페르소나를 바꿔도 붙여넣던 대화가 남아 있고, 자동 타겟이 틀리면 목록에서 고를 수 있고, 상세에서 대화를 더해 페르소나를 갱신할 수 있다 | `npm test` 0 실패, `tsc`/`build`, UI 스모크 | **완료** |
-| **P7** 안정화 | 실사용(PC·LAN 휴대폰)에서 드러난 버그 수정 | 재현된 버그별 `fix` 커밋(파일은 버그마다), 필요 시 `*.test.ts` | 알려진 재현 버그 0. 각 fix에 원인 가설·반증·종합이 LOG와 커밋 본문에 있음 | `npm test`, `tsc`/`build`, 버그별 재현 스모크 | **진행중** |
+| **P7** 안정화 | 실사용(PC·LAN 휴대폰)에서 드러난 버그 수정 | 재현된 버그별 `fix` 커밋(파일은 버그마다), 필요 시 `*.test.ts` | 알려진 재현 버그 0. 각 fix에 원인 가설·반증·종합이 LOG와 커밋 본문에 있음 | `npm test`, `tsc`/`build`, 버그별 재현 스모크 | **완료** |
 | **P8** 보안 점검·GitHub Pages 배포 | 정적 호스팅에 올리고 키·XSS 완화책을 점검 | 보안 점검 결과(키 취급·XSS 완화·CSP meta·referrer 정책·의존성)(문서), `vite.config.ts` base(하위 경로 필요 시), `.github/workflows/*.yml`(build → Pages), `README.md` 배포·키 제한 안내 | Pages URL에서 A1~A4 재확인. 우리 호스트로 가는 요청은 정적 자산만(A3) | `npm run build`, 배포 후 브라우저 확인(DevTools Network·Application) | 대기 |
 
 **단계 번호 재편.** 1.2까지 P6은 안정화, P7은 보안·배포였다. 분석 재설계를 그 앞에 넣으면서 두 단계를 P7·P8로 한 칸씩 밀었다. 순서를 이렇게 둔 이유는 §6에 적는다. 다른 문서(PRD §10·§11, TRD §10, DESIGN §12)의 단계 참조도 같은 규칙으로 옮겼다.
@@ -236,9 +237,9 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + **P6에서 만들 5개**
 
 ### P7 — 안정화
 - [x] PC·LAN 휴대폰에서 전 흐름 실사용, 버그를 LOG `진행중`으로 먼저 등록 — 3건 재현·등록: P7-1 드래그-닫힘, P7-2 LAN randomUUID, P7-3 오버레이 20px(재현 수치는 LOG)
-- [ ] 버그마다: 원인 가설 → 반증(가능하면 재현·실측) → 종합 → `fix` 커밋(본문에 3단 사고)
-- [ ] 순수 모듈이 바뀌면 해당 `*.test.ts`도 함께 갱신(vitest는 P6에서 도입 완료)
-- [ ] 검증: `npm test`, `tsc`/`build`, 버그별 재현 스모크
+- [x] 버그마다: 원인 가설 → 반증(가능하면 재현·실측) → 종합 → `fix` 커밋(본문에 3단 사고)
+- [x] 순수 모듈이 바뀌면 해당 `*.test.ts`도 함께 갱신(vitest는 P6에서 도입 완료)
+- [x] 검증: `npm test`, `tsc`/`build`, 버그별 재현 스모크
 
 ### P8 — 보안 점검·GitHub Pages 배포
 - [ ] docs: 키 취급·XSS 완화(React 텍스트 렌더링, CSP meta, referrer 정책)·의존성 점검 결과를 TRD 보안 절에 기록, PRD DR 정정, LOG `진행중`
