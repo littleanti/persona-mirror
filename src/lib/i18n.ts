@@ -60,6 +60,10 @@ const MESSAGES: Record<Lang, Dict> = {
     'persona.detail.createdAt': '생성일 {date}',
     'persona.detail.myLabel': '나: {my}',
     'persona.detail.confirmDelete': '"{name}" 페르소나를 삭제할까요?',
+    'persona.detail.updateTitle': '추가 대화로 업데이트',
+    'persona.detail.updatePlaceholder': '새로 나눈 대화를 붙여넣으면 페르소나가 더 정확해져요',
+    'persona.detail.updateCta': '업데이트',
+    'persona.detail.updateLoading': '업데이트 중...',
 
     // 페르소나 필드 라벨 (PersonaFields 속성명과 동일 — DESIGN §10.1)
     'persona.field.communication_style': '소통 방식',
@@ -87,6 +91,7 @@ const MESSAGES: Record<Lang, Dict> = {
     'analyze.threadPlaceholder': '[상대] 오늘 뭐해?\n[나] 집에 있어\n[상대] 그럼 이따 볼래?',
     'analyze.target': '이 메시지에 답장',
     'analyze.targetEmpty': '대화를 붙여넣으면 답장할 마지막 메시지를 자동으로 잡아드려요.',
+    'analyze.pickTarget': '다른 메시지에 답장하기',
     'analyze.intentLabel': '답장 의도',
 
     // 답장 의도 라벨(REPLY_INTENTS와 짝) — TRD §3.9
@@ -122,6 +127,9 @@ const MESSAGES: Record<Lang, Dict> = {
     'toast.personaSelected': '{name} 페르소나 선택됨',
     'toast.deleteFail': '삭제에 실패했습니다',
     'toast.personaDeleted': '{name} 삭제 완료',
+    'toast.enterConversation': '추가할 대화를 입력해주세요',
+    'toast.personaUpdated': '{name} 페르소나를 업데이트했어요',
+    'toast.personaUpdateFail': '페르소나 업데이트에 실패했습니다',
 
     // 토스트 — 분석/기록 (P4)
     'toast.selectPersona': '페르소나를 선택해주세요',
@@ -219,6 +227,10 @@ const MESSAGES: Record<Lang, Dict> = {
     'persona.detail.createdAt': 'Created {date}',
     'persona.detail.myLabel': 'Me: {my}',
     'persona.detail.confirmDelete': 'Delete the "{name}" persona?',
+    'persona.detail.updateTitle': 'Update with more conversation',
+    'persona.detail.updatePlaceholder': 'Paste newer conversation to make the persona more accurate',
+    'persona.detail.updateCta': 'Update',
+    'persona.detail.updateLoading': 'Updating...',
 
     // Persona field labels (must match PersonaFields property names — DESIGN §10.1)
     'persona.field.communication_style': 'Communication style',
@@ -246,6 +258,7 @@ const MESSAGES: Record<Lang, Dict> = {
     'analyze.threadPlaceholder': '[Them] what are you up to?\n[Me] just home\n[Them] wanna meet later?',
     'analyze.target': 'Replying to',
     'analyze.targetEmpty': 'Paste a conversation and we’ll pick the last message to reply to.',
+    'analyze.pickTarget': 'Reply to a different message',
     'analyze.intentLabel': 'Reply intent',
 
     // Reply intent labels (paired with REPLY_INTENTS) — TRD §3.9
@@ -281,6 +294,9 @@ const MESSAGES: Record<Lang, Dict> = {
     'toast.personaSelected': '{name} persona selected',
     'toast.deleteFail': 'Failed to delete',
     'toast.personaDeleted': '{name} deleted',
+    'toast.enterConversation': 'Please enter the conversation to add',
+    'toast.personaUpdated': 'Updated the {name} persona',
+    'toast.personaUpdateFail': 'Failed to update the persona',
 
     // Toasts — analyze/history (P4)
     'toast.selectPersona': 'Please select a persona',

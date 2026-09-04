@@ -57,6 +57,44 @@ export async function createPersona(input: CreatePersonaInput): Promise<PersonaR
   return record;
 }
 
+/**
+ * 기존 페르소나에 새 대화를 추가해 다시 분석한다(TRD §3.7).
+ * 기존 conversation + 신규 대화(trim)를 이어 붙여 전체를 다시 분석한다 — 말투 지문은 표본
+ * 전체에서 나오므로 새 대화만 분석해 필드를 병합하는 부분 갱신은 두지 않는다.
+ * id·created_at·name·my_name은 그대로 둔다 — 목록·분석 기록이 id로 이 레코드를 가리키므로
+ * 새로 만들면 참조가 끊긴다. 이미지 인자는 없다(텍스트 붙여넣기 전용).
+ */
+export async function updatePersona(
+  id: string,
+  input: { conversation: string },
+): Promise<PersonaRecord> {
+  const existing = await personaRepo.get(id);
+  if (!existing) {
+    throw new Error('페르소나를 찾을 수 없습니다.');
+  }
+
+  const addition = input.conversation.trim();
+  const combined = existing.conversation ? `${existing.conversation}\n${addition}`.trim() : addition;
+
+  const prompt = buildPersonaPrompt(
+    { name: existing.name, my_name: existing.my_name, conversation: combined },
+    getLang(),
+  );
+  const text = await generate(prompt);
+  const { personaData, myPersonaData } = splitPersonaRaw(extractJson(text), existing.my_name.trim());
+
+  const updated: PersonaRecord = {
+    ...existing,
+    conversation: combined,
+    persona: personaData,
+    my_persona: myPersonaData,
+    updated_at: new Date().toISOString(),
+  };
+
+  await personaRepo.put(updated);
+  return updated;
+}
+
 /** 목록 화면용 경량 요약 리스트. */
 export async function listPersonaSummaries(): Promise<PersonaSummary[]> {
   const records = await personaRepo.list();

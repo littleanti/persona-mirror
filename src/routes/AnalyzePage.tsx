@@ -5,6 +5,7 @@ import { analyzeReply } from '@/lib/analysis';
 import { getInitial } from '@/lib/dom';
 import { listPersonaSummaries } from '@/lib/persona';
 import { parseThread, detectTarget } from '@/lib/thread';
+import { getThreadDraft, setThreadDraft } from '@/lib/drafts';
 import { useApp } from '@/lib/store';
 import { useT } from '@/lib/useI18n';
 
@@ -27,6 +28,8 @@ export default function AnalyzePage() {
   const [thread, setThread] = useState('');
   const [intentKey, setIntentKey] = useState(''); // '' = 기본(공감), 프리셋 키, 또는 CUSTOM_INTENT
   const [customIntent, setCustomIntent] = useState('');
+  const [targetOverride, setTargetOverride] = useState(''); // 사용자가 피커에서 직접 고른 타겟('' = 자동 검출)
+  const [pickOpen, setPickOpen] = useState(false);
   const [result, setResult] = useState<AnalysisRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
@@ -51,6 +54,14 @@ export default function AnalyzePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 페르소나 전환 시: 그 페르소나의 드래프트로 스레드를 갈아 끼우고 수동 타겟·피커를 초기화한다
+  // (DESIGN §6.1) — 다른 대화의 문장을 타겟으로 들고 갈 이유가 없다.
+  useEffect(() => {
+    setThread(getThreadDraft(selectedPersonaId ?? ''));
+    setTargetOverride('');
+    setPickOpen(false);
+  }, [selectedPersonaId]);
+
   const selectedPersona = personas.find((p) => p.id === selectedPersonaId);
 
   // 붙여넣은 스레드를 화자별로 파싱해 답장 대상(타겟)을 자동 검출한다(TRD §3.11).
@@ -59,7 +70,16 @@ export default function AnalyzePage() {
     return parseThread(thread, { name: selectedPersona.name, myName: selectedPersona.my_name });
   }, [thread, selectedPersona]);
 
-  const targetPreview = useMemo(() => (parsedThread ? detectTarget(parsedThread) : ''), [parsedThread]);
+  const autoTarget = useMemo(() => (parsedThread ? detectTarget(parsedThread) : ''), [parsedThread]);
+  // 수동 지정이 있으면 그것을, 없으면 자동 검출 결과를 보여준다.
+  const targetPreview = targetOverride || autoTarget;
+
+  // 스레드 입력 변경: 페르소나별 드래프트로 저장 + 수동 타겟 초기화(스레드가 바뀌면 이전 지정이 무의미해진다).
+  const onThreadChange = (value: string) => {
+    setThread(value);
+    setThreadDraft(selectedPersonaId ?? '', value);
+    setTargetOverride('');
+  };
 
   const intentValue = intentKey === CUSTOM_INTENT ? customIntent.trim() : intentKey;
 
@@ -79,7 +99,11 @@ export default function AnalyzePage() {
     }
     setAnalyzing(true);
     try {
-      const next = await analyzeReply(selectedPersonaId, { thread: thread.trim(), intent: intentValue });
+      const next = await analyzeReply(selectedPersonaId, {
+        thread: thread.trim(),
+        intent: intentValue,
+        targetOverride,
+      });
       setResult(next);
     } catch (err) {
       // generate()가 이미 현지화된 사용자 친화 메시지를 던지므로 그대로 노출(원인 진단 가능하게)
@@ -152,7 +176,7 @@ export default function AnalyzePage() {
         <div className="rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-soft-sm">
           <textarea
             value={thread}
-            onChange={(e) => setThread(e.target.value)}
+            onChange={(e) => onThreadChange(e.target.value)}
             rows={7}
             placeholder={translate('analyze.threadPlaceholder')}
             className="w-full bg-transparent px-5 pt-4 pb-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none resize-none leading-relaxed"
@@ -160,7 +184,7 @@ export default function AnalyzePage() {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void onAnalyze();
             }}
           />
-          <div className="px-4 pb-3 pt-1 border-t border-slate-100">
+          <div className="px-4 pb-3 pt-1 border-t border-slate-100 space-y-2">
             {targetPreview ? (
               <p className="text-xs text-slate-500">
                 <span className="font-semibold text-indigo-600">{translate('analyze.target')}</span>{' '}
@@ -168,6 +192,50 @@ export default function AnalyzePage() {
               </p>
             ) : (
               <p className="text-xs text-slate-400">{translate('analyze.targetEmpty')}</p>
+            )}
+
+            {parsedThread && parsedThread.lines.some((line) => line.text.trim()) && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setPickOpen((v) => !v)}
+                  className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+                >
+                  {translate('analyze.pickTarget')} {pickOpen ? '▲' : '▾'}
+                </button>
+                {pickOpen && (
+                  <div className="mt-1 max-h-40 overflow-y-auto space-y-1">
+                    {parsedThread.lines
+                      .filter((line) => line.text.trim())
+                      .map((line, index) => {
+                        const speakerLabel =
+                          line.speaker === 'me'
+                            ? selectedPersona?.my_name || '나'
+                            : line.speaker === 'other'
+                              ? selectedPersona?.name
+                              : line.label || '?';
+                        const lineText = line.text.trim();
+                        const active = targetPreview === lineText;
+                        return (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => {
+                              setTargetOverride(lineText);
+                              setPickOpen(false);
+                            }}
+                            className={`w-full text-left rounded-lg px-2.5 py-1.5 text-xs transition-colors ${
+                              active ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className="font-semibold mr-1.5 text-slate-400">{speakerLabel}</span>
+                            {truncate(lineText, 50)}
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

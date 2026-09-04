@@ -2,11 +2,16 @@
 
 > 규칙(CLAUDE.md 그라운드 룰 2): 최신 항목을 맨 위에 둔다. 각 항목은 태그(`[feat]`/`[fix]`/`[test]`/`[docs]`/`[chore]`), 절대 날짜, 변경 파일, 상태(`진행중`/`완료`/`완료(미검증)`)를 적는다. 코드 변경은 착수 전에 `진행중` 항목을 먼저 추가하고, 검증 후 `완료`로 바꾸며 실제 변경 파일을 정정한다. 검증을 돌리지 않았으면 "검증 비대상" 또는 "미실행"으로 사실대로 적는다. 원인 진단·설계 선택·수치 판단에는 그라운드 룰 1의 3단 사고(1차 사고 / 비판적 재사고 / 종합)를 남긴다.
 
-## 2026-09-05 — [feat] P6-2 분석 단계 재설계(2/2) — 스레드 드래프트·타겟 수동 교정·페르소나 추가 대화 업데이트 — 진행중
+## 2026-09-05 — [feat] P6-2 분석 단계 재설계(2/2) — 스레드 드래프트·타겟 수동 교정·페르소나 추가 대화 업데이트 — 완료
 
-- 배경/목적: P6-1이 만든 입력 계약 위에 재입력 부담과 오검출을 다루는 보조 기능을 얹는다(근거·3단 사고는 아래 P6-1 항목). 계약: TRD §3.12(drafts.ts) · §3.8(analyzeReply targetOverride) · §3.7(updatePersona) · §3.1(PersonaRecord.updated_at?), DESIGN §6(타겟 피커·드래프트 규칙) · §5.3(추가 대화로 업데이트).
-- 변경 예정 파일: `src/lib/drafts.ts`(신규) + `src/lib/drafts.test.ts`, `src/routes/AnalyzePage.tsx`(드래프트 복원·자동 저장, 파싱 라인 피커), `src/lib/analysis.ts`(targetOverride 우선), `src/lib/persona.ts`(updatePersona), `src/lib/types.ts`(updated_at?), `src/routes/PersonaPage.tsx`(상세 모달 "추가 대화로 업데이트"), `src/lib/i18n.ts`
-- 검증 계획: `npm test`(drafts 스텁 테스트 포함), tsc/build, UI 스모크(페르소나 전환 시 스레드 복원, 새로고침 후 드래프트 유지, 타겟 피커로 다른 줄 선택 → 기록의 target_message 반영, 추가 대화 업데이트 → updated_at 기록·필드 갱신 — 실키 1회).
+- 배경/목적: P6-1이 만든 입력 계약 위에 재입력 부담(드래프트)과 타겟 오검출(수동 교정), 정적 페르소나의 갱신 수단(추가 대화로 수동 업데이트)을 얹는다. 계약: TRD §3.12 · §3.8 · §3.7 · §3.1, DESIGN §6 · §5.3.
+- 변경 파일: `src/lib/drafts.ts`(신규: getThreadDraft/setThreadDraft/clearThreadDraft, 키 `pm_thread_draft:<personaId>`, 접근 실패 시 폴백), `src/lib/drafts.test.ts`(신규, 10케이스 — 인메모리 스텁·throw 스텁), `src/lib/types.ts`(PersonaRecord.updated_at?), `src/lib/persona.ts`(updatePersona), `src/routes/AnalyzePage.tsx`(페르소나 전환 시 드래프트 복원·입력 시 자동 저장, 파싱 라인 피커), `src/routes/PersonaPage.tsx`(상세 모달 "추가 대화로 업데이트"), `src/lib/i18n.ts`, `docs/PLAN.md`
+- 구현 중 결정: `analysis.ts`의 targetOverride 우선 규칙은 P6-1에서 이미 계약대로 들어가 있어 변경 없음(PLAN 체크만). 드래프트 백업·일괄 삭제 헬퍼는 두지 않음(그런 화면이 아직 없다). 피커의 내 발화 라벨 폴백 "나"는 ko/en 공통 문자열 — 미확정(en에서도 "나"로 보임, DESIGN에 키 없음).
+- 검증:
+  - `npm test` → 3 files, **26/26 통과** / `npx tsc --noEmit` → 0 에러 / `npx vite build` → index.html 0.83 kB │ gzip: 0.43 kB / index-DzKE-_IT.css 21.84 kB │ gzip: 4.87 kB / index-BY0hTab_.js 542.43 kB │ gzip: 135.57 kB (82 modules transformed) / 주석 위생 grep → 없음
+  - UI 스모크(Vite dev, Playwright 390×844, 유효 키): 지수 선택 → 스레드 6줄 입력 → localStorage `pm_thread_draft:<지수 id>` 192자 저장 확인 → 친구로 전환하면 textarea 비고(친구 드래프트 없음) → 지수로 복귀하면 192자 복원 → 전체 새로고침 후 첫 페르소나(친구)가 기본 선택이라 비어 있다가 지수 선택 시 다시 192자 복원(드래프트는 페르소나별로 영속, 선택 상태는 메모리).
+  - 타겟 피커: "다른 메시지에 답장하기 ▾" → 파싱 라인 목록에서 "다음 프로젝트 리드 맡아보라는데…" 선택 → 칩 갱신 → 분석(의도 미지정) → **Gemini 4.51s** → 기록 `target_message`·`message`가 선택한 줄과 일치, `thread` 192자 저장, `intent` 빈 값, 후보 라벨은 v1 3축 그대로(무회귀 재확인).
+  - 추가 대화로 업데이트: 상세 모달에서 6줄 추가 → "업데이트" → **Gemini 6.38s** → "지수 페르소나를 업데이트했어요" 토스트, 레코드 `id`·`created_at` 유지, `updated_at` 기록, `conversation` 1,230자로 증가(추가분 포함), 요약·자주 쓰는 표현이 재생성됨.
 
 ## 2026-09-05 — [feat] P6-1 분석 단계 재설계(1/2) — 최근 대화 스레드·자동 타겟·답장 의도 + vitest 도입 — 완료
 
