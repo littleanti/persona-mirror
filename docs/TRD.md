@@ -1,11 +1,12 @@
 # TRD — Persona Mirror (코드네임) 기술 요구사항·설계
 
-> 문서 버전: 0.1 · 갱신일: 2026-09-05 · 상태: 초안 — 코드 작성 전(P0) 설계 확정본. 기준: [PRD 0.1](./PRD.md) / [PLAN 0.1](./PLAN.md) / [DESIGN 0.1](./DESIGN.md)
+> 문서 버전: 0.2 · 갱신일: 2026-09-05 · 상태: P2 착수 — SDK 버전 고정, CORS 확인 방법 확정. 기준: [PRD 0.1](./PRD.md) / [PLAN 0.1](./PLAN.md) / [DESIGN 0.1](./DESIGN.md)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
 |---|---|---|
 | 0.1 | 2026-09-05 | 초안 |
+| 0.2 | 2026-09-05 | P2 착수: `@google/genai` ^2.7.0 고정(§2), 브라우저→Gemini CORS·오류 형태 확인 방법 확정(§10 #3) |
 
 > 이 문서는 **현재 확정된 설계**를 서술한다. 변경 이력은 [`LOG.md`](./LOG.md)에만 적는다. §3의 시그니처는 모든 구현 작업이 따라야 하는 **계약**이며, 계약을 바꿀 때는 코드보다 이 문서를 먼저 갱신한다(CLAUDE.md 그라운드 룰 2). 아직 코드가 없으므로 아래 식별자는 모두 "해당 단계(P1~P4)에서 만들 예정"인 것이다.
 
@@ -69,12 +70,12 @@
 | UI | React 18 + `react-router-dom` 6 (**HashRouter**) | 컴포넌트 상태 모델이 모달·시트·토스트에 맞음. HashRouter는 정적 호스팅 하위 경로에서 서버 리라이트 없이 동작(ADR-4) |
 | 전역 상태 | Zustand 4 | 전역으로 필요한 것은 API 키 미러·토스트 큐·탭 간 전달값 정도라 최소 스토어 1개로 충분(ADR-5) |
 | 스타일 | Tailwind CSS 3 + 커스텀 토큰 | 모바일 우선, 토큰(`brand-gradient`, `shadow-soft`, `animate-slide-up` 등)은 [DESIGN.md](./DESIGN.md)가 단일 출처 |
-| LLM | `@google/genai` 2.x (Gemini) | 브라우저에서 직접 `generateContent` 호출. 정확한 버전은 P2 설치 시 `package.json`에 고정(미확정) |
+| LLM | `@google/genai` ^2.7.0 (Gemini) | 브라우저에서 직접 `generateContent` 호출. P1 `package.json`에 고정 — 2.x의 breaking change는 Interactions API 한정이라 `generateContent` 경로는 영향 없음 |
 | 모델 | `gemini-3.1-flash-lite` 단일 + `thinkingBudget=0` | thinking을 끌 수 있는 flash 계열이 단건 지연에 유리하다는 문헌 근거(지연 단축 효과·기본 thinking 사용 여부는 미실측), 멀티모달이라 P5 캡처 이미지도 같은 경로로 갈 수 있음(ADR-2) |
 | 저장 | IndexedDB(개인 데이터) + 쿠키(API 키) | ADR-3 |
 | i18n | 자체 사전(`ko`/`en`) + `t()` | 문구가 적어 라이브러리 불필요. 프롬프트 JSON 키는 언어와 무관하게 고정 |
 | 서버 | 정적 호스팅(GitHub Pages, P7) + Node Express 4.x(`^4.19`) 미리보기 | 로컬에서 같은 Wi-Fi 휴대폰으로 실기기 테스트(A6). Express 5는 와일드카드 라우트 문법이 달라 §6.2 코드가 그대로 돌지 않음 |
-| 런타임 | Node 20+ (`engines.node >= 20`) | `@google/genai` 2.x 요구사항과 일치 |
+| 런타임 | Node 20+ (`engines.node >= 20`) | `@google/genai` 2.x `engines` 요구사항과 일치 |
 
 > SDK 대안: `fetch`로 `v1beta/models/{model}:generateContent?key=…`를 직접 호출하는 경로도 가능하다. 기본은 SDK를 쓰되 호출을 `gemini.ts` 한 곳에 캡슐화해 전환 비용을 낮춘다. 이 폴백은 **SDK 파손·브라우저 번들 미지원**에 대한 것이다 — SDK와 REST는 같은 엔드포인트를 쓰므로 Google이 브라우저 origin을 CORS로 막으면 둘 다 막힌다(PRD R2b).
 
@@ -552,7 +553,7 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 |---|---|---|
 | 1 | `gemini-3.1-flash-lite` + `thinkingBudget=0`의 실제 지연·JSON 준수율·페르소나 품질 | P3 이후(첫 실호출부터) 실키로 측정, LOG 기록 |
 | 2 | `responseMimeType: 'application/json'` 필요 여부 | 실호출 파싱 실패율 관찰 후 |
-| 3 | `@google/genai` 정확한 버전, 브라우저 직접 호출(CORS) 통과 여부, 오류 객체 형태(`status` 숫자 필드 유무) → §4.1 분류 규칙 조정 | P2 설치 후 **임의(무효) 키로 1회 호출** — 기대: 인증 오류(400/403)가 SDK 오류로 도착, CORS 차단이면 `Failed to fetch`. 결과를 LOG에 기록, 미실행이면 미실행으로 |
+| 3 | 브라우저 직접 호출(CORS) 통과 여부, 오류 객체 형태(`status` 숫자 필드 유무) → §4.1 분류 규칙 조정 | P2 설치 후 **임의(무효) 키로 1회 호출** — 기대: 인증 오류(400/403)가 SDK 오류로 도착, CORS 차단이면 `Failed to fetch`. 결과를 LOG에 기록, 미실행이면 미실행으로 — 확인 방법: Vite dev 서버에서 브라우저 콘솔로 `await import('/src/lib/gemini.ts')`를 불러 `generate('ping')` 1회 호출 |
 | 4 | P5 이미지 경로의 타임아웃 값과 `generate` 시그니처 확장 방식 | P5 설계 |
 | 5 | GitHub Pages `base` 경로·workflow·CSP 정확한 정책 | P7 |
 | 6 | 페르소나 생성에서 JSON 파싱 실패(`raw`) 시 처리 — 오류로 거부 vs 원문 보존 저장(PRD FR-11) | P3 docs에서 확정 |

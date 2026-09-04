@@ -2,6 +2,12 @@
 
 > 규칙(CLAUDE.md 그라운드 룰 2): 최신 항목을 맨 위에 둔다. 각 항목은 태그(`[feat]`/`[fix]`/`[test]`/`[docs]`/`[chore]`), 절대 날짜, 변경 파일, 상태(`진행중`/`완료`/`완료(미검증)`)를 적는다. 코드 변경은 착수 전에 `진행중` 항목을 먼저 추가하고, 검증 후 `완료`로 바꾸며 실제 변경 파일을 정정한다. 검증을 돌리지 않았으면 "검증 비대상" 또는 "미실행"으로 사실대로 적는다. 원인 진단·설계 선택·수치 판단에는 그라운드 룰 1의 3단 사고(1차 사고 / 비판적 재사고 / 종합)를 남긴다.
 
+## 2026-09-05 — [feat] P2 Gemini API 키 온보딩(쿠키)과 클라이언트 — 진행중
+
+- 배경/목적: 모든 도메인 기능이 사용자 소유 Gemini 키에 의존하므로 페르소나보다 먼저 키 온보딩과 호출 모듈을 만든다(PLAN §6 순서 근거). 계약: TRD §3.2(config) · §3.3(settingsRepo, 쿠키) · §3.4(gemini.generate/extractJson) · §3.10(OnboardingModal/ApiKeyStatus/App 게이트) · §4(호출·에러 변환), DESIGN §4.
+- 변경 예정 파일: `src/lib/config.ts`, `src/lib/repos/settingsRepo.ts`, `src/lib/gemini.ts`, `src/components/OnboardingModal.tsx`, `src/components/ApiKeyStatus.tsx`, `src/App.tsx`(온보딩 게이트·헤더 인디케이터), `src/lib/store.ts`(apiKey 미러), `src/lib/i18n.ts`(onboarding/err/toast 키), `docs/TRD.md`(§2 SDK 버전 고정, §4 CORS 확인 방법)
+- 검증 계획: `tsc`/`vite build`; UI 스모크(키 없음 → 모달 점유 → 키+동의 저장 → 헤더 "● Gemini 준비됨" → 새로고침 유지 → 삭제 → 모달 재등장); 브라우저에서 무효 키로 `generate()` 1회 호출해 CORS 통과 여부·SDK 오류 형태 확인(방법: Vite dev 서버에서 `import('/src/lib/gemini.ts')`로 모듈을 불러 호출). 실키가 확보되면 유효 키 1회 호출로 응답·지연을 기록한다.
+
 ## 2026-09-05 — [feat] P1 앱 스캐폴드와 셸 — 완료
 
 - 배경/목적: 도메인 기능 전에 빌드 파이프라인과 앱 셸(상단바·하단 탭 3개·HashRouter·i18n ko/en·토스트)을 세워 이후 단계가 화면 단위로 붙을 자리를 만든다. 계약: TRD §2·§3.9·§3.10, DESIGN §2·§3, PLAN §4 P1.
