@@ -10,11 +10,11 @@ export const TEXT_REQUEST_TIMEOUT_MS = 60_000;
 /** 이미지가 붙은 요청 타임아웃(ms). 인라인 base64 페이로드가 무거워 넉넉히 잡는다 — 값은 실측 전 여유값. */
 export const IMAGE_REQUEST_TIMEOUT_MS = 180_000;
 
-/** API 키를 보관하는 쿠키 이름. */
-export const API_KEY_COOKIE_NAME = 'pm_gemini_key';
+/** API 키를 보관하는 localStorage 키(TRD §3.2). */
+export const API_KEY_STORAGE_KEY = 'pm_gemini_key';
 
-/** API 키 쿠키 만료(일). */
-export const API_KEY_COOKIE_MAX_AGE_DAYS = 365;
+/** 쿠키에 저장하던 구버전 API 키 이름. 읽으면 localStorage로 옮기고 쿠키는 만료시킨다(TRD §3.3). */
+export const LEGACY_COOKIE_KEY_NAME = 'pm_gemini_key';
 
 /** IndexedDB 설정 (db.ts/personaRepo.ts/analysisRepo.ts가 사용). */
 export const DB_NAME = 'persona-mirror';

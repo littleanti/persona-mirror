@@ -1,6 +1,6 @@
 # TRD — Persora 기술 요구사항·설계
 
-> 문서 버전: 1.6 · 갱신일: 2026-09-05 · 상태: P8 착수 — **API 키 저장소를 쿠키에서 localStorage로 재결정**(ADR-8), 설정 탭·백업/삭제 계약(§3.13), CSP·referrer meta, GitHub Pages 배포 설계 확정. 기준: [PRD 1.3](./PRD.md) / [PLAN 1.8](./PLAN.md) / [DESIGN 1.4](./DESIGN.md)
+> 문서 버전: 1.7 · 갱신일: 2026-09-05 · 상태: P8 완료 — 쿠키 프로브 재실측 0/5, CSP dev 충돌 없음, npm audit 기록. 기준: [PRD 1.3](./PRD.md) / [PLAN 1.8](./PLAN.md) / [DESIGN 1.4](./DESIGN.md)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -19,6 +19,7 @@
 | 1.4 | 2026-09-05 | P6-1 완료: §10 #20 의도 스티어링 실측(decline, 3.86s) |
 | 1.5 | 2026-09-05 | P7 착수: §3.9 uuid 폴백, §3.10 ErrorBoundary·포털 오버레이·pointer-down 닫기, §10 #13 원인 확정 |
 | 1.6 | 2026-09-05 | P8 착수(보안 점검·배포): **키 저장소 재결정**(ADR-8, ADR-3 종결) — §3.2 `API_KEY_STORAGE_KEY`·`LEGACY_COOKIE_KEY_NAME`, §3.3 settingsRepo를 localStorage + 레거시 쿠키 1회 이전으로 재작성, §1.1 그림·§1.2 데이터 평면·§1.3·§2 스택 정정. 신규 §3.13 `dataManagement.ts`·§3.14 `assets.ts`, §3.12 드래프트 백업 헬퍼 3종 가산, §3.9 store, §3.10 `SettingsPage`·탭 4개. §2.1·§6 배포(Pages `base '/persora/'`·workflow·헤더 불가 → meta), §8 보안(CSP 정책 문자열·referrer·고지·키 취급 정정), §9.4·§9.7, §10 갱신 |
+| 1.7 | 2026-09-05 | P8 완료: §10 #22 확인(충돌 없음), npm audit 결과 행, §6 로컬 서버 base 마운트 |
 
 > **1.6에서 추가한 P8 계약(`dataManagement.ts`, `assets.ts`, `SettingsPage`, `drafts.ts`의 백업 헬퍼 3종, `config.ts`의 저장소 키 상수 교체, localStorage 기반 `settingsRepo`)은 P8에서 만들 것이며 아직 코드에 없다** — 해당 자리마다 그 사실을 밝혀 둔다.
 >
@@ -970,7 +971,8 @@ P7에서 `src/lib/id.test.ts`가, P8에서 `drafts.test.ts`의 케이스가 더�
 | 19 | 스레드 파서(§3.11)의 실제 적중률 | **미확정.** 카카오톡 내보내기 형식과 `이름: 내용` 두 가지만 상정했다. 다른 메신저 형식·이름 표기 흔들림·라벨 없는 붙여넣기에서 화자와 타겟이 얼마나 맞는지 표본이 없다. 오검출은 수동 교정(PRD FR-30)으로 복구되는 것이 완화책이다. P6 검증에서 몇 형태를 넣어 보고 판단은 P7 실사용으로 넘긴다 |
 | 20 | ~~답장 의도가 실제로 후보 방향을 바꾸는지~~ **실측 확인(P6-1, 표본 1)**: 같은 스레드에 `decline` 의도를 주자 후보 3개가 모두 상대의 요청을 부드럽게 거절하는 방향으로 바뀌고(3.86s), 라벨도 의도에 맞게 생성됨. 말투 보존. 표본이 1건이라 프리셋 6종 전체 검증은 남아 있다 | P6-1 완료 |
 | 21 | 스레드 드래프트(§3.12)를 IndexedDB로 옮길 필요가 있는지 | 미확정 — localStorage 한 칸으로 시작한다. 스레드가 매우 길거나 페르소나가 많아 용량이 문제가 되면 그때 다시 본다 |
-| 22 | CSP meta가 개발 서버(Vite HMR)와 충돌하는지 | **미확인.** `script-src 'self'`가 dev 서버의 HMR 클라이언트와 부딪히면 `npm run dev`가 깨진다. P8 검증에서 dev와 빌드본 양쪽의 콘솔 CSP 위반을 확인하고, dev만 문제라면 정책을 약화하는 대신 개발 환경 쪽에서 예외를 두는 방향을 먼저 본다(§9.7) |
+| 22 | ~~CSP meta가 개발 서버(Vite HMR)와 충돌하는지~~ **확인(P8)**: dev 서버(`/persora/`)에서 앱 렌더 정상, CSP 위반 콘솔 메시지 0(Chromium, Playwright 실측) — 충돌 없음 | P8 완료 |
 | 23 | 의존성 취약점(`npm audit`) | **미실행.** 보안 점검 항목인데 아직 돌리지 않았다. P8 검증에서 실행하고 결과를 사실대로 LOG에 적는다. 조치 여부는 심각도와 런타임 도달 가능성을 보고 판단 |
 | 24 | 배포 후 Acceptance A1~A4 재확인 | **미실행.** Pages URL은 `base '/persora/'` 하위 경로라 자산 경로·HashRouter·저장소 origin이 로컬과 달라지는 첫 환경이다. `main` push 이후에만 확인할 수 있다(§9.7 7번) |
 | 25 | 백업 스키마 `version`을 올릴 기준 | 미확정 — 지금은 1. 레코드 필드는 계속 선택 필드로 가산되므로 구 백업이 그대로 읽힌다. 읽을 수 없게 되는 변경이 생길 때만 올리고, 그때 마이그레이션을 어떻게 할지 정한다 |
+| 26 | 의존성 취약점(npm audit) | **P8 기록**: `npm audit fix`(비강제) 후 12건 → 7건(모두 moderate, major 업그레이드 필요: vite/esbuild, express/qs, react-router). express/qs는 로컬 미리보기 서버 전용(번들 미포함), react-router 건은 HashRouter·고정 경로·SSR 없음으로 미사용 경로 → 수용. 다음 major 업그레이드 시 재점검 | 수용(재점검 예정 시점: 의존성 major 업그레이드) |

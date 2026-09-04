@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { APP_LOGO_SRC } from '@/lib/assets';
 import { GEMINI_API_KEY_HELP_URL } from '@/lib/config';
 import { useApp } from '@/lib/store';
 import { useT } from '@/lib/useI18n';
@@ -39,7 +40,7 @@ export default function OnboardingModal() {
 
       <div className="relative max-w-md w-full bg-white border border-slate-200 rounded-2xl p-8 shadow-soft-lg animate-fade-in">
         <div className="text-center mb-8">
-          <img src="/app-logo.png" alt="" className="mx-auto mb-4 h-16 w-16 rounded-2xl object-cover" />
+          <img src={APP_LOGO_SRC} alt="" className="mx-auto mb-4 h-16 w-16 rounded-2xl object-cover" />
           <h2 className="text-2xl font-bold text-slate-900 mb-1">{t('onboarding.welcomeTitle')}</h2>
           <p className="text-sm text-slate-500 leading-relaxed">{t('onboarding.welcomeDesc')}</p>
         </div>

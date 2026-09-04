@@ -40,3 +40,45 @@ export function clearThreadDraft(personaId: string): void {
     // 무시
   }
 }
+
+// ── 설정 탭의 백업·전체 삭제가 쓰는 일괄 조회/복원/삭제(TRD §3.12) ──
+// 접두 상수(PREFIX)는 이 모듈 안에만 있고, dataManagement.ts는 키 형식을 알지 못한 채
+// 이 세 함수만 호출한다.
+
+/** 저장된 모든 드래프트를 personaId → 본문 맵으로 반환한다. 접근 실패는 빈 객체로 폴백한다. */
+export function listThreadDrafts(): Record<string, string> {
+  const drafts: Record<string, string> = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith(PREFIX)) continue;
+      const personaId = key.slice(PREFIX.length);
+      const value = localStorage.getItem(key);
+      if (personaId && value) drafts[personaId] = value;
+    }
+  } catch {
+    // 무시
+  }
+  return drafts;
+}
+
+/** 백업에서 드래프트를 복원한다. 문자열 값만 setThreadDraft로 반영하고 나머지는 건너뛴다. */
+export function importThreadDrafts(drafts: Record<string, unknown>): void {
+  Object.entries(drafts).forEach(([personaId, value]) => {
+    if (typeof value === 'string') setThreadDraft(personaId, value);
+  });
+}
+
+/** 접두가 붙은 드래프트 키를 전부 삭제한다. 접근 실패는 조용히 무시한다. */
+export function clearAllThreadDrafts(): void {
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(PREFIX)) keys.push(key);
+    }
+    keys.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // 무시
+  }
+}

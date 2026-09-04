@@ -30,7 +30,7 @@
 | 전역 상태 | Zustand 4 |
 | 스타일 | Tailwind CSS 3 + 커스텀 토큰 |
 | LLM | `@google/genai` 2.x — 모델 `gemini-3.1-flash-lite`, thinking off |
-| 저장 | IndexedDB(페르소나·분석 기록) + 쿠키(API 키) |
+| 저장 | IndexedDB(페르소나·분석 기록) + localStorage(API 키·UI 언어·스레드 드래프트) |
 | 미리보기 서버 | Node 20+ / Express 4 (정적 서빙 전용) |
 
 ---
@@ -47,22 +47,24 @@ npm install
 
 # 2. 개발 서버 (HMR)
 npm run dev
-# → http://localhost:4121
+# → http://localhost:4121/persora/
 
 # 3. 프로덕션 빌드 (tsc --noEmit && vite build → dist/)
 npm run build
 
 # 4. 빌드 결과를 정적 서버로 서빙
 npm start
-# → http://localhost:8000
+# → http://localhost:8000/persora/ ('/'는 이 경로로 자동 리다이렉트됩니다)
 ```
+
+Vite `base`가 `/persora/`라(배포 경로와 맞춤, 아래 [배포](#배포) 참고) 개발 서버·정적 서버 모두 이 하위 경로에서 앱이 뜹니다.
 
 ### 접속 방법
 
 | 기기 | 주소 |
 |------|------|
-| PC | http://localhost:8000 |
-| 휴대폰(같은 Wi-Fi) | http://[PC의 IP주소]:8000 |
+| PC | http://localhost:8000/persora/ |
+| 휴대폰(같은 Wi-Fi) | http://[PC의 IP주소]:8000/persora/ |
 
 > PC IP 확인: `ipconfig` (Windows) / `ifconfig` (Mac/Linux)
 > 휴대폰 실기기 접속은 아직 확인하지 못했습니다([PLAN](docs/PLAN.md) §5.3).
@@ -73,19 +75,31 @@ npm start
 
 앱을 처음 열면 온보딩 모달이 뜹니다. Google AI Studio에서 발급한 Gemini API 키를 넣고 "이 기기에만 저장" 동의에 체크하면 시작됩니다. 키가 없으면 어떤 기능도 열리지 않습니다.
 
-- 키는 **이 브라우저의 쿠키**(`pm_gemini_key`, 만료 1년, `SameSite=Lax`)에 저장됩니다. 서버로 보내지 않습니다.
+- 키는 **이 브라우저의 localStorage**(`pm_gemini_key`)에 저장됩니다. 서버로 보내지 않습니다 — 쿠키와 달리 요청에 자동으로 실리지 않습니다.
 - 저장 시 별도 검증 호출을 하지 않습니다. 키가 잘못되었으면 첫 분석 요청에서 인증 오류로 드러납니다.
 - 키 변경·삭제는 헤더의 `● Gemini 준비됨`을 눌러서 합니다.
+- Google Cloud/API Console에서 이 키가 사용할 수 있는 API를 **Gemini API로 제한**하는 것을 권장합니다. 가능하면 HTTP referrer도 `https://littleanti.github.io/persora/*`로 제한해 두되, 키가 유출되면 이 제한을 우회할 수 있어 **효과는 제한적**입니다 — 노출이 의심되면 즉시 키를 회전·삭제하세요.
 
 ---
 
 ## 개인정보
 
-- **페르소나·분석 기록·원본 대화**는 브라우저 IndexedDB(`persona-mirror`)에만 저장됩니다. 서버에는 어떤 개인 데이터도 가지 않습니다.
-- **LLM 호출은 브라우저가 `generativelanguage.googleapis.com`으로 직접** 보냅니다. 페르소나 생성 시 대화 텍스트가, 분석 시 페르소나 JSON과 받은 메시지가 Google로 전송됩니다.
+- **페르소나·분석 기록·원본 대화·스레드 드래프트**는 브라우저 IndexedDB(`persona-mirror`)/localStorage에만 저장됩니다. 서버에는 어떤 개인 데이터도 가지 않습니다.
+- **API 키도 이 브라우저의 localStorage**에 저장됩니다(위 [첫 실행](#첫-실행) 참고).
+- **LLM 호출은 브라우저가 `generativelanguage.googleapis.com`으로 직접** 보냅니다. 페르소나 생성 시 대화 텍스트나 캡처 이미지가, 분석 시 페르소나 JSON과 최근 대화 스레드가 Google로 전송됩니다.
 - 타인의 대화·민감정보 입력은 주의해 주세요.
-- 브라우저 사이트 데이터를 지우면 저장된 페르소나·기록·키가 모두 사라지며 **복구 수단이 없습니다.**
-- AI가 만든 페르소나와 답변 후보는 참고용이며, 심리 진단이나 관계 결정을 대신하지 않습니다.
+- 브라우저 사이트 데이터를 지우거나 기기를 바꾸면 저장된 페르소나·기록·드래프트·키가 모두 사라지며 **복구 수단이 없습니다.** 설정 탭에서 백업(JSON, API 키는 포함하지 않음)을 내보내고 가져올 수 있습니다.
+- 설정 탭에서 API 키·페르소나·분석 기록·드래프트를 한 번에 삭제할 수 있습니다.
+- AI가 만든 페르소나와 답변 후보는 참고용이며, 의료·법률·심리 진단이나 중요한 관계 결정을 대신하지 않습니다.
+
+---
+
+## 배포
+
+- 배포 URL: `https://littleanti.github.io/persora/` (GitHub Pages 프로젝트 사이트)
+- Vite `base`: `/persora/`
+- 배포 workflow: [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) — `main` 브랜치 push(또는 수동 실행) 시 `npm ci` → `npm run build` → `dist/`를 Pages에 올립니다.
+- GitHub Pages는 응답 헤더를 바꿀 수 없어, 보안 정책(CSP·referrer)은 `index.html`의 `<meta>`로 넣습니다. 로컬 `server/index.js`가 붙이는 `X-Content-Type-Options`·`Referrer-Policy` 헤더는 배포본에는 적용되지 않습니다.
 
 ---
 

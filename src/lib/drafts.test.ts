@@ -2,7 +2,14 @@
 // 전역 localStorage를 인메모리 스텁으로 교체해 jsdom 없이 저장/복원/폴백을 검증한다.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearThreadDraft, getThreadDraft, setThreadDraft } from '@/lib/drafts';
+import {
+  clearAllThreadDrafts,
+  clearThreadDraft,
+  getThreadDraft,
+  importThreadDrafts,
+  listThreadDrafts,
+  setThreadDraft,
+} from '@/lib/drafts';
 
 class MemoryStorage implements Storage {
   private store = new Map<string, string>();
@@ -105,6 +112,49 @@ describe('clearThreadDraft', () => {
   });
 });
 
+describe('listThreadDrafts/importThreadDrafts/clearAllThreadDrafts', () => {
+  it('listThreadDrafts는 저장된 모든 드래프트를 personaId → 본문 맵으로 반환한다', () => {
+    setThreadDraft('persona-1', '첫 번째 대화');
+    setThreadDraft('persona-2', '두 번째 대화');
+    expect(listThreadDrafts()).toEqual({
+      'persona-1': '첫 번째 대화',
+      'persona-2': '두 번째 대화',
+    });
+  });
+
+  it('listThreadDrafts는 드래프트 접두가 없는 다른 localStorage 값을 무시한다', () => {
+    setThreadDraft('persona-1', '드래프트');
+    localStorage.setItem('pm_lang', 'ko');
+    expect(listThreadDrafts()).toEqual({ 'persona-1': '드래프트' });
+  });
+
+  it('드래프트가 없으면 listThreadDrafts는 빈 객체를 반환한다', () => {
+    expect(listThreadDrafts()).toEqual({});
+  });
+
+  it('importThreadDrafts는 문자열 값만 복원하고 나머지는 건너뛴다', () => {
+    importThreadDrafts({
+      'persona-1': '가져온 대화',
+      'persona-2': 42,
+      'persona-3': null,
+    } as unknown as Record<string, unknown>);
+    expect(getThreadDraft('persona-1')).toBe('가져온 대화');
+    expect(getThreadDraft('persona-2')).toBe('');
+    expect(getThreadDraft('persona-3')).toBe('');
+  });
+
+  it('clearAllThreadDrafts는 접두가 붙은 키만 전부 삭제하고 다른 키는 남긴다', () => {
+    setThreadDraft('persona-1', '지워질 대화 1');
+    setThreadDraft('persona-2', '지워질 대화 2');
+    localStorage.setItem('pm_lang', 'ko');
+
+    clearAllThreadDrafts();
+
+    expect(listThreadDrafts()).toEqual({});
+    expect(localStorage.getItem('pm_lang')).toBe('ko');
+  });
+});
+
 describe('localStorage 접근 실패 시 폴백', () => {
   beforeEach(() => {
     vi.stubGlobal('localStorage', new ThrowingStorage());
@@ -122,5 +172,18 @@ describe('localStorage 접근 실패 시 폴백', () => {
 
   it('clearThreadDraft는 throw하지 않는다', () => {
     expect(() => clearThreadDraft('persona-1')).not.toThrow();
+  });
+
+  it('listThreadDrafts는 throw하지 않고 빈 객체를 반환한다', () => {
+    expect(() => listThreadDrafts()).not.toThrow();
+    expect(listThreadDrafts()).toEqual({});
+  });
+
+  it('importThreadDrafts는 throw하지 않는다', () => {
+    expect(() => importThreadDrafts({ 'persona-1': '값' })).not.toThrow();
+  });
+
+  it('clearAllThreadDrafts는 throw하지 않는다', () => {
+    expect(() => clearAllThreadDrafts()).not.toThrow();
   });
 });

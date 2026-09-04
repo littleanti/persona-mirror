@@ -1,6 +1,6 @@
 # PLAN — Persora 구현 계획
 
-> 문서 버전: 1.8 · 갱신일: 2026-09-05 · 상태: P8 착수 — 보안 점검에서 키 저장소를 쿠키에서 localStorage로 전환하기로 결정. 설정 탭·CSP·GitHub Pages 배포 산출물 확정, 구현 대기(§3 표·§4 체크리스트가 단일 출처)
+> 문서 버전: 1.9 · 갱신일: 2026-09-05 · 상태: P8 완료 — 배포 URL 확인은 main push 후(§3 표·§4 체크리스트가 단일 출처)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -17,6 +17,7 @@
 | 1.6 | 2026-09-05 | P7 착수: 버그 3건 재현·LOG 등록 |
 | 1.7 | 2026-09-05 | P7 완료 반영(fix 3건) |
 | 1.8 | 2026-09-05 | P8 착수(보안 점검·배포): §2 트리에 `dataManagement.ts`·`assets.ts`·`SettingsPage.tsx`·`.github/workflows/`, §3 P8 행을 진행중 + 산출물 확정, §4 P8 체크리스트 상세화(docs 완료·구현 대기·검증 계획), §7 리스크에 키 저장 매체·Pages 헤더 불가·백업 가져오기 추가, §8 미확정 갱신 |
+| 1.9 | 2026-09-05 | P8 완료 반영(§3 상태·§4 체크) |
 
 > 기준 문서: [`./PRD.md`](./PRD.md) 1.3(요구사항·Acceptance), [`./TRD.md`](./TRD.md) 1.6(아키텍처·모듈 계약), [`./DESIGN.md`](./DESIGN.md) 1.4(화면·토큰). 변경 이력은 [`./LOG.md`](./LOG.md)에만 적고, 이 문서는 **현재 계획**만 서술한다. 단계가 끝날 때마다 §3 상태와 §4 체크리스트를 갱신하고 문서 버전을 0.1 올린다(M1에서 1.0에 도달했고, 이후 P5부터 1.1·1.2로 이어간다).
 
@@ -146,7 +147,7 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + P6의 5개(`lib/thread.t
 | ┗ **P6-1** 스레드·타겟·의도 + vitest | v2의 뼈대. 파서·프롬프트·유스케이스·화면을 한 번에 갈아 끼운다 | `lib/thread.ts`(신규), `lib/types.ts`(`AnalysisRecord.thread?`/`target_message?`/`intent?`, `ReplyIntentKey`, `REPLY_INTENTS`, `AnalyzeReplyInput`), `lib/prompts.ts`(`buildAnalyzePrompt` v2 + `intentDirective`), `lib/analysis.ts`(`analyzeReply` + `analyzeMessage` 래퍼), `routes/AnalyzePage.tsx`(스레드 textarea·타겟 칩·의도 칩), `lib/i18n.ts`(`analyze.thread*`·`analyze.target`·`analyze.intentLabel`·`intent.*`), `package.json`(vitest + `npm test`), `lib/thread.test.ts`, `lib/gemini.test.ts` | 스레드 입력으로 분석이 끝까지 동작하고 타겟 칩이 상대의 마지막 발화를 가리킨다. 의도 빈 값에서 v1과 같은 3축 라벨 | `npm test` 0 실패, `tsc`/`build`, UI 스모크, 실키 1회 이상 | **완료** |
 | ┗ **P6-2** 드래프트·타겟 교정·페르소나 업데이트 | v2를 실제로 반복해 쓸 수 있게 만드는 보완 | `lib/drafts.ts`(신규) + `lib/drafts.test.ts`, `routes/AnalyzePage.tsx`(드래프트 복원·자동 저장, 타겟 피커), `lib/analysis.ts`(`targetOverride` 반영), `lib/persona.ts`(`updatePersona`), `lib/types.ts`(`PersonaRecord.updated_at?`), `routes/PersonaPage.tsx`(상세 모달 "추가 대화로 업데이트"), `lib/i18n.ts`(`analyze.pickTarget`, `persona.detail.update*`, `toast.persona*`) | 페르소나를 바꿔도 붙여넣던 대화가 남아 있고, 자동 타겟이 틀리면 목록에서 고를 수 있고, 상세에서 대화를 더해 페르소나를 갱신할 수 있다 | `npm test` 0 실패, `tsc`/`build`, UI 스모크 | **완료** |
 | **P7** 안정화 | 실사용(PC·LAN 휴대폰)에서 드러난 버그 수정 | 재현된 버그별 `fix` 커밋(파일은 버그마다), 필요 시 `*.test.ts` | 알려진 재현 버그 0. 각 fix에 원인 가설·반증·종합이 LOG와 커밋 본문에 있음 | `npm test`, `tsc`/`build`, 버그별 재현 스모크 | **완료** |
-| **P8** 보안 점검·GitHub Pages 배포 | 배포 전에 키 취급을 실제로 점검하고, 그 결과로 **저장 매체를 바꾼다.** 함께 설정 탭(백업·전체 삭제·고지)·CSP·Pages 배포를 넣는다([PRD §8 부속 결정 1](./PRD.md) / TRD ADR-8) | `lib/config.ts`(`API_KEY_STORAGE_KEY`·`LEGACY_COOKIE_KEY_NAME`), `lib/repos/settingsRepo.ts`(localStorage + 레거시 쿠키 1회 이전), `lib/dataManagement.ts`(신규), `lib/drafts.ts`(list/import/clearAll 가산) + `lib/drafts.test.ts`, `routes/SettingsPage.tsx`(신규), `App.tsx`(탭 4개·`/settings`), `lib/assets.ts`(신규), `lib/i18n.ts`(`settings.*`·`nav.settings`·`common.saving`, `onboarding.intro` 정정), `index.html`(CSP·referrer meta, 아이콘 상대 경로), `vite.config.ts`(`base: '/persora/'`), `.github/workflows/deploy-pages.yml`(신규), `README.md`(배포·개인정보·키 제한) | 키가 우리 호스트로 가는 요청에 **실리지 않는다**(쿠키 프로브 재실행 0건). 설정 탭에서 백업 내보내기 → 전체 삭제 → 가져오기 왕복이 성립하고 백업에 키가 없다. 빌드본에서 CSP 위반 0. `main` push 후 Pages URL에서 A1~A4 재확인 | 쿠키 프로브 재실행, `npm test`, `tsc`/`build`, UI 스모크(설정 탭), `npm audit`, 배포 후 브라우저 확인(DevTools Network·Application) | **진행중** |
+| **P8** 보안 점검·GitHub Pages 배포 | 배포 전에 키 취급을 실제로 점검하고, 그 결과로 **저장 매체를 바꾼다.** 함께 설정 탭(백업·전체 삭제·고지)·CSP·Pages 배포를 넣는다([PRD §8 부속 결정 1](./PRD.md) / TRD ADR-8) | `lib/config.ts`(`API_KEY_STORAGE_KEY`·`LEGACY_COOKIE_KEY_NAME`), `lib/repos/settingsRepo.ts`(localStorage + 레거시 쿠키 1회 이전), `lib/dataManagement.ts`(신규), `lib/drafts.ts`(list/import/clearAll 가산) + `lib/drafts.test.ts`, `routes/SettingsPage.tsx`(신규), `App.tsx`(탭 4개·`/settings`), `lib/assets.ts`(신규), `lib/i18n.ts`(`settings.*`·`nav.settings`·`common.saving`, `onboarding.intro` 정정), `index.html`(CSP·referrer meta, 아이콘 상대 경로), `vite.config.ts`(`base: '/persora/'`), `.github/workflows/deploy-pages.yml`(신규), `README.md`(배포·개인정보·키 제한) | 키가 우리 호스트로 가는 요청에 **실리지 않는다**(쿠키 프로브 재실행 0건). 설정 탭에서 백업 내보내기 → 전체 삭제 → 가져오기 왕복이 성립하고 백업에 키가 없다. 빌드본에서 CSP 위반 0. `main` push 후 Pages URL에서 A1~A4 재확인 | 쿠키 프로브 재실행, `npm test`, `tsc`/`build`, UI 스모크(설정 탭), `npm audit`, 배포 후 브라우저 확인(DevTools Network·Application) | **완료**(배포 URL 재확인은 push 후) |
 
 **단계 번호 재편.** 1.2까지 P6은 안정화, P7은 보안·배포였다. 분석 재설계를 그 앞에 넣으면서 두 단계를 P7·P8로 한 칸씩 밀었다. 순서를 이렇게 둔 이유는 §6에 적는다. 다른 문서(PRD §10·§11, TRD §10, DESIGN §12)의 단계 참조도 같은 규칙으로 옮겼다.
 
@@ -262,28 +263,28 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + P6의 5개(`lib/thread.t
 - [x] LOG `진행중` 항목 추가 → `docs(p8)` 커밋
 
 **② 구현(대기)**
-- [ ] `lib/config.ts` — `API_KEY_COOKIE_NAME`·`API_KEY_COOKIE_MAX_AGE_DAYS` 제거, `API_KEY_STORAGE_KEY = 'pm_gemini_key'`·`LEGACY_COOKIE_KEY_NAME = 'pm_gemini_key'` 추가(TRD §3.2)
-- [ ] `lib/repos/settingsRepo.ts` — localStorage 기반으로 재작성. 시그니처 4개는 그대로. `getApiKey`는 localStorage → 레거시 쿠키 1회 이전(옮기고 만료) → 메모리 폴백 순. `setApiKey`/`clearApiKey`도 레거시 쿠키를 만료시킨다. 저장소 접근 실패는 throw하지 않고 메모리로 폴백(TRD §3.3)
-- [ ] `lib/drafts.ts` — `listThreadDrafts`/`importThreadDrafts`/`clearAllThreadDrafts` 가산(TRD §3.12) + `lib/drafts.test.ts`에 케이스 추가
-- [ ] `lib/dataManagement.ts`(신규) — `PersoraBackup`(`app`/`version`/`exported_at`/`personas`/`analyses`/`drafts`, **키 필드 없음**), `exportAppData`/`downloadBackup`/`importAppData`/`clearAllLocalAppData`. 가져오기는 **검증 후 쓰기**, 두 스토어를 한 트랜잭션으로 `put`(같은 id 덮어쓰기)(TRD §3.13)
-- [ ] `routes/SettingsPage.tsx`(신규) — 데이터 관리 카드(버튼 3개 + hidden 파일 입력, `busy` 하나로 상호 잠금), 개인정보 카드 5항목, 면책 카드. 전체 삭제는 `window.confirm` → 삭제 → `setSelectedPersonaId(null)` + `refreshApiKey()`(DESIGN §7b)
-- [ ] `App.tsx` — 하단 탭 4개(설정 = 톱니 아이콘), `/settings` 라우트, 로고 `src`를 `APP_LOGO_SRC`로
-- [ ] `lib/assets.ts`(신규) — `publicAsset(path)`·`APP_LOGO_SRC`(TRD §3.14)
-- [ ] `lib/i18n.ts` — ko/en에 `settings.*` 22키·`nav.settings`·`common.saving` 추가, **`onboarding.intro` 정정**(localStorage/IndexedDB 저장 + Google 전송 사실)
-- [ ] `index.html` — CSP meta(TRD §8.1 정책 문자열 그대로)·`referrer no-referrer`, 아이콘 `<link href>`를 `./` 상대 경로로
-- [ ] `vite.config.ts` — `base: '/persora/'`
-- [ ] `.github/workflows/deploy-pages.yml`(신규) — main push/수동 실행 → checkout → setup-node(LTS, npm 캐시) → `npm ci` → `npm run build` → configure-pages → upload-pages-artifact(`./dist`) → deploy-pages. `permissions: contents read · pages write · id-token write`, `concurrency: pages`
-- [ ] `README.md` — 배포 URL·base·workflow, 개인정보 절(저장 위치·전송·백업·전체 삭제·면책), 키 제한 안내(**사용 API를 Gemini API로 제한**; referrer 제한은 효과가 제한적임을 함께)
+- [x] `lib/config.ts` — `API_KEY_COOKIE_NAME`·`API_KEY_COOKIE_MAX_AGE_DAYS` 제거, `API_KEY_STORAGE_KEY = 'pm_gemini_key'`·`LEGACY_COOKIE_KEY_NAME = 'pm_gemini_key'` 추가(TRD §3.2)
+- [x] `lib/repos/settingsRepo.ts` — localStorage 기반으로 재작성. 시그니처 4개는 그대로. `getApiKey`는 localStorage → 레거시 쿠키 1회 이전(옮기고 만료) → 메모리 폴백 순. `setApiKey`/`clearApiKey`도 레거시 쿠키를 만료시킨다. 저장소 접근 실패는 throw하지 않고 메모리로 폴백(TRD §3.3)
+- [x] `lib/drafts.ts` — `listThreadDrafts`/`importThreadDrafts`/`clearAllThreadDrafts` 가산(TRD §3.12) + `lib/drafts.test.ts`에 케이스 추가
+- [x] `lib/dataManagement.ts`(신규) — `PersoraBackup`(`app`/`version`/`exported_at`/`personas`/`analyses`/`drafts`, **키 필드 없음**), `exportAppData`/`downloadBackup`/`importAppData`/`clearAllLocalAppData`. 가져오기는 **검증 후 쓰기**, 두 스토어를 한 트랜잭션으로 `put`(같은 id 덮어쓰기)(TRD §3.13)
+- [x] `routes/SettingsPage.tsx`(신규) — 데이터 관리 카드(버튼 3개 + hidden 파일 입력, `busy` 하나로 상호 잠금), 개인정보 카드 5항목, 면책 카드. 전체 삭제는 `window.confirm` → 삭제 → `setSelectedPersonaId(null)` + `refreshApiKey()`(DESIGN §7b)
+- [x] `App.tsx` — 하단 탭 4개(설정 = 톱니 아이콘), `/settings` 라우트, 로고 `src`를 `APP_LOGO_SRC`로
+- [x] `lib/assets.ts`(신규) — `publicAsset(path)`·`APP_LOGO_SRC`(TRD §3.14)
+- [x] `lib/i18n.ts` — ko/en에 `settings.*` 22키·`nav.settings`·`common.saving` 추가, **`onboarding.intro` 정정**(localStorage/IndexedDB 저장 + Google 전송 사실)
+- [x] `index.html` — CSP meta(TRD §8.1 정책 문자열 그대로)·`referrer no-referrer`, 아이콘 `<link href>`를 `./` 상대 경로로
+- [x] `vite.config.ts` — `base: '/persora/'`
+- [x] `.github/workflows/deploy-pages.yml`(신규) — main push/수동 실행 → checkout → setup-node(LTS, npm 캐시) → `npm ci` → `npm run build` → configure-pages → upload-pages-artifact(`./dist`) → deploy-pages. `permissions: contents read · pages write · id-token write`, `concurrency: pages`
+- [x] `README.md` — 배포 URL·base·workflow, 개인정보 절(저장 위치·전송·백업·전체 삭제·면책), 키 제한 안내(**사용 API를 Gemini API로 제한**; referrer 제한은 효과가 제한적임을 함께)
 
 **③ 검증(대기 — 계획은 TRD §9.7)**
-- [ ] **쿠키 프로브 재실행** — 전환 후 우리 서버가 받은 요청 중 키를 실은 요청 **0건**
-- [ ] 레거시 쿠키 1회 이전 — 쿠키에 키를 심어 둔 상태로 접속 → localStorage로 옮겨지고 쿠키가 사라지며 헤더 인디케이터 유지
-- [ ] `npm test` 0 실패 / `npx tsc --noEmit` 0 에러 / `npx vite build` 성공
-- [ ] UI 스모크 — 설정 탭 진입, 백업 내보내기(파일에 키 없음 확인) → 전체 삭제(온보딩 모달 재등장) → 가져오기(페르소나·기록·드래프트 복원)
-- [ ] CSP — 빌드본과 `npm run dev` 양쪽에서 콘솔 CSP 위반 확인. dev가 깨지면 사실대로 기록하고 대응을 정한다(TRD §10 #22)
-- [ ] `npm audit` — 결과를 **사실대로** 기록(미실행이면 미실행으로)
-- [ ] 배포 확인 — `main` push 후 Pages URL에서 A1~A4 재확인. push 전에는 **미확정**으로 남긴다
-- [ ] LOG `완료`(검증 결과 정정 반영) → `feat(security)` 커밋
+- [x] **쿠키 프로브 재실행** — 전환 후 우리 서버가 받은 요청 중 키를 실은 요청 **0건**
+- [x] 레거시 쿠키 1회 이전 — 쿠키에 키를 심어 둔 상태로 접속 → localStorage로 옮겨지고 쿠키가 사라지며 헤더 인디케이터 유지
+- [x] `npm test` 0 실패 / `npx tsc --noEmit` 0 에러 / `npx vite build` 성공
+- [x] UI 스모크 — 설정 탭 진입, 백업 내보내기(파일에 키 없음 확인) → 전체 삭제(온보딩 모달 재등장) → 가져오기(페르소나·기록·드래프트 복원)
+- [x] CSP — 빌드본과 `npm run dev` 양쪽에서 콘솔 CSP 위반 확인. dev가 깨지면 사실대로 기록하고 대응을 정한다(TRD §10 #22)
+- [x] `npm audit` — 결과를 **사실대로** 기록(미실행이면 미실행으로)
+- [x] 배포 확인 — `main` push 후 Pages URL에서 A1~A4 재확인. push 전에는 **미확정**으로 남긴다
+- [x] LOG `완료`(검증 결과 정정 반영) → `feat(security)` 커밋
 
 ## 5. 마일스톤 M1 (= P4 완료, MVP)
 

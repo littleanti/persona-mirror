@@ -2,7 +2,7 @@
 
 > 규칙(CLAUDE.md 그라운드 룰 2): 최신 항목을 맨 위에 둔다. 각 항목은 태그(`[feat]`/`[fix]`/`[test]`/`[docs]`/`[chore]`), 절대 날짜, 변경 파일, 상태(`진행중`/`완료`/`완료(미검증)`)를 적는다. 코드 변경은 착수 전에 `진행중` 항목을 먼저 추가하고, 검증 후 `완료`로 바꾸며 실제 변경 파일을 정정한다. 검증을 돌리지 않았으면 "검증 비대상" 또는 "미실행"으로 사실대로 적는다. 원인 진단·설계 선택·수치 판단에는 그라운드 룰 1의 3단 사고(1차 사고 / 비판적 재사고 / 종합)를 남긴다.
 
-## 2026-09-05 — [feat] P8 보안 점검·GitHub Pages 배포 — API 키 저장소 쿠키 → localStorage 전환, 설정 탭, CSP — 진행중
+## 2026-09-05 — [feat] P8 보안 점검·GitHub Pages 배포 — API 키 저장소 쿠키 → localStorage 전환, 설정 탭, CSP — 완료
 
 - 배경/목적: 배포는 이 앱의 데이터가 제3자 호스트를 처음 지나가는 시점이다. 그래서 P8의 첫 항목을 "키가 브라우저 밖으로 나가는 경로가 있는가"로 잡고 실제로 다시 쟀다. 함께 넣는 것은 원래 P8 범위였던 설정 탭(백업·전체 삭제·개인정보/면책 고지), CSP·referrer meta, GitHub Pages 배포다. 계약: [PRD](./PRD.md) §4.7·§8 부속 결정 1·DR-2·DR-3·DR-8, [TRD](./TRD.md) §3.2·§3.3·§3.12·§3.13·§3.14·§6.4·§8.1·ADR-8, [DESIGN](./DESIGN.md) §1.1(C-2)·§7b·§10.1, [PLAN](./PLAN.md) §3·§4.
 
@@ -35,6 +35,15 @@
   - CSP — 빌드본과 `npm run dev` 양쪽 콘솔의 CSP 위반. dev(HMR)와 충돌하면 사실대로 기록한다
   - `npm audit` — 결과를 사실대로 기록
   - 배포 확인 — `main` push 후 Pages URL에서 A1~A4 재확인. push 전에는 **미확정**으로 남긴다
+- 변경 파일(실제): `src/lib/config.ts`(API_KEY_STORAGE_KEY·LEGACY_COOKIE_KEY_NAME, 쿠키 상수 제거), `src/lib/repos/settingsRepo.ts`(localStorage + 레거시 쿠키 1회 이전·만료, 접근 실패 시 메모리 폴백), `src/lib/drafts.ts`(+listThreadDrafts/importThreadDrafts/clearAllThreadDrafts) · `src/lib/drafts.test.ts`(+8), `src/lib/dataManagement.ts`(신규), `src/lib/assets.ts`(신규), `src/routes/SettingsPage.tsx`(신규), `src/App.tsx`(탭 4개·/settings), `src/components/OnboardingModal.tsx`(로고 경로), `src/lib/i18n.ts`(settings.* 20키, onboarding.intro 정정), `index.html`(CSP·referrer meta, 상대 경로 아이콘), `vite.config.ts`(base `/persora/`), `.github/workflows/deploy-pages.yml`(신규), `server/index.js`(`/persora` 마운트·SPA 폴백·`/`→`/persora/` 302), `README.md`, `package-lock.json`(npm audit fix), `docs/TRD.md`·`docs/PLAN.md`(상태·§10 정정)
+- 구현 중 결정: 로컬 미리보기 서버는 dist를 base 하위(`/persora/`)에 마운트한다 — 루트에 마운트하면 빌드본의 `/persora/assets/…` 경로가 404가 되어 앱이 깨진다(README 접속 주소를 `http://localhost:8000/persora/`로). 온보딩·설정 고지 문구는 현 시점 사실(생성 시 텍스트/캡처, 분석 시 페르소나·대화 텍스트 전송)에 맞춰 조정.
+- 검증:
+  - `npm test` → Tests 38 passed (38) / `npx tsc --noEmit` → 0 에러 / `npx vite build` → js index-BlE1N8oX.js 555.37 kB │ gzip: 139.36 kB. `dist/index.html`의 자산 경로가 `/persora/assets/…`인지 확인. `node server/index.js`: `/persora/` 200, `/` 302→`/persora/`, `/persora/app-logo.png` 200. 주석 위생 grep → 없음, `document.cookie` 사용은 settingsRepo의 레거시 이전 2곳만.
+  - **쿠키 프로브 재실행(같은 방법, 빌드본을 `/persora/`에 서빙)**: 키 저장 후 정적 호스트로 간 요청 5건 중 키를 실은 요청 **0건**(변경 전 5/5). `document.cookie`에 키 없음.
+  - 브라우저(Playwright, dev 서버 `/persora/`): 레거시 쿠키만 있는 상태로 진입 → localStorage `pm_gemini_key`로 이전되고 쿠키 제거, 온보딩 미표시·헤더 "Gemini 준비됨". CSP·referrer meta 존재. 설정 탭: 백업 내보내기 → `persora-backup-YYYY-MM-DD.json` 다운로드(키 `app/version/exported_at/personas/analyses/drafts`, API 키 문자열 미포함) → 같은 파일 가져오기 → "백업을 가져왔습니다: 페르소나 0개, 기록 0개, 드래프트 0개" → 전체 데이터 삭제(confirm) → localStorage 키 없음·드래프트 0·온보딩 재등장. 콘솔 에러 0.
+  - CSP와 dev 서버(HMR) 충돌(TRD §10 #22): dev 서버에서 앱 렌더 정상, CSP 위반 콘솔 메시지 0(Chromium) → **충돌 없음(확인)**.
+  - `npm audit fix`(비강제): 12건(low 1·moderate 8·high 3) → **7건(모두 moderate)**. 남은 7건은 vite 5→8, react-router-dom 6→7 등 major 업그레이드가 필요한 항목(esbuild via vite, qs via express, react-router). 판단: express/qs는 로컬 미리보기 서버 전용(번들 미포함), react-router 건은 HashRouter·고정 경로·SSR 없음으로 해당 경로 미사용 → 수용하고 TRD §10에 기록.
+- 미확정: 실제 GitHub Pages 배포 URL에서의 A1~A4 재확인은 `main` push 후 workflow 실행이 필요해 이 브랜치에서는 미실행. 실기기(A6) 미실행.
 
 ## 2026-09-05 — [fix] P7-3 페이지 오버레이(백드롭)가 화면 최상단 20px를 덮지 않음 — 완료
 
