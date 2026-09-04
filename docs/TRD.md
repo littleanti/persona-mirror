@@ -1,6 +1,6 @@
 # TRD — Persora 기술 요구사항·설계
 
-> 문서 버전: 0.7 · 갱신일: 2026-09-05 · 상태: 표시명 Persora 확정 반영. 기준: [PRD 0.1](./PRD.md) / [PLAN 0.1](./PLAN.md) / [DESIGN 0.1](./DESIGN.md)
+> 문서 버전: 1.0 · 갱신일: 2026-09-05 · 상태: M1(MVP) 기준선 — §3 계약을 실제 코드(`src/lib/*`)와 대조해 정정. 기준: [PRD 1.0](./PRD.md) / [PLAN 1.0](./PLAN.md) / [DESIGN 1.0](./DESIGN.md)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -12,8 +12,9 @@
 | 0.5 | 2026-09-05 | P3 완료: §10 #1에 페르소나 프롬프트 지연 실측(6.57s) 추가 |
 | 0.6 | 2026-09-05 | P4 완료: §10 #1에 분석 프롬프트 지연 실측(3.49s) 추가 |
 | 0.7 | 2026-09-05 | 표시명 Persora 확정: §3.2 DB_NAME 주석, §7 package name, §10 #9 종결 |
+| 1.0 | 2026-09-05 | M1 기준선: §3 계약을 코드와 대조해 정정(§3.7 `splitPersonaRaw` 가시성, §3.9 `store.ts`의 `hasApiKey`), §4.1 오류 표에 섞여 있던 지연 실측치를 §9·§10으로 이동, §9.5 "M1까지 실제로 수행한 검증" 추가, §10 미확정 정리 |
 
-> 이 문서는 **현재 확정된 설계**를 서술한다. 변경 이력은 [`LOG.md`](./LOG.md)에만 적는다. §3의 시그니처는 모든 구현 작업이 따라야 하는 **계약**이며, 계약을 바꿀 때는 코드보다 이 문서를 먼저 갱신한다(CLAUDE.md 그라운드 룰 2). 아직 코드가 없으므로 아래 식별자는 모두 "해당 단계(P1~P4)에서 만들 예정"인 것이다.
+> 이 문서는 **현재 확정된 설계**를 서술한다. 변경 이력은 [`LOG.md`](./LOG.md)에만 적는다. §3의 시그니처는 모든 구현 작업이 따라야 하는 **계약**이며, 계약을 바꿀 때는 코드보다 이 문서를 먼저 갱신한다(CLAUDE.md 그라운드 룰 2). M1(P4 완료) 시점에 §3의 식별자는 모두 `src/` 아래에 실재하며, 1.0에서 코드와 한 줄씩 대조해 어긋난 서술을 코드 기준으로 정정했다. P5 이후에 만들 것은 그 사실을 문장에 밝혀 둔다.
 
 ---
 
@@ -60,8 +61,8 @@
 
 결정·기각 대안(서버 + 로컬 Ollama / 운영자 키 프록시)·3단 사고의 **정본은 [PRD §8](./PRD.md#8-아키텍처-방향-결정-3단-사고)** 이다. 이 문서는 그 결정의 기술적 함의만 적는다.
 
-- **CORS·SDK**: 브라우저가 Google을 직접 호출하므로 우리 서버에 CORS 설정이 없다. `@google/genai` 호출은 `gemini.ts` 한 곳에 캡슐화한다(SDK 파손 시 REST 폴백, §2 각주). Google이 브라우저 origin을 막는 경우는 폴백이 없는 전제 리스크다(PRD R2b) — P2에서 임의(무효) 키 1회 호출로 현재 상태를 확인한다(§10 #3).
-- **키의 브라우저 노출(XSS)**: 사용자/LLM 출력은 React 텍스트 렌더링만 사용(HTML 주입 경로 차단), P7에서 CSP meta 적용, 키·대화·프롬프트를 콘솔에 출력하지 않음. 피해 범위 축소로 "키를 Gemini API만 쓰도록 제한, 노출 의심 시 회전"을 안내한다(referrer 제한은 효과가 제한적 — §8).
+- **CORS·SDK**: 브라우저가 Google을 직접 호출하므로 우리 서버에 CORS 설정이 없다. `@google/genai` 호출은 `gemini.ts` 한 곳에 캡슐화한다(SDK 파손 시 REST 폴백, §2 각주). Google이 브라우저 origin을 막는 경우는 폴백이 없는 전제 리스크다(PRD R2b) — P2에서 임의(무효) 키 1회 호출로 확인한 결과 현재는 CORS를 통과한다(§10 #3).
+- **키의 브라우저 노출(XSS)**: 사용자/LLM 출력은 React 텍스트 렌더링만 사용(HTML 주입 경로 차단), CSP meta는 P7에 적용할 계획, 키·대화·프롬프트는 콘솔에 출력하지 않음(P2에서 grep 확인). 피해 범위 축소로 "키를 Gemini API만 쓰도록 제한, 노출 의심 시 회전"을 안내한다(referrer 제한은 효과가 제한적 — §8).
 - **저장소**: 구조화 레코드는 IndexedDB, 키는 쿠키(ADR-3). 데이터 휘발성(브라우저 저장소 삭제·기기 변경 시 복구 불가)은 고지한다(PRD DR-6, 위치·문구는 §10 #8).
 
 ---
@@ -75,7 +76,7 @@
 | UI | React 18 + `react-router-dom` 6 (**HashRouter**) | 컴포넌트 상태 모델이 모달·시트·토스트에 맞음. HashRouter는 정적 호스팅 하위 경로에서 서버 리라이트 없이 동작(ADR-4) |
 | 전역 상태 | Zustand 4 | 전역으로 필요한 것은 API 키 미러·토스트 큐·탭 간 전달값 정도라 최소 스토어 1개로 충분(ADR-5) |
 | 스타일 | Tailwind CSS 3 + 커스텀 토큰 | 모바일 우선, 토큰(`brand-gradient`, `shadow-soft`, `animate-slide-up` 등)은 [DESIGN.md](./DESIGN.md)가 단일 출처 |
-| LLM | `@google/genai` ^2.7.0 (Gemini) | 브라우저에서 직접 `generateContent` 호출. P1 `package.json`에 고정 — 2.x의 breaking change는 Interactions API 한정이라 `generateContent` 경로는 영향 없음 |
+| LLM | `@google/genai` ^2.7.0 (Gemini) | 브라우저에서 직접 `generateContent` 호출. P1 `package.json`에 고정 — 2.x의 breaking change는 Interactions API 한정이라 `generateContent` 경로는 영향 없음. M1 번들에서 첫 로드 JS 529.88 kB(gzip 131.68 kB) 중 대부분을 차지한다(§10 #12) |
 | 모델 | `gemini-3.1-flash-lite` 단일 + `thinkingBudget=0` | thinking을 끌 수 있는 flash 계열이 단건 지연에 유리하다는 문헌 근거(지연 단축 효과·기본 thinking 사용 여부는 미실측), 멀티모달이라 P5 캡처 이미지도 같은 경로로 갈 수 있음(ADR-2) |
 | 저장 | IndexedDB(개인 데이터) + 쿠키(API 키) | ADR-3 |
 | i18n | 자체 사전(`ko`/`en`) + `t()` | 문구가 적어 라이브러리 불필요. 프롬프트 JSON 키는 언어와 무관하게 고정 |
@@ -89,7 +90,7 @@
 | 파일 | 핵심 설정 |
 |---|---|
 | `tsconfig.json` | `strict: true`, `target: ES2022`, `module: ESNext`, `moduleResolution: bundler`, `jsx: react-jsx`, `paths: { "@/*": ["src/*"] }`, `noEmit` |
-| `vite.config.ts` | `plugins: [react()]`, alias `@` → `src/`, `server: { host: '0.0.0.0', port: 4121, strictPort: true }`, `preview: { host: '0.0.0.0', port: 8000 }`, `build.outDir: 'dist'`, `build.target: 'es2020'`. `base`는 P7 배포 경로 확정 시 설정(미확정) |
+| `vite.config.ts` | `plugins: [react()]`, alias `@` → `src/`, `server: { host: '0.0.0.0', port: 4121, strictPort: true }`, `preview: { host: '0.0.0.0', port: 8000 }`, `build.outDir: 'dist'`, `build.target: 'es2020'`, `base: '/'`(GitHub Pages 하위 경로가 필요하면 P7에서 변경) |
 | `tailwind.config.js` | `content: ['./index.html', './src/**/*.{ts,tsx}']`, 토큰 확장은 DESIGN.md §토큰 그대로 |
 | `index.html` | `#root` 하나, `<script type="module" src="/src/main.tsx">`, viewport(`viewport-fit=cover`), `theme-color #6366f1`. CSP/referrer meta는 P7에서 추가 |
 
@@ -317,7 +318,7 @@ export function removePersona(id: string): Promise<void>;
 `createPersona` 흐름:
 1. `buildPersonaPrompt(input, getLang())`
 2. `generate(prompt)` — 실패는 §4의 사용자 친화 Error로 그대로 전파(화면이 토스트)
-3. `extractJson(text)` → `my_name`이 있으면 `raw.other_persona`/`raw.my_persona`로 분리(없으면 `raw` 전체를 상대 페르소나, `my_persona = {}`). 분리 헬퍼는 `splitPersonaRaw(raw, myName)`로 두어 이후 재분석 경로와 공유한다. **JSON 파싱 실패(`'raw' in result`)는 거부하지 않고 원문을 보존해 저장한다** — 상대 페르소나가 `{ raw: text }`가 되고, `PersonaFields`의 인덱스 시그니처 덕에 상세 화면이 알 수 없는 키를 관대하게 표시하므로 사용자는 원문을 보고 삭제 후 재시도할 수 있다. (3단 사고: 1차 — 거부가 깔끔하다 / 2차 — 거부하면 사용자가 얻는 것이 없고 실패 원인을 볼 수도 없다, 반대로 저장하면 쓰레기 레코드가 남지만 삭제 한 번으로 정리된다 / 종합 — 원문 보존 저장. 실패율은 실호출에서 관찰해 `responseMimeType` 도입 여부(§10 #2)의 근거로 쓴다.)
+3. `extractJson(text)` → `my_name`이 있으면 `raw.other_persona`/`raw.my_persona`로 분리(없으면 `raw` 전체를 상대 페르소나, `my_persona = {}`). 분리 헬퍼는 `splitPersonaRaw(raw, myName): { personaData, myPersonaData }`이며, 현재 사용처가 `createPersona` 하나뿐이라 **모듈 내부 함수로 두고 export하지 않는다**. 재분석 경로가 생겨 다른 모듈이 쓰게 되면 그때 export한다. **JSON 파싱 실패(`'raw' in result`)는 거부하지 않고 원문을 보존해 저장한다** — 상대 페르소나가 `{ raw: text }`가 되고, `PersonaFields`의 인덱스 시그니처 덕에 상세 화면이 알 수 없는 키를 관대하게 표시하므로 사용자는 원문을 보고 삭제 후 재시도할 수 있다. (3단 사고: 1차 — 거부가 깔끔하다 / 2차 — 거부하면 사용자가 얻는 것이 없고 실패 원인을 볼 수도 없다, 반대로 저장하면 쓰레기 레코드가 남지만 삭제 한 번으로 정리된다 / 종합 — 원문 보존 저장. 실패율은 실호출에서 관찰해 `responseMimeType` 도입 여부(§10 #2)의 근거로 쓴다.)
 4. `{ id: uuid(), name, my_name(trim), created_at: now ISO, conversation, persona, my_persona }` 구성
 5. `personaRepo.put(record)` → 반환
 
@@ -366,9 +367,11 @@ export const useApp: UseBoundStore<StoreApi<{
   pushToast(message: string, tone?: ToastEntry['tone']): void; // 4초 후 자동 dismiss
   dismissToast(id: number): void;
 }>>;
+/** 스토어 밖(React 트리 밖)에서 키 존재 여부만 볼 때 쓰는 모듈 함수. 쿠키를 다시 읽지 않고 미러 값을 본다. */
+export function hasApiKey(): boolean;                   // useApp.getState().apiKey.trim().length > 0
 
 // id.ts
-export function uuid(): string;                         // crypto.randomUUID()
+export function uuid(): string;                         // crypto.randomUUID() 직접 호출(폴백 없음)
 
 // dom.ts
 export function formatDate(iso: string): string;        // 'YYYY.MM.DD'
@@ -426,7 +429,7 @@ return response.text ?? '';
 | 순서 | 신호 | 분류 | 메시지 키 | 화면 동작 |
 |---|---|---|---|---|
 | 0 | 호출 전 `getApiKey()`가 null | 키 없음 | `err.keyNotSet` | 온보딩 게이트가 이미 열려 있어야 정상 |
-| 1 | 메시지에 `API key`/`API_KEY_INVALID`/`PERMISSION_DENIED`/`unauthorized`/`forbidden`, 또는 `status === 403`/`403` 포함 | **인증(403 또는 키 관련 메시지)** | `err.invalidKey` | 토스트 문구(`err.invalidKey`)로 헤더에서 키를 바꾸라고 안내 — 편집 상태를 자동으로 열지는 않음(`generate`는 plain `Error`만 던져 화면이 종류를 식별하지 않는다) — P2 실측: 소형 프롬프트(한 문장, JSON-only) 1회 1.94s. 페르소나 프롬프트(수천 자) 지연은 P3에서; P3 실측: 페르소나 프롬프트(대화 1,331자, 나/상대 동시) 1회 6.57s, 11필드 JSON 파싱 성공; P4 실측: 분석 프롬프트(페르소나 2종 + 메시지 1건) 1회 3.49s, 후보 3개 JSON 파싱 성공 |
+| 1 | 메시지에 `API key`/`API_KEY_INVALID`/`PERMISSION_DENIED`/`unauthorized`/`forbidden`, 또는 `status === 403`/`403` 포함 | **인증(403 또는 키 관련 메시지)** | `err.invalidKey` | 토스트 문구(`err.invalidKey`)로 헤더에서 키를 바꾸라고 안내 — 편집 상태를 자동으로 열지는 않음(`generate`는 plain `Error`만 던져 화면이 종류를 식별하지 않는다) |
 | 2 | `Failed to fetch`/`network` | 네트워크 | `err.network` | 토스트 |
 | 3 | `name === 'AbortError'`/`timeout`/`timed out`/`aborted` | 타임아웃(60s) | `err.timeout` | 토스트 |
 | 4 | `429`/`quota`/`rate limit` | 요청 과다(할당량) | `err.rateLimit` | 토스트 |
@@ -488,7 +491,7 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 ## 7. 빌드 · 실행
 
 ```jsonc
-// package.json — name: "persora"(M1 직전 코드네임 persona-mirror에서 변경), version: "0.1.0", private, type: module
+// package.json — name: "persora"(M1 직전 코드네임 persona-mirror에서 변경), version: "1.0.0"(M1), private, type: module
 "engines": { "node": ">=20" },
 "scripts": {
   "dev": "vite",
@@ -550,14 +553,42 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 | A5 빌드·서빙 | `npm run build` 무에러 + `npm start` 후 8000 응답 |
 | A6 모바일 동일 동작 | 같은 Wi-Fi 휴대폰에서 `http://[PC IP]:8000` 접속, A1~A4 반복 |
 
+### 9.5 M1까지 실제로 수행한 검증
+
+§9.1~§9.4는 계획이고, 이 절은 M1(P4 완료) 시점에 **실제로 돌린 것**만 적는다. 근거는 [`LOG.md`](./LOG.md)의 P1~P4·표시명 항목이다.
+
+**게이트(§9.1)** — P1·P2·P3·P4와 표시명 통일까지 다섯 번 모두 `npx tsc --noEmit` 0 에러, `npx vite build` 성공. 최종 산출물은 JS 529.88 kB(gzip 131.68 kB). `node server/index.js`로 띄운 정적 서버는 `GET /`·`GET /app-logo.png`에 200을 반환했다(A5).
+
+**UI 스모크(§9.3)** — Vite dev(4121) + Playwright, 뷰포트 390×844(표시명 확인은 360px). 실행 범위는 계획했던 "모달 → 저장 → 탭 이동 → 시트 열림"보다 넓다.
+
+| 단계 | 확인한 것 |
+|---|---|
+| P1 | `#/` → `#/personas` 리다이렉트, 하단 탭 3개, 탭 전환, 한/EN 토글. 콘솔 에러 0 |
+| P2 | 온보딩 모달 점유(A1) → 무효 키 + 동의 저장 → 헤더 `● Gemini 준비됨` → 새로고침 유지(A4) → 인라인 삭제 → 모달 재등장 |
+| P3 | 빈 상태 → 생성 시트 → 검증 토스트 3종 → 실키 생성 → 목록 카드 → 상세 모달(나/상대 탭·11필드·원본 대화) → 새로고침 유지(A4) → 삭제 |
+| P4 | 페르소나 없음 안내 → 칩 초기 선택 → 빈 메시지 토스트 → 실키 분석 → 후보 3장 → 기록 탭 펼치기·새로고침 유지·삭제. 콘솔 에러 0 |
+
+**실키 호출(§9.3 단서에서 "자동화 대상 아님"으로 남겼던 부분)** — 유효 키가 확보되어 M1 안에서 4회 실행했다. 지연은 브라우저 Resource Timing 기준 각 1회 측정값이다.
+
+| 호출 | 입력 규모 | 지연 | 결과 |
+|---|---|---|---|
+| 소형 프롬프트(P2) | 한 문장 + JSON-only 지시 | 1.94s | `{"tone": "친근함"}` 15자, `extractJson` 파싱 성공 |
+| 페르소나 생성(P3) | 대화 1,331자(38줄), 나/상대 동시 | 6.57s | 11필드 JSON 파싱 성공, `vocabulary_examples`가 원문 인용 |
+| 페르소나 생성(P4) | 대화 30줄 | 5.87s | 생성 성공, 분석 탭 초기 선택으로 연결 |
+| 메시지 분석(P4) | 페르소나 2종 + 받은 메시지 1건 | 3.49s | 후보 3개 JSON 파싱 성공, 3축 정식 라벨·나의 말투 유지 |
+
+측정은 각 1회뿐이라 **분산·중앙값은 알 수 없다**. thinking off의 지연 단축 효과도 off 상태만 쟀으므로 여전히 미실측이다(§10 #1).
+
+**돌리지 않은 것** — 단위 테스트(§9.2)는 M1까지 도입하지 않았으므로 전 구간 "미실행"이다. A6(같은 Wi-Fi 실기기 접속)도 **미실행**이며, 자동화 뷰포트 390/360px 확인이 그것을 대신하지 못한다.
+
 ---
 
 ## 10. 미확정 항목
 
 | # | 항목 | 확정 시점/방법 |
 |---|---|---|
-| 1 | `gemini-3.1-flash-lite` + `thinkingBudget=0`의 실제 지연·JSON 준수율·페르소나 품질 | P3 이후(첫 실호출부터) 실키로 측정, LOG 기록 |
-| 2 | `responseMimeType: 'application/json'` 필요 여부 | 실호출 파싱 실패율 관찰 후 |
+| 1 | `gemini-3.1-flash-lite` + `thinkingBudget=0`의 지연·JSON 준수율·페르소나 품질 | **부분 확인(M1)**: 실키 4회 모두 정상 응답·JSON 파싱 성공, 지연 1.94s/6.57s/5.87s/3.49s(§9.5). 남은 미확정 — 표본이 각 1회라 분산·준수율을 말할 수 없고, **thinking off의 효과는 off 상태만 재서 미실측**이다. P6 실사용에서 표본을 늘린다 |
+| 2 | `responseMimeType: 'application/json'` 필요 여부 | 도입하지 않음 — LOG에 파싱 결과가 적힌 실호출(P2 `extractJson`, P3 11필드, P4 후보 3개)에서 실패가 없었다. 표본이 작으므로 실패가 보이면 재검토 |
 | 3 | ~~브라우저 직접 호출(CORS) 통과 여부, 오류 객체 형태~~ **확인됨(P2)**: 브라우저→`generativelanguage.googleapis.com` 직접 호출 CORS 통과. 무효 키는 HTTP 400 + `error.code=400/status=INVALID_ARGUMENT/reason=API_KEY_INVALID`로 도착하고 SDK 오류 메시지에 그 JSON이 포함된다 → §4.1 분류 규칙(메시지 "api key" 포함 → 인증 오류) 유효. 방법·수치는 LOG P2 | P2 완료 |
 | 4 | P5 이미지 경로의 타임아웃 값과 `generate` 시그니처 확장 방식 | P5 설계 |
 | 5 | GitHub Pages `base` 경로·workflow·CSP 정확한 정책 | P7 |
@@ -565,5 +596,8 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 | 7 | IndexedDB `list()`의 메모리 정렬 → 인덱스 커서 전환 기준 | 데이터 규모 문제 발생 시 |
 | 8 | 데이터 전송(DR-4)·휘발성(DR-6) 고지의 노출 위치(기본안 온보딩 모달)·문구 수준 | P2 온보딩 문구 작성 시 PRD/DESIGN과 맞춤 |
 | 9 | ~~표시명(코드네임 "Persona Mirror" → 정식명)~~ **확정(M1 직전)**: Persora. `DB_NAME`·쿠키명은 유지 | 완료 |
-| 10 | `gemini-3.1-flash-lite` 모델명 유효성·`thinkingConfig` 수락 여부 | P2 임의 키 호출에서 함께 드러나면 기록하되, 인증 오류가 먼저 돌아오면 확인되지 않으므로 P3 첫 실호출을 확정 시점으로 둔다 |
-| 11 | AI Studio 키의 API/referrer 제한 UI 존재 여부(§8 안내 문구의 전제) | P2 온보딩 문구 작성 시 확인 |
+| 10 | ~~`gemini-3.1-flash-lite` 모델명 유효성·`thinkingConfig` 수락 여부~~ **확인(P2~P4)**: 실키 호출 4회가 모두 정상 응답을 돌려줬다. 모델명도 `thinkingConfig`도 거부되지 않았다 | 완료 |
+| 11 | AI Studio 키의 API/referrer 제한 UI 존재 여부(§8 안내 문구의 전제) | 미확인 — P2 온보딩 문구는 이 전제 없이 작성했다. P7 보안 점검에서 확인 |
+| 12 | 첫 로드 JS 529.88 kB(gzip 131.68 kB)에 코드 스플리팅을 도입할지 | 배포 경로가 정해지는 P7 직전에 판단. 대부분이 `@google/genai` 번들이라 분할 대상은 LLM 호출 경로다 |
+| 13 | 상세 모달 백드롭이 화면 최상단 약 20px를 덮지 않는 것으로 보임(P3 스크린샷 관찰) | **원인 미조사.** 닫기·조작에는 영향이 없어 M1에서 추적하지 않았다. P6 안정화에서 열린 오버레이의 `getBoundingClientRect().top`을 실측해 진단한다 |
+| 14 | 실기기 확인(A6, 같은 Wi-Fi 휴대폰) | **미실행.** 자동화 뷰포트 390/360px만 확인했다. P6 실사용에서 수행 |

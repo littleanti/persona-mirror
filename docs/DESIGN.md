@@ -1,6 +1,6 @@
 # DESIGN — Persora 화면·인터랙션 설계
 
-> 문서 버전: 0.3 · 갱신일: 2026-09-05 · 상태: 표시명 Persora 확정
+> 문서 버전: 1.0 · 갱신일: 2026-09-05 · 상태: M1(MVP) 기준선 — 구현된 화면과 대조해 정정
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -8,10 +8,11 @@
 | 0.1 | 2026-09-05 | 초안 |
 | 0.2 | 2026-09-05 | P3 착수: 콘텐츠 폭 `max-w-2xl`(D1·§3), 생성 실패 행에 원문 보존 저장 반영(§5.2) |
 | 0.3 | 2026-09-05 | 표시명 Persora 확정(머리말 주석, 와이어프레임 앱명, U1 종결) |
+| 1.0 | 2026-09-05 | M1 기준선: §5.1 헤더 버튼 문구를 구현과 일치시킴, §10.1 키 영역에 `btn.*` 추가, "0.1 범위" 표현을 M1 기준으로 정리, §12 미확정 정리 + 상세 모달 백드롭 관찰 추가 |
 
 관련 문서: 제품 요구는 [`./PRD.md`](./PRD.md), 모듈 계약·저장·LLM 호출은 [`./TRD.md`](./TRD.md), 단계 계획은 [`./PLAN.md`](./PLAN.md), 변경 이력은 [`./LOG.md`](./LOG.md). 이 문서는 **현재 시점의 설계 상태**만 서술하고, 변경 사유·이력은 LOG에 남긴다.
 
-> 표시명: **Persora**(한·영 동일 표기). 초기 코드네임 "Persora"는 M1 직전에 교체했다 — 문구는 i18n `app.title`·`onboarding.welcomeTitle` 두 곳에서만 바꿨다.
+> 표시명: **Persora**(한·영 동일 표기). 초기 코드네임 "Persona Mirror"를 M1 직전에 교체했다 — 표시 문구는 i18n `app.title`·`onboarding.welcomeTitle` 두 곳에서만 바꿨다.
 
 ---
 
@@ -25,7 +26,7 @@
 | D4 | **결과는 카드** | LLM 결과는 "분석 1장 + 후보 3장" 카드로 고정. 후보 카드는 번호·라벨·이유·답변·복사 버튼의 순서를 항상 같게 둔다. 결과가 길어도 카드 밖으로 넘치지 않게 `whitespace-pre-wrap`으로 접는다. |
 | D5 | **오류를 숨기지 않음** | 실패는 토스트로 **실제 오류 문구**를 보여준다(TRD의 `gemini.ts`가 사용자 친화 문구로 변환한 결과를 그대로). 조용한 실패·무한 로딩을 두지 않는다. |
 | D6 | **텍스트 렌더링만** | 사용자·LLM 출력은 React 텍스트 노드로만 렌더한다(`dangerouslySetInnerHTML` 금지). 강조는 i18n 문구 구조로 처리하고 HTML을 문구에 넣지 않는다. 키가 브라우저에 있는 구조라 XSS 표면을 최소화해야 한다(TRD 보안 항목과 연동). |
-| D7 | **라이트 단일 테마** | `color-scheme: light` 고정. 다크 모드는 0.1 범위의 비목표. |
+| D7 | **라이트 단일 테마** | `color-scheme: light` 고정. 다크 모드는 M1 범위의 비목표. |
 
 ### 1.1 주요 설계 선택의 근거 (3단 사고)
 
@@ -174,7 +175,7 @@ export default {
 | 상단바 | `px-5 py-3 flex items-center justify-between gap-4 sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200`. 좌: 로고 `h-8 w-8 rounded-lg`(장식, `alt=""`) + 앱명 `font-semibold tracking-tight truncate`. 우: `ApiKeyStatus` + `LanguageToggle`(`gap-3 flex-shrink-0`) |
 | 키 상태 인디케이터 | 키가 있을 때만 렌더. `● Gemini 준비됨` — 점 `w-2 h-2 rounded-full bg-emerald-500`, 문구 `text-xs text-slate-500 font-medium whitespace-nowrap`. 클릭 → 인라인 편집 상태(§4.2) |
 | 언어 토글 | `rounded-full border border-slate-200 bg-white p-0.5 shadow-soft-sm` 안에 `한` / `EN` 두 버튼. 활성 `bg-brand-gradient text-white`, 비활성 `text-slate-400`. `role="group"`, 각 버튼 `aria-pressed` |
-| 콘텐츠 | 각 라우트 `section`은 `max-w-2xl mx-auto px-4 py-6 space-y-5`. `main`은 `flex-1 pb-20`. (0.1의 `max-w-lg`는 P3에서 실제 콘텐츠를 붙이며 `max-w-2xl`로 조정 — 모바일 무영향) |
+| 콘텐츠 | 각 라우트 `section`은 `max-w-2xl mx-auto px-4 py-6 space-y-5`. `main`은 `flex-1 pb-20`. (초안의 `max-w-lg`는 P3에서 실제 콘텐츠를 붙이며 `max-w-2xl`로 조정했다 — 모바일 무영향) |
 | 하단 탭 | `fixed bottom-0 inset-x-0 z-30 bg-white/90 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,.06)]`, 내부 `flex items-stretch max-w-lg mx-auto`. 각 탭 `flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium` (아이콘 24px 스트로크 SVG + 라벨). 활성 `text-indigo-600` + 아이콘 `scale-110`, 비활성 `text-slate-400 hover:text-slate-600`. 전환 `transition-all` |
 | 라우팅 | HashRouter. `#/` → `#/personas`로 redirect. 탭 경로 `#/personas` `#/analyze` `#/history` |
 | 온보딩 게이트 | 키가 없으면 셸 위에 `OnboardingModal`을 렌더(§4). 셸 자체는 뒤에 그대로 있어 흐릿하게 보인다 |
@@ -221,9 +222,9 @@ export default {
 | 로고 | `h-16 w-16 rounded-2xl mx-auto mb-4`(장식) |
 | 키 입력 | `type="password" autoComplete="off" spellCheck={false} placeholder="AIgo..."`. Enter → 제출 |
 | 발급 링크 | `https://aistudio.google.com/app/apikey`, `target="_blank" rel="noreferrer"`. 아웃라인 버튼 모양(외부 링크 아이콘 + 문구) |
-| 동의 | 체크박스 + 문구 "본 기기에만 저장되며 서버로 전송되지 않음을 이해했습니다." 라벨 전체가 클릭 영역. PRD DR-4(Gemini 전송·민감정보 주의)·DR-6(복구 불가) 고지의 노출 위치·문구 수준은 미확정(§12) — 0.1 와이어프레임은 최소 문구이며 P2 온보딩 문구 작성 시 PRD/TRD와 맞춘다 |
+| 동의 | 체크박스 + 문구 "본 기기에만 저장되며 서버로 전송되지 않음을 이해했습니다." 라벨 전체가 클릭 영역. PRD DR-4(Gemini 전송·민감정보 주의)·DR-6(복구 불가) 고지의 노출 위치·문구 수준은 미확정(§12) — 이 와이어프레임은 최소 문구이며, 실제 문구는 P2 온보딩 작성 시 PRD/TRD와 맞췄다 |
 | 제출 | `키 저장하고 시작하기`. 검증 순서: ① 빈 값 → 토스트 `toast.invalidKeyFormat`(오류) ② 미동의 → 토스트 `toast.confirmLocalOnly`(오류) ③ 통과 → 저장(`settingsRepo.setApiKey`) → 토스트 `toast.keySaved`(성공) → 모달 언마운트. **사전 검증 호출 없음**(키 유효성은 첫 분석 호출의 인증 오류로 드러남) |
-| 언어 | 모달이 떠 있어도 뒤 상단바의 언어 토글은 가려져 있다. 0.1에서는 모달 안에 별도 토글을 두지 않는다(브라우저 언어 자동 감지로 초기 언어 결정) |
+| 언어 | 모달이 떠 있어도 뒤 상단바의 언어 토글은 가려져 있다. M1에서는 모달 안에 별도 토글을 두지 않는다(브라우저 언어 자동 감지로 초기 언어 결정) |
 
 ### 4.2 키 변경/삭제 (헤더 인라인)
 헤더의 `● Gemini 준비됨`을 누르면 그 자리가 인라인 편집으로 바뀐다(모달 아님).
@@ -242,7 +243,7 @@ export default {
 ### 5.1 목록
 ```
 ┌────────────────────────────────────────────┐
-│ 페르소나                    [+ 새 페르소나] │  h1 text-lg bold / 주 버튼(rounded-full)
+│ 페르소나              [+ 새 페르소나 만들기]│  h1 text-lg bold / 주 버튼(rounded-full)
 │ 대화 기록을 입력하면 AI가 상대방의          │  text-sm slate-500
 │ 페르소나를 분석해요                         │
 │                                            │
@@ -257,6 +258,7 @@ export default {
 │ └────────────────────────────────────────┘ │
 └────────────────────────────────────────────┘
 ```
+- 헤더 주 버튼과 빈 상태 CTA는 **같은 문구·같은 키**(`persona.createCta` = "새 페르소나 만들기")를 쓴다. 헤더 쪽에만 앞에 `+`를 붙인다. 두 버튼이 같은 시트를 여는데 라벨이 다르면 다른 동작으로 읽히기 때문이다.
 - 카드 전체가 버튼(`w-full text-left flex items-center gap-3 px-4 py-4`, `active:scale-[.99]`). 탭하면 상세 모달(§5.3).
 - 이니셜은 `getInitial(name)`(첫 글자, 영문은 대문자). `my_name`이 있으면 이름 옆 `나: {my}` 태그.
 - 정렬: `created_at` 내림차순(리포지토리 계약).
@@ -309,8 +311,8 @@ export default {
 | 로딩 | 버튼 `disabled` + 라벨 `페르소나 생성 중...`. 시트는 열린 채 유지, 백드롭 닫기 비활성(§1.1 A) |
 | 성공 | 토스트 `toast.personaCreated {name}`(성공) → 폼 초기화 → 시트 닫힘 → 목록 재조회 |
 | 실패 | 토스트에 `Error.message`(TRD `gemini.ts`가 만든 사용자 문구) 그대로. 없으면 `toast.personaCreateFail`. 시트와 입력은 **유지**(재시도 가능). LLM 응답이 JSON이 아니면 실패로 보지 않고 원문을 보존해 저장한다(PRD FR-11) — 목록 요약은 비고, 상세 모달이 `raw` 항목으로 원문을 보여 준다 |
-| 취소 | 닫기(X)·백드롭·ESC → 입력 폐기 |
-| 확장 예정 | P5에서 캡처 이미지(멀티모달) 입력을 이 시트에 추가할 계획(PLAN 참조). 0.1 화면에는 없으며, 그때 이 절을 갱신한다 |
+| 취소 | 닫기(X)·백드롭 → 입력 폐기. ESC는 M1에 없다(§12 U6) |
+| 확장 예정 | P5에서 캡처 이미지(멀티모달) 입력을 이 시트에 추가할 계획(PLAN 참조). M1 화면에는 없으며, 그때 이 절을 갱신한다 |
 
 ### 5.3 상세 모달
 하단에서 올라오는 시트형 모달(`items-end`, `max-h-[92dvh] overflow-y-auto`, `animate-slide-up`). 생성 시트와 같은 컨테이너 스타일이라 시각적 일관성을 갖는다.
@@ -496,7 +498,7 @@ export default {
 5. 키·대화·프롬프트는 콘솔에 출력하지 않는다(TRD 보안 항목).
 
 ### 8.5 확인 대화상자
-삭제(페르소나·기록)는 `window.confirm`으로 재확인한다. 0.1에서는 커스텀 확인 모달을 만들지 않는다(구현 단순, 브라우저 네이티브가 모바일에서도 충분히 명확). 키 삭제는 재확인 없음(§4.2).
+삭제(페르소나·기록)는 `window.confirm`으로 재확인한다. M1에서는 커스텀 확인 모달을 만들지 않는다(구현 단순, 브라우저 네이티브가 모바일에서도 충분히 명확). 키 삭제는 재확인 없음(§4.2).
 
 ---
 
@@ -504,7 +506,7 @@ export default {
 
 | 규칙 | 내용 |
 |---|---|
-| 오버레이 닫기 | 생성 시트·상세 모달: **백드롭 클릭**, **우상단 X**, **ESC** 세 가지. 온보딩 모달은 예외(닫기 불가). 백드롭 클릭은 "백드롭 자체를 눌렀을 때"만 인정(이벤트 target이 백드롭 요소) — 카드 내부 클릭이 전파되어 닫히지 않게 한다 |
+| 오버레이 닫기 | 생성 시트·상세 모달: **백드롭 클릭**과 **우상단 X** 두 가지. 온보딩 모달은 예외(닫기 불가). 백드롭 클릭은 "백드롭 자체를 눌렀을 때"만 인정(`onClick`의 `target === currentTarget`) — 카드 내부 클릭이 전파되어 닫히지 않게 한다. ESC 닫기는 M1에 없다(§12 U6) |
 | 오버레이 등장 | 시트·상세 `animate-slide-up`(0.24s), 온보딩 카드·결과·펼침 `animate-fade-in`(0.18s). 퇴장 애니메이션은 두지 않는다(즉시 언마운트) |
 | 스크롤 잠금 | 오버레이가 열린 동안 뒤 페이지 스크롤은 잠그지 않는다(0.1). 시트는 자체 `overflow-y-auto` |
 | 탭 전환 | 탭을 바꾸면 스크롤을 최상단으로 되돌린다. 각 탭은 진입 시 목록을 다시 조회한다(다른 탭에서의 생성·삭제 반영) |
@@ -525,13 +527,14 @@ export default {
 - 저장되는 데이터(페르소나·분석 결과)는 LLM 출력 언어를 그대로 두며, UI 언어를 바꿔도 번역하지 않는다. 프롬프트의 출력 언어 지시는 생성 시점 언어를 따른다(TRD `buildPersonaPrompt(input, lang)`).
 
 ### 10.1 키 네이밍 규칙
-`<영역>.<대상>[.<세부>]` 소문자 점 표기. 영역은 아래 11종으로 고정한다.
+`<영역>.<대상>[.<세부>]` 소문자 점 표기. 영역은 아래 12종으로 고정한다.
 
 | 영역 | 용도 | 예 |
 |---|---|---|
 | `app.*` | 앱 전역 | `app.title` |
 | `nav.*` | 하단 탭 라벨 | `nav.personas`, `nav.analyze`, `nav.history` |
 | `common.*` | 공용 동작/상태 | `common.loading`, `common.save`, `common.cancel`, `common.delete`, `common.candidateN` |
+| `btn.*` | 화면 하나에만 쓰이는 주 버튼 라벨 | `btn.saveKey`(온보딩 "키 저장하고 시작하기") |
 | `status.*` | 헤더 키 상태 | `status.ready`, `status.noKey` |
 | `onboarding.*` | 온보딩 모달 | `onboarding.welcomeTitle`, `onboarding.welcomeDesc`, `onboarding.intro`, `onboarding.keyLabel`, `onboarding.consent`, `onboarding.helpCta`, `onboarding.saveKey` |
 | `persona.*` | 페르소나 탭·생성·상세 | `persona.empty.title`, `persona.create.title`, `persona.create.otherName`, `persona.create.convPlaceholder`, `persona.detail.title`, `persona.detail.convToggle`, `persona.field.communication_style` … `persona.field.relationship_dynamics` |
@@ -543,7 +546,7 @@ export default {
 
 - 필드 라벨 키의 세부 이름은 `PersonaFields`의 속성명과 **동일**하게 둔다(`persona.field.<속성명>`) — 알 수 없는 키가 와도 `t()` 폴백으로 속성명이 그대로 표시된다.
 - 보간 파라미터는 `{name}`, `{my}`, `{n}`, `{date}`, `{msg}`처럼 의미가 드러나는 이름을 쓴다.
-- 최종 키 목록은 P1(`i18n.ts` 작성) 시점에 확정하고, 이 표와 어긋나면 이 표를 갱신한다.
+- 최종 키 목록은 `src/lib/i18n.ts`가 단일 출처다. 이 표와 어긋나면 이 표를 갱신한다(1.0에서 `btn.*` 추가가 그 사례다).
 
 ---
 
@@ -555,11 +558,11 @@ export default {
 | 뷰포트 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">`, `theme-color #6366f1` |
 | 안전 영역 | 하단 탭에 `padding-bottom: env(safe-area-inset-bottom)`을 더해 홈 인디케이터와 겹치지 않게 한다. `main`의 하단 패딩도 같은 값을 더한다. 실기기 효과는 §12 |
 | 높이 단위 | `dvh` 사용(`min-h-dvh`, `h-[92dvh]`) — 모바일 브라우저 주소창 변동 대응 |
-| 키보드 | Enter/ESC/Ctrl+Enter 단축키(§9). 모든 컨트롤은 실제 `<button>`/`<input>`/`<textarea>`/`<a>`로 만들어 탭 포커스 순서를 자연스럽게 둔다 |
+| 키보드 | Enter(온보딩 저장)·Enter/ESC(헤더 인라인 편집)·Ctrl/Cmd+Enter(분석) 단축키(§9). 모든 컨트롤은 실제 `<button>`/`<input>`/`<textarea>`/`<a>`로 만들어 탭 포커스 순서를 자연스럽게 둔다 |
 | 시맨틱 | 언어 토글 `role="group" aria-label="Language"` + `aria-pressed`; 장식 이미지 `alt=""`; 상세 모달 제목은 `h3`, 화면 제목은 `h1`(한 화면에 하나) |
 | 대비 | WCAG 상대 휘도로 계산한 값(2026-09-05): 본문 slate-900/white 17.85, 보조 slate-500/white 4.76·/slate-50(페이지 배경) 4.55 — AA(4.5:1) 통과. slate-400/white는 2.56이라 힌트·비활성 전용(본문 금지). **AA 미달 조합**: 위험 버튼 red-500/red-50 3.44, 성공 배지 emerald-600/emerald-50 3.58 — 배지·버튼 라벨에 한정해 감수, 조정 여부는 §12 |
 | 폰트 크기 | 최소 `text-xs`(12px). 11px(필드 라벨)은 대문자 라벨 한 곳에만 허용 |
-| 모션 | 총 0.24s 이하의 짧은 전환만 사용. `prefers-reduced-motion` 대응은 0.1 비목표(§12) |
+| 모션 | 총 0.24s 이하의 짧은 전환만 사용. `prefers-reduced-motion` 대응은 M1 비목표(§12) |
 | 네트워크 | 오프라인이면 LLM 호출이 `err.network` 토스트로 실패한다. 저장된 페르소나·기록 조회는 오프라인에서도 동작(IndexedDB) |
 | 같은 Wi-Fi 휴대폰 테스트 | `server/index.js`(정적, 0.0.0.0)로 접속해 위 항목을 실기기에서 확인(Acceptance A6) |
 
@@ -567,17 +570,20 @@ export default {
 
 ## 12. 미확정 항목
 
+M1 시점에 종결된 항목은 취소선과 결과만 남긴다. 나머지는 확정 시점과 함께 유지한다.
+
 | # | 항목 | 현재 판단 | 확정 시점 |
 |---|---|---|---|
 | ~~U1~~ | 정식 표시명 | **확정: Persora**(M1 직전, 360px 헤더 잘림 실측이 근거 — LOG 참조) | 완료 |
-| U2 | 로고·파비콘 자산 | P1에서 임시 자산을 두고, 없으면 이니셜형 플레이스홀더로 대체 | P1~M1 |
+| ~~U2~~ | 로고·파비콘 자산 | **확정(P1)**: `public/`의 `favicon.png`·`app-icon-192.png`·`apple-touch-icon.png`·`app-logo.png`를 사용한다. 이니셜형 플레이스홀더는 쓰지 않았다 | 완료 |
 | U3 | Pretendard 웹폰트 로드 | 스택에만 선언(설치된 경우 사용, 아니면 시스템 폰트). CDN 로드는 P7 CSP와 충돌 가능성이 있어 보류 | P7 |
-| U4 | 생성 시트와 소프트 키보드 겹침 | `h-[92dvh]` + 내부 스크롤로 대응한다고 가정. 실기기 미확인 | P3 모바일 스모크 |
-| U5 | 하단 탭 safe-area 패딩의 실효 | `env(safe-area-inset-bottom)` 적용 예정. 홈 인디케이터 기기에서 미실측 | P3 |
-| U6 | ESC 닫기 | 규칙으로 두되 모바일에서는 무의미. 데스크톱 편의로 P3에서 구현 | P3 |
-| U7 | HTTP(LAN) 접속 시 클립보드 API | `navigator.clipboard`가 제한될 수 있음 → 실패 토스트로 안내. 대체 복사 경로는 미정 | P6 실사용 |
+| U4 | 생성 시트와 소프트 키보드 겹침 | `h-[92dvh]` + 내부 스크롤로 대응한다고 가정. **실기기 미확인**(A6가 미실행이라 P3 모바일 스모크에서도 확인하지 못했다) | P6 실기기 |
+| U5 | 하단 탭 safe-area 패딩의 실효 | `env(safe-area-inset-bottom)` 적용. 홈 인디케이터 기기에서 **미실측** | P6 실기기 |
+| U6 | 오버레이 ESC 닫기 | **미구현.** 생성 시트·상세 모달은 백드롭 클릭과 X 버튼으로만 닫힌다. ESC는 헤더 인라인 키 편집에만 있다(§4.2). 모바일에서 이득이 없어 M1에서 넣지 않았다 | P6 |
+| U7 | HTTP(LAN) 접속 시 클립보드 API | `navigator.clipboard`가 제한될 수 있음 → 실패 토스트로 안내. 대체 복사 경로는 미정. M1 스모크에서 복사 클릭은 동작했으나 자동화 브라우저의 권한 대기로 **성공 토스트 문구를 확인하지 못했다** | P6 실사용 |
+| U17 | 상세 모달 백드롭이 화면 최상단 약 20px를 덮지 않는 것으로 보임 | P3 스크린샷 관찰. 닫기·조작에는 영향이 없어 **원인 미조사**. 열린 오버레이의 `getBoundingClientRect().top`을 실측해 진단한다 | P6 안정화 |
 | U8 | 토스트 자동 닫힘 4초 | 임시값. 긴 오류 문구 가독성은 실사용 후 조정 | P6 |
-| U9 | 기록 탭 후보 카드의 복사 버튼 | 0.1은 미포함(분석 탭에서 복사, PRD FR-21). 실사용에서 요구되면 추가 | P6 |
+| U9 | 기록 탭 후보 카드의 복사 버튼 | M1은 미포함(분석 탭에서 복사, PRD FR-21). 실사용에서 요구되면 추가 | P6 |
 | U10 | LLM 대기 시간 표시 | 진행률 없이 점 3개. 지연 수치 미실측(키 필요)이라 기대 시간 문구를 넣지 않음 | M1 이후 |
 | U11 | `prefers-reduced-motion` | 비목표. 모션이 짧아 우선순위 낮음 | 미정 |
 | U12 | en 문구 품질 | P1에서 초안 작성, 원어민 검수 없음 | 미정 |

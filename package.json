@@ -1,6 +1,6 @@
 {
   "name": "persora",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "대화 기록으로 페르소나를 분석하고 상대가 원하는 답변을 추론하는 모바일 웹 앱 (브라우저 로컬 저장 + 사용자 Gemini 키)",

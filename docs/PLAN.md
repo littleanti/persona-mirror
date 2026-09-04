@@ -1,6 +1,6 @@
 # PLAN — Persora 구현 계획
 
-> 문서 버전: 0.3 · 갱신일: 2026-09-05 · 상태: 표시명 Persora 확정 반영(M1 마무리 진행 중)
+> 문서 버전: 1.0 · 갱신일: 2026-09-05 · 상태: M1(MVP) 기준선 — P0~P4 완료, 다음 단계는 P5
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -8,8 +8,9 @@
 | 0.1 | 2026-09-05 | 초안 |
 | 0.2 | 2026-09-05 | P1~P3 완료 반영(§3 상태·§4 체크), 상태 문구 갱신 |
 | 0.3 | 2026-09-05 | 표시명 Persora 확정 반영(§2 트리, §5, §8) |
+| 1.0 | 2026-09-05 | M1 기준선: §2 트리를 실제 `src/`와 대조, §3 P4 완료·P5 다음 단계, §4 P4 검증 범위 정정(A6 미실행), §5에 M1 결과 표·남은 미확정, §8 갱신 |
 
-> 기준 문서: [`./PRD.md`](./PRD.md) 0.1(요구사항·Acceptance), [`./TRD.md`](./TRD.md) 0.1(아키텍처·모듈 계약), [`./DESIGN.md`](./DESIGN.md) 0.1(화면·토큰). 변경 이력은 [`./LOG.md`](./LOG.md)에만 적고, 이 문서는 **현재 계획**만 서술한다. 단계가 끝날 때마다 §3 상태와 §4 체크리스트를 갱신하고 문서 버전을 0.1 올린다(M1에서 1.0).
+> 기준 문서: [`./PRD.md`](./PRD.md) 1.0(요구사항·Acceptance), [`./TRD.md`](./TRD.md) 1.0(아키텍처·모듈 계약), [`./DESIGN.md`](./DESIGN.md) 1.0(화면·토큰). 변경 이력은 [`./LOG.md`](./LOG.md)에만 적고, 이 문서는 **현재 계획**만 서술한다. 단계가 끝날 때마다 §3 상태와 §4 체크리스트를 갱신하고 문서 버전을 0.1 올린다(M1에서 1.0에 도달했고, 이후 P5부터 1.1·1.2로 이어간다).
 
 ## 1. 원칙
 
@@ -56,7 +57,7 @@ CLAUDE.md 검증 정책을 이 프로젝트 명령으로 옮긴 것이다. **매
 
 ## 2. 목표 디렉터리 구조 (M1 시점)
 
-P0 시점에 M1(P4 완료)까지 만들 파일이다. 괄호는 생성 단계. P5 이후 추가분은 §3의 해당 단계 산출물에만 적고 이 트리에는 넣지 않는다(확정 시 갱신).
+M1(P4 완료) 시점에 실재하는 파일이다. 1.0에서 `src/` 실제 트리와 대조했고, 아래 목록과 저장소 내용은 일치한다. 괄호는 생성 단계. P5 이후 추가분은 §3의 해당 단계 산출물에만 적고 이 트리에는 넣지 않는다(확정 시 갱신).
 
 ```
 (repo root)/
@@ -64,7 +65,7 @@ P0 시점에 M1(P4 완료)까지 만들 파일이다. 괄호는 생성 단계. P
 ├── README.md                                        (P1)
 ├── docs/  PRD.md · TRD.md · DESIGN.md · PLAN.md · LOG.md   (P0)
 ├── index.html                # Vite 엔트리, #root 하나          (P1)
-├── package.json              # name persora(M1 직전 개명), engines.node >= 20   (P1)
+├── package.json              # name persora(M1 직전 개명), version 1.0.0(M1), engines.node >= 20   (P1)
 ├── tsconfig.json · vite.config.ts · tailwind.config.js · postcss.config.js   (P1)
 ├── public/                   # favicon · 앱 아이콘 · 로고 이미지   (P1)
 ├── server/
@@ -114,8 +115,8 @@ P0 시점에 M1(P4 완료)까지 만들 파일이다. 괄호는 생성 단계. P
 | **P1** 스캐폴드·앱 셸 | 빈 페이지라도 배포 가능한 골격 | `package.json`(persona-mirror 0.1.0, engines.node >= 20), Vite+React 18+TS strict+Tailwind 설정, `index.html`, `main.tsx`, `App.tsx`(상단바: 로고+앱명+언어 토글 / 하단 탭 3개), `index.css`, `i18n.ts`·`useI18n.ts`, `store.ts`, `Toast.tsx`, `LanguageToggle.tsx`, 라우트 3개 placeholder, `server/index.js` + `npm start`, `README.md` 초안 | `npm run dev`로 셸이 뜨고 탭 전환·언어 토글이 동작. `npm run build` 무에러, `npm start`로 dist 서빙 | `tsc --noEmit`, `vite build`, 브라우저 육안(PC) | **완료** |
 | **P2** API 키 온보딩·Gemini 클라이언트 | 키 없으면 앱을 잠그고, 있으면 Gemini를 부를 준비 | `config.ts`, `repos/settingsRepo.ts`(쿠키 1년, SameSite=Lax), `gemini.ts`(generate/extractJson/에러 변환), `OnboardingModal.tsx`, `ApiKeyStatus.tsx`, `App.tsx` 온보딩 게이트, `store.ts` apiKey 상태 | 키 미등록 시 모달이 화면 점유(A1). 키+동의 저장 → 모달 닫힘 → 헤더 "● Gemini 준비됨". 새로고침 후 유지. 인디케이터로 변경/삭제, 삭제 시 모달 재등장 | `tsc`/`build`, UI 스모크(모달 → 저장 → 인디케이터 → 새로고침). **임의(무효) 키로 `generate` 1회 호출** → CORS 통과 여부·SDK 오류 객체 형태 확인(기대: 인증 오류가 SDK 오류로 도착; 결과를 LOG에, 미실행이면 미실행으로). **실키 실호출(품질·지연)은 키 부재 시 미확정** | **완료** |
 | **P3** 페르소나 생성·목록·상세·삭제 | 대화 텍스트 → 상대/나 페르소나 JSON → IndexedDB | `types.ts`, `db.ts`, `repos/personaRepo.ts`, `persona.ts`, `prompts.ts`(PERSONA_FIELDS, buildPersonaPrompt), `id.ts`, `dom.ts`, `store.ts`(`selectedPersonaId` 추가), `PersonaPage.tsx`(목록·생성 바텀 시트·상세 모달) | **키 불필요(필수)**: 생성 시트 열림·닫힘, 빈 이름·키 없음·짧은 대화(trim < 20)가 순서대로 토스트로 거부됨, 빈 목록 상태, `tsc`/`build` 통과. **키 필요(미확정 허용)**: 생성 → 목록 카드 → 상세(나/상대 탭, PERSONA_FIELDS 11항목) → 삭제, 재방문 시 목록 유지(A4) — 실키가 없으면 "미확정"으로 LOG에 기재하고 단계를 닫는다 | `tsc`/`build`, UI 스모크(시트 열림·닫힘, 빈 목록 상태, 유효성 토스트). **생성 품질·지연은 키 필요, 미확정** | **완료** |
-| **P4** 메시지 분석 v1·기록 → **M1** | 페르소나 선택 + 받은 메시지 1건 → 심리 분석 + 답변 후보 3개, 기록 저장 | `analysis.ts`, `repos/analysisRepo.ts`, `prompts.ts`(buildAnalyzePrompt), `types.ts`(CandidateReply·AnalysisRecord), `AnalyzePage.tsx`(페르소나 칩 + textarea + 결과·후보 복사), `HistoryPage.tsx`(목록·펼치기·삭제) | **키 불필요(필수)**: `buildAnalyzePrompt`가 3축 정식 라벨("깊은 공감·수용형" / "공감 + 함께 해결형" / "공감 + 분위기 전환형", PRD FR-13)·말투 보존 지시·JSON-only 지시를 포함(코드 리뷰), `analyzeMessage`가 `{ raw }` 폴백 시 후보 1개로 정규화(코드 리뷰), AnalyzePage 검증 토스트 3종·복사 토스트 동작, 기록 탭 빈 상태·펼치기 UI(UI 스모크). **키 필요(미확정 허용)**: 실제 분석 → 기록 저장·펼치기·삭제, 라벨·말투 준수율 관찰. **M1 출구(§5)**: 문서 1.0, 표시명 확정, package 1.0.0 | `tsc`/`build`, UI 스모크(전 탭), LAN 휴대폰 접속(A6), DevTools Network(A3). **분석 품질·라벨·말투 준수율은 키 필요, 미확정** | **완료** |
-| **P5** 캡처 이미지로 페르소나 생성(멀티모달) | 대화 캡처 이미지 n장으로도 페르소나 생성 | 이미지 → inline base64 변환 헬퍼(파일명 P5 docs에서 확정), `CreatePersonaInput` 이미지 선택 필드, `gemini.generate` 이미지 인자 + 이미지 전용 타임아웃(값 미확정), `buildPersonaPrompt` 이미지 분기, `PersonaPage.tsx` 텍스트/이미지 입력 토글·드롭존·썸네일 | 텍스트 없이 이미지만으로 생성 가능. 텍스트 경로는 회귀 없음 | `tsc`/`build`, UI 스모크(토글·썸네일). **이미지 판독 품질·지연 미확정** | 대기 |
+| **P4** 메시지 분석 v1·기록 → **M1** | 페르소나 선택 + 받은 메시지 1건 → 심리 분석 + 답변 후보 3개, 기록 저장 | `analysis.ts`, `repos/analysisRepo.ts`, `prompts.ts`(buildAnalyzePrompt), `types.ts`(CandidateReply·AnalysisRecord), `AnalyzePage.tsx`(페르소나 칩 + textarea + 결과·후보 복사), `HistoryPage.tsx`(목록·펼치기·삭제) | **키 불필요(필수)**: `buildAnalyzePrompt`가 3축 정식 라벨("깊은 공감·수용형" / "공감 + 함께 해결형" / "공감 + 분위기 전환형", PRD FR-13)·말투 보존 지시·JSON-only 지시를 포함(코드 리뷰), `analyzeMessage`가 `{ raw }` 폴백 시 후보 1개로 정규화(코드 리뷰), AnalyzePage 검증 토스트 3종·복사 토스트 동작, 기록 탭 빈 상태·펼치기 UI(UI 스모크). **키 필요(미확정 허용)**: 실제 분석 → 기록 저장·펼치기·삭제, 라벨·말투 준수율 관찰. **M1 출구(§5)**: 문서 1.0, 표시명 확정, package 1.0.0 | `tsc`/`build`, UI 스모크(전 탭), DevTools Network(A3), 실키 실호출 3회. LAN 휴대폰 실기기 접속(A6)은 **미실행** — 자동화 뷰포트 390/360px만 확인. **분석 품질·라벨·말투 준수율은 표본 1회라 미확정** | **완료** |
+| **P5** 캡처 이미지로 페르소나 생성(멀티모달) | 대화 캡처 이미지 n장으로도 페르소나 생성 | 이미지 → inline base64 변환 헬퍼(파일명 P5 docs에서 확정), `CreatePersonaInput` 이미지 선택 필드, `gemini.generate` 이미지 인자 + 이미지 전용 타임아웃(값 미확정), `buildPersonaPrompt` 이미지 분기, `PersonaPage.tsx` 텍스트/이미지 입력 토글·드롭존·썸네일 | 텍스트 없이 이미지만으로 생성 가능. 텍스트 경로는 회귀 없음 | `tsc`/`build`, UI 스모크(토글·썸네일). **이미지 판독 품질·지연 미확정** | **대기(다음 단계)** |
 | **P6** 안정화 | 실사용(PC·LAN 휴대폰)에서 드러난 버그 수정 | 재현된 버그별 `fix` 커밋(파일은 버그마다), 필요 시 `*.test.ts` | 알려진 재현 버그 0. 각 fix에 원인 가설·반증·종합이 LOG와 커밋 본문에 있음 | `tsc`/`build`, (도입 시) `vitest`, 버그별 재현 스모크 | 대기 |
 | **P7** 보안 점검·GitHub Pages 배포 | 정적 호스팅에 올리고 키·XSS 완화책을 점검 | 보안 점검 결과(키 취급·XSS 완화·CSP meta·referrer 정책·의존성)(문서), `vite.config.ts` base(하위 경로 필요 시), `.github/workflows/*.yml`(build → Pages), `README.md` 배포·키 제한 안내 | Pages URL에서 A1~A4 재확인. 우리 호스트로 가는 요청은 정적 자산만(A3) | `npm run build`, 배포 후 브라우저 확인(DevTools Network·Application) | 대기 |
 
@@ -169,9 +170,11 @@ P0 시점에 M1(P4 완료)까지 만들 파일이다. 괄호는 생성 단계. P
 - [x] `lib/prompts.ts` `buildAnalyzePrompt` — 출력 `{ analysis, candidates[3] }`, 후보 축 정식 라벨 "깊은 공감·수용형" / "공감 + 함께 해결형" / "공감 + 분위기 전환형"(PRD FR-13), 나의 페르소나가 있으면 그 말투로
 - [x] `routes/AnalyzePage.tsx` — 페르소나 칩 선택 · 받은 메시지 textarea · 분석 버튼(로딩) · 심리 분석 카드 · 후보 3카드(라벨·이유·답변·복사)
 - [x] `routes/HistoryPage.tsx` — 기록 목록(페르소나명·날짜·메시지 요약) · 펼치기(분석·후보) · 삭제
-- [x] 검증: `tsc`/`build`, UI 스모크(전 탭 이동·칩 선택·빈 입력 토스트), `npm start` 후 LAN 휴대폰 접속(A6), DevTools Network(A3)
+- [x] 검증: `tsc`/`build`, UI 스모크(전 탭 이동·칩 선택·빈 입력 토스트·실키 분석·기록 펼치기·삭제), DevTools Network(A3)
+- [ ] 검증(남음): `npm start` 후 같은 Wi-Fi 휴대폰 실기기 접속(A6) — **미실행**. 자동화 뷰포트 390/360px 확인은 이를 대신하지 못한다. P6로 넘긴다
 - [x] LOG `완료` → `feat: 메시지 분석 v1과 기록` 커밋
-- [x] **M1 마무리**(§5): 표시명 확정 → i18n `app.title`·`index.html` title·README 반영, `package.json` 1.0.0, PRD/TRD/DESIGN/PLAN 1.0, LOG에 검증 기록과 미확정 항목 → 커밋
+- [x] **M1 마무리**(§5): 표시명 Persora 확정 → i18n `app.title`·`onboarding.welcomeTitle`·`index.html` title·`server/index.js`·README·`package.json` name 반영 (`refactor: 앱 표시명 Persora로 통일` 커밋)
+- [x] **M1 마무리**(§5): `package.json`·`package-lock.json` 1.0.0, PRD/TRD/DESIGN/PLAN 1.0, README를 M1 기준으로 재작성, LOG에 M1 항목(검증 기록·남은 미확정) 추가
 
 ### P5 — 캡처 이미지로 페르소나 생성(멀티모달)
 - [ ] docs: PRD FR 추가, TRD(`CreatePersonaInput` 이미지 선택 필드, `generate(prompt, images?)`, 이미지 타임아웃 상수), DESIGN 입력 토글·드롭존·썸네일, LOG `진행중`
@@ -195,22 +198,37 @@ P0 시점에 M1(P4 완료)까지 만들 파일이다. 괄호는 생성 단계. P
 
 ## 5. 마일스톤 M1 (= P4 완료, MVP)
 
-M1은 "키를 등록한 사용자가 페르소나를 만들고, 받은 메시지 1건으로 답변 후보 3개를 받고, 기록을 다시 볼 수 있다"는 상태다. 출구 조건은 **키 불필요 묶음(실측 통과 필수)** 과 **키 필요 묶음(UI 스모크 통과 + 실호출은 미확정 허용)** 으로 나눈다. CLAUDE.md 검증 정책상 통과 못 한 검증 항목을 `완료`로 표시할 수 없으므로, 실키가 없을 때는 키 필요 묶음의 실호출 부분을 "미확정"으로 문서 1.0 미확정 목록과 LOG에 사실대로 기재하고 M1을 인정한다.
+M1은 "키를 등록한 사용자가 페르소나를 만들고, 받은 메시지 1건으로 답변 후보 3개를 받고, 기록을 다시 볼 수 있다"는 상태다. **달성했다.** 출구 조건은 **키 불필요 묶음(실측 통과 필수)** 과 **키 필요 묶음(UI 스모크 통과 + 실호출은 미확정 허용)** 으로 나눠 두었는데, 유효 키가 확보되어 키 필요 묶음도 실호출로 확인했다. 대신 계획에서 "키 불필요"로 분류했던 A6가 미실행으로 남았다 — 실기기 접속은 키가 아니라 기기가 필요한 항목이었고, 그 점을 M1에서야 분리해 인식했다.
 
-| Acceptance ([`./PRD.md`](./PRD.md)) | 묶음 | 구현 단계 | 검증 방법 | M1 상태 |
+### 5.1 M1 결과
+
+근거는 모두 [`./LOG.md`](./LOG.md)의 해당 항목이며, 여기 없는 수치는 쓰지 않는다.
+
+| Acceptance ([`./PRD.md`](./PRD.md)) | 묶음 | 구현 단계 | M1 상태 | 근거 LOG 항목 |
 |---|---|---|---|---|
-| A1 키 미등록 신규 방문자는 온보딩 모달을 본다 | 키 불필요 | P2 | 쿠키 삭제 후 진입 → `OnboardingModal` 점유, 탭 콘텐츠 조작 불가 | 대기 |
-| A2 키 등록 후 페르소나 생성·메시지 분석·기록 조회가 동작한다 | 키 필요 | P3·P4 | UI 스모크(시트 열림·검증 토스트·빈 목록·칩 선택·빈 입력 토스트)는 필수. 실키가 있으면 수동 시나리오(생성 → 분석 → 기록), 없으면 실호출 부분 **미확정** 표기 | 대기 |
-| A3 우리 서버로의 요청은 정적 자산뿐, LLM은 `generativelanguage.googleapis.com` 직접 | 키 불필요 | P1·P2 | DevTools Network 필터: 우리 호스트 = `GET` 정적 파일만. Gemini = Google 도메인(P2 임의 키 호출로 요청 대상 도메인 확인 가능) | 대기 |
-| A4 새로고침·재방문 시 IndexedDB 데이터와 키가 유지된다 | 키 유지 = 키 불필요 / 생성 데이터 유지 = 키 필요 | P2·P3 | 키: 저장 후 새로고침·탭 닫고 재진입 → 인디케이터 유지, DevTools Application에서 `pm_gemini_key` 쿠키 확인(필수). 데이터: 생성 후 새로고침 → 목록 유지, `persona-mirror` DB 확인(실키 없으면 미확정) | 대기 |
-| A5 `npm run build` 무에러, `npm start`로 정적 서버가 앱을 서빙한다 | 키 불필요 | P1 | 명령 실행 결과 | 대기 |
-| A6 같은 Wi-Fi의 휴대폰에서 동일하게 동작한다 | 키 불필요(UI 범위) | P1·P4 | `npm start` → `http://<PC IP>:8000` 휴대폰 접속, 온보딩·생성 시트·탭 확인. 실호출은 A2와 같은 기준 | 대기 |
+| A1 키 미등록 신규 방문자는 온보딩 모달을 본다 | 키 불필요 | P2 | **통과** — 모달이 화면 점유, 키 삭제 시 재등장 | P2 Gemini API 키 온보딩(쿠키)과 클라이언트 |
+| A2 키 등록 후 페르소나 생성·메시지 분석·기록 조회가 동작한다 | 키 필요 | P3·P4 | **통과(실키)** — 생성 6.57s·5.87s, 분석 3.49s, 후보 3개가 3축 정식 라벨·나의 말투로 렌더, 기록 펼치기·삭제 확인 | P3 페르소나 생성·목록·상세·삭제 / P4 메시지 분석 v1과 기록 |
+| A3 우리 서버로의 요청은 정적 자산뿐, LLM은 `generativelanguage.googleapis.com` 직접 | 키 불필요 | P1·P2 | **통과** — 스모크 중 우리 서버로 간 것은 정적 자산 요청뿐. Google 도메인 직접 호출이 CORS를 통과함을 P2에서 실측 | P2 / P3 / P4 |
+| A4 새로고침·재방문 시 IndexedDB 데이터와 키가 유지된다 | 키 유지 = 키 불필요 / 생성 데이터 유지 = 키 필요 | P2·P3·P4 | **통과** — 키 인디케이터·페르소나 목록·분석 기록이 각각 전체 새로고침 후 유지 | P2 / P3 / P4 |
+| A5 `npm run build` 무에러, `npm start`로 정적 서버가 앱을 서빙한다 | 키 불필요 | P1 | **통과** — `tsc --noEmit` 0 에러, `vite build` 성공, Express가 `GET /`·`GET /app-logo.png`에 200 | P1 앱 스캐폴드와 셸 / 표시명 통일 |
+| A6 같은 Wi-Fi의 휴대폰에서 동일하게 동작한다 | 키 불필요(UI 범위) | P1·P4 | **미확정** — 자동화 뷰포트 390/360px만 확인, 실기기 접속 미실행 | P4 M1 판단 자료 |
 
-M1에서 함께 끝내는 것:
-- **표시명 확정** — 코드네임 "Persona Mirror" → **Persora**로 확정(근거·3단 사고는 LOG). i18n `app.title`·`onboarding.welcomeTitle`, `index.html` title, README, `package.json` name 반영. `DB_NAME`·쿠키명은 유지.
-- **문서 1.0** — PRD/TRD/DESIGN/PLAN을 실제 구현 상태로 정정해 1.0으로 올린다. 그때까지 못 확인한 항목(Gemini 실호출 품질·지연 등)은 "미확정" 목록으로 남긴다.
-- **`package.json` 1.0.0**.
-- LOG에 M1 검증 기록(`tsc`/`build`/UI 스모크/LAN 접속 결과)을 사실대로 적고, 키 필요 묶음 중 어느 항목이 미확정으로 남았는지 항목별로 명시한다.
+M1은 A1~A5 통과로 인정하고, A6는 미확정 상태로 P6에 넘긴다. CLAUDE.md 검증 정책상 통과하지 못한 항목을 통과로 적을 수 없으므로 A6를 "완료"로 표시하지 않는다.
+
+### 5.2 M1에서 함께 끝낸 것
+- **표시명 확정** — 코드네임 "Persona Mirror" → **Persora**(근거·3단 사고는 LOG). i18n `app.title`·`onboarding.welcomeTitle`, `index.html` title, `server/index.js` 시작 로그, README, `package.json` name에 반영. `DB_NAME`·쿠키명은 호환을 위해 유지.
+- **문서 1.0** — PRD/TRD/DESIGN/PLAN을 실제 구현 상태로 정정해 1.0으로 올렸다. TRD §3 계약과 DESIGN 화면 서술은 코드와 대조해 어긋난 부분을 코드 기준으로 고쳤다.
+- **`package.json`·`package-lock.json` 1.0.0**, README를 M1 기준으로 재작성.
+- LOG에 M1 항목을 추가하고, 남은 미확정을 항목별로 명시했다.
+
+### 5.3 M1에 남은 미확정
+- **A6 실기기 확인** — 같은 Wi-Fi 휴대폰 접속 미실행. 소프트 키보드 겹침(DESIGN U4)·safe-area 패딩(U5)·비보안 컨텍스트 클립보드(U7)가 함께 걸려 있다.
+- **모델 선택 근거** — `gemini-3.1-flash-lite`를 비-lite flash와 비교한 적이 없다. thinking off의 지연 단축 효과도 off 상태만 재서 미실측이다.
+- **품질 표본** — 실키 호출이 4회뿐이라 JSON 준수율·말투 준수율을 수치로 말할 수 없다.
+- **대화 최소 길이 20자**(PRD FR-7) — 임시값이고 근거 실측이 없다. 조정 여부는 P6.
+- **복사 성공 토스트** — 자동화 브라우저의 클립보드 권한 대기로 문구를 확인하지 못했다.
+- **첫 로드 JS 529.88 kB(gzip 131.68 kB)** — 코드 스플리팅 도입 여부는 P7 배포 전에 판단한다.
+- **상세 모달 백드롭 상단 미커버**(약 20px) — P3 스크린샷 관찰, 원인 미조사. P6 안정화에서 진단한다.
 
 ## 6. 의존성·순서 근거
 
@@ -256,12 +274,17 @@ P0 문서 ─▶ P1 셸 ─▶ P2 온보딩·Gemini ─▶ P3 페르소나 ─�
 | 항목 | 현재 상태 | 결정 시점 |
 |---|---|---|
 | ~~정식 표시명~~ | **확정: Persora** | 완료 |
-| vitest 도입 시점·대상 | M1 이후. 대상은 TRD §9.2(`extractJson`, 프롬프트 빌더 분기(`my_name`·`lang`), `formatDate`/`getInitial`) | `extractJson` 외에 분기가 비자명한 순수 모듈이 하나 더 생기는 단계(§1.3) |
-| Gemini 실호출 지연·품질 | 미실측(키 필요). `thinkingBudget=0`의 지연 단축 효과도 문헌 근거일 뿐 실측 없음. 모델명·`thinkingConfig` 수락 여부도 미확인 | 키 확보 시 P3/P4에서 측정, LOG 기록 |
-| `@google/genai` 정확한 버전 고정 | 2.x 최신 확인 후 고정(Node 20+ 요구) | P2(`gemini.ts` 작성 시 `package.json`) |
+| ~~`@google/genai` 정확한 버전 고정~~ | **확정(P2)**: `^2.7.0` | 완료 |
+| ~~Gemini 실호출 동작(CORS·모델명·`thinkingConfig` 수락)~~ | **확인(P2~P4)**: 브라우저 직접 호출 CORS 통과, 실키 4회 모두 정상 응답 | 완료 |
+| vitest 도입 시점·대상 | M1까지 미도입(전 구간 "미실행"). 대상은 TRD §9.2(`extractJson`, 프롬프트 빌더 분기(`my_name`·`lang`), `formatDate`/`getInitial`) | `extractJson` 외에 분기가 비자명한 순수 모듈이 하나 더 생기는 단계(§1.3) |
+| Gemini 실호출 지연·품질의 표본 | 지연은 실측(소형 1.94s / 페르소나 6.57s·5.87s / 분석 3.49s)했으나 **각 1회**라 분산·준수율은 미확정. `thinkingBudget=0`의 지연 단축 효과는 off 상태만 재서 **미실측**. lite와 비-lite flash 비교도 없음 | P6 실사용에서 표본 확대 |
+| A6 실기기 확인(같은 Wi-Fi 휴대폰) | **미실행** — 자동화 뷰포트 390/360px만 확인 | P6 |
+| 상세 모달 백드롭 상단 미커버(약 20px) | P3 스크린샷 관찰, **원인 미조사** | P6 안정화 |
+| 첫 로드 JS 529.88 kB(gzip 131.68 kB) 코드 스플리팅 | 미확정 — 대부분이 `@google/genai` 번들 | P7 배포 전 |
 | 이미지 입력 UX(P5) | 장수 상한, 이미지 타임아웃 값, 드롭존/썸네일 형태, 압축 여부 미정 | P5 docs 커밋 |
-| `responseMimeType: 'application/json'` 사용 여부 | 프롬프트 JSON-only 지시 + `extractJson`으로 시작 | 실호출에서 파싱 실패가 반복되면 검토 |
-| 배포 도메인·`base` 경로 | GitHub Pages 예정. 프로젝트 사이트(하위 경로)인지 사용자 사이트인지에 따라 `vite.config.ts` base가 달라짐 | 표시명·저장소명 확정 후 P7 |
+| `responseMimeType: 'application/json'` 사용 여부 | 도입하지 않음 — LOG에 파싱 결과가 적힌 실호출에서 실패가 없었다(표본 작음) | 파싱 실패가 보이면 검토 |
+| 배포 도메인·`base` 경로 | GitHub Pages 예정. 프로젝트 사이트(하위 경로)인지 사용자 사이트인지에 따라 `vite.config.ts` base가 달라짐(현재 `'/'`) | P7 |
 | CSP 정책 상세 | 허용 출처: self + `generativelanguage.googleapis.com` + 폰트 출처(Pretendard 로딩 방식에 따라) | P7 |
 | 모바일 브라우저 IndexedDB·쿠키 동작(시크릿 모드, 저장 용량, iOS Safari 만료 정책) | 미확인 | P6 실사용에서 확인 |
 | 대화 입력 최소·최대 길이 | 최소 길이 거부 기준은 trim 후 20자(임시값, 근거 실측 없음 — PRD FR-7). 최대는 모델 컨텍스트에 맡김 | 20자 조정 여부는 P6 실사용 후 |
+| 후보 복사 성공 토스트 문구 | 미확정 — 자동화 브라우저의 클립보드 권한 대기로 확인하지 못함 | P6 |
