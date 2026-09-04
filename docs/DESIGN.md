@@ -1,6 +1,6 @@
 # DESIGN — Persora 화면·인터랙션 설계
 
-> 문서 버전: 1.1 · 갱신일: 2026-09-05 · 상태: P5 착수 — 생성 시트에 텍스트/캡처 이미지 입력 토글 설계 확정, 구현 진행중
+> 문서 버전: 1.2 · 갱신일: 2026-09-05 · 상태: P6 착수 — 분석 탭을 v2(최근 대화 스레드·답장 대상·답장 의도)로 재설계, 구현 진행중
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -10,6 +10,7 @@
 | 0.3 | 2026-09-05 | 표시명 Persora 확정(머리말 주석, 와이어프레임 앱명, U1 종결) |
 | 1.0 | 2026-09-05 | M1 기준선: §5.1 헤더 버튼 문구를 구현과 일치시킴, §10.1 키 영역에 `btn.*` 추가, "0.1 범위" 표현을 M1 기준으로 정리, §12 미확정 정리 + 상세 모달 백드롭 관찰 추가 |
 | 1.1 | 2026-09-05 | P5 착수: §5.2 생성 시트에 입력 모드 세그먼트·드롭존·썸네일 그리드·이미지 모드 검증 순서 추가, §5.3 이미지 모드의 원본 대화 표시 정정, §8.2 로딩에 이미지 요청 180초, §10.1 `persona.create.*`·`toast.*` 신규 키, §12에 U18~U20 추가 |
+| 1.2 | 2026-09-05 | P6 착수(분석 재설계): §5.3 상세 모달에 "추가 대화로 업데이트" 블록, §6을 v2 화면으로 재작성(스레드 textarea·타겟 칩·타겟 피커·의도 칩 6종 + 직접 입력·검증 순서), §7 기록 미리보기 문구 정정, §9 "입력 유지" 규칙에 스레드 드래프트 예외, §10.1 신규 키(`intent.*` 영역 추가, `analyze.thread*`/`analyze.target*`/`analyze.pickTarget*`/`analyze.intentLabel`/`persona.detail.update*`/`toast.*`), §12 U21~U24 추가 및 단계 번호 재편(안정화 P6→P7, 배포 P7→P8) |
 
 관련 문서: 제품 요구는 [`./PRD.md`](./PRD.md), 모듈 계약·저장·LLM 호출은 [`./TRD.md`](./TRD.md), 단계 계획은 [`./PLAN.md`](./PLAN.md), 변경 이력은 [`./LOG.md`](./LOG.md). 이 문서는 **현재 시점의 설계 상태**만 서술하고, 변경 사유·이력은 LOG에 남긴다.
 
@@ -378,6 +379,13 @@ export default {
 │ ┌──────────────────────────────────────┐ │
 │ │ 📝 원본 대화 기록 보기            ˅  │ │  접힘 토글, 펼치면 <pre> max-h-48
 │ └──────────────────────────────────────┘ │
+│ ┌──────────────────────────────────────┐ │  정보 카드(bg-slate-50)
+│ │ 추가 대화로 업데이트                 │ │  text-sm font-medium slate-600
+│ │ ┌──────────────────────────────────┐ │ │
+│ │ │ 새로 나눈 대화를 붙여넣으면…     │ │ │  textarea rows=3, resize-none
+│ │ └──────────────────────────────────┘ │ │
+│ │ [           업데이트             ]   │ │  보조 버튼(indigo-50) w-full
+│ └──────────────────────────────────────┘ │
 │ [   이 페르소나로 분석   ] [   삭제   ]  │  indigo-50 / red-50
 └──────────────────────────────────────────┘
 ```
@@ -387,13 +395,17 @@ export default {
 | 값 렌더 | 배열 → 태그(`rounded-full bg-indigo-50 text-indigo-600 text-xs`), 문자열 → `text-sm whitespace-pre-wrap`. 객체가 오면 값들을 ` / `로 이어 문자열화(LLM이 스키마를 벗어나도 깨지지 않게). 빈 값 항목은 숨김. 알 수 없는 키는 키 이름을 라벨로 그대로 표시 |
 | 나/상대 탭 | `my_name`이 있고 `my_persona`가 비어 있지 않을 때만 세그먼트 표시. 기본 탭 = 상대. 탭에 따라 summary 블록·항목 카드가 교체된다 |
 | 원본 대화 | 기본 접힘. 펼치면 `pre text-xs whitespace-pre-wrap max-h-48 overflow-y-auto`. **캡처 이미지 모드로 만든 페르소나는 여기에 플레이스홀더 한 줄만 있다**("[채팅 캡처 이미지 3장으로 생성된 페르소나]") — 이미지는 저장하지 않으므로 근거 대화를 되짚어 볼 수 없다(TRD §3.7). 토글·레이아웃은 그대로 두고 별도 안내를 덧붙이지 않는다 |
+| 추가 대화로 업데이트 | 원본 대화 토글 **아래**, 하단 행동 버튼 **위**에 두는 정보 카드(`rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3 space-y-2`). 제목 `persona.detail.updateTitle`("추가 대화로 업데이트") + textarea(`rows=3`, `resize-none`, placeholder `persona.detail.updatePlaceholder`) + 전체폭 보조 버튼 `persona.detail.updateCta`("업데이트"). 위치 근거: 사용자가 기존 대화를 확인한 **직후**에 "여기에 더 붙이겠다"가 자연스럽고, 삭제 버튼과는 떨어뜨려야 오조작이 줄어든다 |
+| 업데이트 검증·상태 | 순서대로 토스트: ① 키 없음 → `status.noKey` ② 대화 공백 → `toast.enterConversation`. 입력이 비어 있으면 버튼도 `disabled`라 ②는 방어선이다. 실행 중에는 버튼 `disabled` + 라벨 `persona.detail.updateLoading`("업데이트 중..."). 성공 → 토스트 `toast.personaUpdated {name}`, textarea 비움, 모달은 **열린 채로** 갱신된 내용을 보여준다(닫으면 결과를 못 본다). 실패 → `Error.message` 그대로, 없으면 `toast.personaUpdateFail`. 입력은 유지 |
 | 삭제 | `window.confirm("\"{name}\" 페르소나를 삭제할까요?")` → 확인 시 `removePersona` → 토스트 `toast.personaDeleted` → 모달 닫힘 → 목록 재조회. 실패 → `toast.deleteFail` |
 | 이 페르소나로 분석 | `useApp.setSelectedPersonaId(id)`(TRD §3.9 Zustand 스토어) 후 `#/analyze`로 이동, 토스트 `toast.personaSelected` |
 | 상세 로딩 | 카드 탭 → `getPersona` 동안 `z-40` 딤(`bg-slate-900/20 backdrop-blur-sm`) + 중앙 `불러오는 중...` 카드. 실패 → `toast.loadDetailFail` |
 
 ---
 
-## 6. 탭 2 — 분석하기 (v1: 받은 메시지 1건)
+## 6. 탭 2 — 분석하기 (v2: 최근 대화 스레드 · 답장 대상 · 답장 의도)
+
+v1은 "받은 메시지" textarea 하나였다. v2는 그 자리에 **최근 대화 스레드**를 받고, 앱이 잡은 **답장 대상**을 보여 주며, **답장 의도**를 고르는 줄을 더한다(근거는 [PRD §8 부속 결정 4](./PRD.md)). 결과 영역(분석 카드 + 후보 3장)은 v1과 **완전히 같다** — 바뀐 것은 입력부뿐이다.
 
 ```
 ┌────────────────────────────────────────────┐
@@ -402,23 +414,44 @@ export default {
 │ │ 분석해 페르소나를 만들어주세요.        │ │
 │ └────────────────────────────────────────┘ │
 │ 분석하기                                   │  h1
-│ 상대방이 보낸 메시지를 입력하세요          │  text-sm slate-500
+│ 상대와 주고받은 최근 대화를 그대로        │  text-sm slate-500 (analyze.threadHint)
+│ 붙여넣으세요. 맨 아래(최신)의 상대        │
+│ 메시지에 답장해요.                        │
 │                                            │
 │ 페르소나 선택                              │  섹션 라벨(uppercase xs)
 │ [(김) 김민준] [(이) 이지원] [(박) 박서연]→ │  가로 스크롤 칩, scrollbar-none
 │                                            │
+│ 최근 대화 붙여넣기                         │  섹션 라벨(analyze.threadLabel)
 │ ┌────────────────────────────────────────┐ │  카드(bg-white, shadow-soft-sm)
-│ │ 예) 야 오늘 뭐해? 시간 돼?             │ │  textarea rows=5, 투명 배경
+│ │ [상대] 오늘 뭐해?                      │ │  textarea rows=7, 투명 배경
+│ │ [나] 집에 있어                         │ │  placeholder = 3줄 대화 예시
+│ │ [상대] 그럼 이따 볼래?                 │ │
 │ │                                        │ │
-│ │                                        │ │
-│ │ 김민준 · Gemini            [ 분석하기 ]│ │  footer: 캡션 + 주 버튼(rounded-xl)
+│ ├────────────────────────────────────────┤ │  border-t slate-100
+│ │ 이 메시지에 답장 "그럼 이따 볼래?"     │ │  라벨 인디고 semibold + 본문 60자 컷
+│ │ 다른 메시지에 답장하기              ▾  │ │  접힘 토글(text-xs slate-400)
+│ │  ┌──────────────────────────────────┐  │ │  펼침: max-h-40 스크롤
+│ │  │ 김민준  오늘 뭐해?               │  │ │  화자 라벨(slate-400) + 본문 50자
+│ │  │ 나      집에 있어                │  │ │
+│ │  │ 김민준  그럼 이따 볼래?          │  │ │  ← 현재 타겟은 indigo-50 배경
+│ │  └──────────────────────────────────┘  │ │
 │ └────────────────────────────────────────┘ │
+│                                            │
+│ 답장 의도                                  │  섹션 라벨(analyze.intentLabel)
+│ [기본(공감)] [위로·공감] [함께 해결]       │  칩 wrap, 활성 = indigo 칩
+│ [가볍게 전환] [정중한 거절] [선 긋기]      │
+│ [설득·제안] [직접 입력]                    │
+│ ┌────────────────────────────────────────┐ │  "직접 입력" 선택 시에만
+│ │ 원하는 답장 방향을 적어주세요…         │ │  input(rounded-xl)
+│ └────────────────────────────────────────┘ │
+│                                            │
+│ 김민준 · Gemini              [ 분석하기 ]  │  캡션 + 주 버튼(rounded-xl)
 │                                            │
 │ ┌──────────┐                               │  로딩: 말풍선 안 점 3개 pulse
 │ │ • • •    │                               │
 │ └──────────┘                               │
 │                                            │
-│ ┌────────────────────────────────────────┐ │  결과(fade-in)
+│ ┌────────────────────────────────────────┐ │  결과(fade-in) — v1과 동일
 │ │ AI 심리 분석                           │ │  bg-indigo-50, 라벨 인디고 uppercase
 │ │ 상대는 지금 심심하고 만날 구실을…      │ │  text-sm whitespace-pre-wrap
 │ └────────────────────────────────────────┘ │
@@ -438,19 +471,45 @@ export default {
 │ └────────────────────────────────────────┘ │
 └────────────────────────────────────────────┘
 ```
+
+### 6.1 입력부
+
 | 요소 | 규칙 |
 |---|---|
 | 페르소나 칩 | `listPersonaSummaries()` 결과. 칩 = 6×6 이니셜 아바타 + 이름, 활성/비활성은 §2.5 칩 레시피. 진입 시 `useApp.selectedPersonaId`(TRD §3.9)가 목록에 있으면 그것을, 없으면 첫 번째를 선택. 가로 스크롤 `flex gap-2 overflow-x-auto pb-1 scrollbar-none` |
+| 페르소나 전환 | 스레드를 **그 페르소나의 드래프트로 갈아 끼우고**(§6.3), 수동 타겟과 피커 열림 상태를 초기화한다. 이전 결과 카드는 그대로 둔다 — 사용자가 방금 본 답장을 아직 복사 중일 수 있다 |
 | 페르소나 없음 | 상단 amber 배너 안내. 분석 버튼 `disabled` |
-| 입력 카드 | `rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-soft-sm`; textarea `bg-transparent px-5 pt-4 pb-2 rows=5 resize-none`; footer `px-4 pb-3 flex justify-between`: 좌 캡션 `{선택 페르소나명} · Gemini`(text-xs slate-400), 우 `분석하기`(`rounded-xl`, `disabled:opacity-40 disabled:shadow-none`) |
-| 단축키 | textarea에서 Ctrl/Cmd+Enter → 분석 실행 |
-| 검증(순서대로 토스트) | ① 페르소나 미선택 → `toast.selectPersona` ② 메시지 공백 → `toast.enterMessage` ③ 키 없음 → `status.noKey` |
-| 로딩 | 버튼 `disabled` + 라벨 `메시지 분석 중...`; 입력 카드 아래 채팅 말풍선 모양(`rounded-2xl rounded-tl-sm`) 안에 인디고 점 3개 `animate-pulse`(150ms 간격 지연). 이전 결과는 그대로 남겨 두고 새 결과로 교체 |
-| 결과 | `analyzeMessage(personaId, message)` 반환 `AnalysisRecord`를 카드로. 분석 카드(강조 블록) + 후보 3장. 결과는 자동으로 **기록에 저장**된다(별도 저장 버튼 없음) |
+| 스레드 입력 카드 | `rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-soft-sm`; textarea `bg-transparent px-5 pt-4 pb-2 rows=7 resize-none leading-relaxed`, placeholder는 카카오톡식 3줄 예시(`analyze.threadPlaceholder`). v1의 5행에서 **7행으로 키웠다** — 이제 한 줄이 아니라 대화 몇 줄을 넣는 자리이기 때문이다(D3) |
+| 타겟 칩 | 카드 하단 `border-t border-slate-100` 영역. `analyze.target`("이 메시지에 답장") 라벨(인디고 semibold) + 검출된 메시지를 따옴표로 감싸 **60자에서 자르고 `…`** 를 붙인다. 스레드가 비었거나 타겟을 못 잡으면 대신 `analyze.targetEmpty` 안내를 회색으로 보여준다. **이 줄이 v2의 핵심 UI다** — 앱이 무엇에 답하는지 사용자가 항상 볼 수 있어야 한다(PRD FR-29) |
+| 타겟 피커 | 파싱된 라인이 하나라도 있을 때만 타겟 칩 아래에 접힘 토글 `analyze.pickTarget`("다른 메시지에 답장하기") + `▾`/`▲`. 펼치면 `max-h-40 overflow-y-auto space-y-1` 목록에 라인마다 버튼 하나: 화자 라벨(`slate-400 font-semibold`, 나=`my_name` 또는 "나" / 상대=페르소나 이름 / 미상=원본 라벨 또는 `?`) + 본문 50자 컷. 현재 타겟인 항목은 `bg-indigo-50 text-indigo-700`. 고르면 즉시 반영되고 피커는 닫힌다 |
+| 타겟 되돌리기 | textarea를 편집하면 수동 지정이 풀리고 자동 검출로 돌아간다. "자동으로 되돌리기" 버튼은 두지 않는다 — 되돌릴 일이 드물고, 목록에서 원래 줄을 다시 고르면 같은 결과가 된다 |
+| 의도 칩 | `flex flex-wrap gap-2`, 각 칩 `px-3 py-1.5 rounded-full border text-xs font-medium`. 순서 고정: `기본(공감)` → 프리셋 6개(`REPLY_INTENTS` 순서: 위로·공감 / 함께 해결 / 가볍게 전환 / 정중한 거절 / 선 긋기 / 설득·제안) → `직접 입력`. **기본값은 "기본(공감)"** 이며 이때 v1과 같은 공감 3축이 나온다(PRD FR-31) |
+| 직접 입력 | "직접 입력" 칩을 고를 때만 아래에 input 한 줄(`rounded-xl`, placeholder `intent.customPlaceholder`)이 나타난다. 항상 펼쳐 두지 않는 이유는 대부분의 사용자가 프리셋으로 끝내기 때문이다. 입력이 비어 있으면 의도 미지정과 같게 취급한다 |
+| 실행 줄 | `flex items-center justify-between gap-3`: 좌 캡션 `{선택 페르소나명} · Gemini`(text-xs slate-400 truncate), 우 `분석하기`(`rounded-xl`, `disabled:opacity-40 disabled:shadow-none`). v1에서는 입력 카드 안 footer였지만 **카드 밖으로 뺐다** — 카드 하단이 타겟 칩·피커 자리가 되었기 때문이다 |
+| 단축키 | textarea에서 Ctrl/Cmd+Enter → 분석 실행(v1과 동일) |
+
+### 6.2 검증 순서 (제출 시, 순서대로 토스트)
+
+① 페르소나 미선택 → `toast.selectPersona` ② **스레드 공백** → `toast.enterMessage` ③ 키 없음 → `status.noKey`.
+
+v1과 같은 순서·같은 키를 쓴다. 의도는 **검증하지 않는다** — 비어 있는 것이 정상값이기 때문이다. 타겟도 검증하지 않는다 — 파서가 마지막 줄 폴백까지 갖고 있어(TRD §3.11) 스레드가 비어 있지 않으면 타겟은 항상 잡히고, 그래서 ②만 통과하면 충분하다.
+
+### 6.3 스레드 드래프트
+
+- textarea에 입력할 때마다 **현재 페르소나의 드래프트로 저장**한다(TRD §3.12). 저장 버튼도, 저장됐다는 토스트도 두지 않는다 — 사용자가 의식할 필요가 없는 편의 기능이고, 입력마다 토스트가 뜨면 소음이 된다.
+- 페르소나를 고르거나 탭에 다시 들어오면 그 페르소나의 드래프트가 textarea에 복원된다. 이때도 안내를 띄우지 않는다. 복원된 스레드는 그대로 파싱되어 타겟 칩이 다시 채워지므로, 사용자는 무엇이 복원됐는지 화면에서 바로 본다.
+- 내용을 전부 지우면 드래프트도 사라진다. 전용 삭제 버튼은 두지 않는다(§12 U23).
+
+### 6.4 결과부 (v1과 동일)
+
+| 요소 | 규칙 |
+|---|---|
+| 로딩 | 버튼 `disabled` + 라벨 `메시지 분석 중...`; 입력 아래 채팅 말풍선 모양(`rounded-2xl rounded-tl-sm`) 안에 인디고 점 3개 `animate-pulse`(150ms 간격 지연). 이전 결과는 그대로 남겨 두고 새 결과로 교체 |
+| 결과 | `analyzeReply(personaId, { thread, intent, targetOverride })` 반환 `AnalysisRecord`를 카드로. 분석 카드(강조 블록) + 후보 3장. 결과는 자동으로 **기록에 저장**된다(별도 저장 버튼 없음) |
 | 후보 카드 | 헤더 `px-4 py-3 border-b bg-slate-50 flex gap-3`: 번호 원(`w-7 h-7 rounded-full bg-brand-gradient text-white text-xs font-bold`) + `label`(비어 있으면 `후보 {n}`). 본문: `원하는 이유:`(strong) + `reason`(text-xs slate-500) → `response`(text-sm slate-900 whitespace-pre-wrap) → 우하단 `복사하기` 텍스트 버튼(복사 아이콘 12px) |
-| 후보 3축 | 프롬프트가 요구하는 세 축의 정식 라벨(PRD FR-13: "깊은 공감·수용형" / "공감 + 함께 해결형" / "공감 + 분위기 전환형")이 `label`에 담긴다. UI는 라벨을 그대로 표시하고 순서를 바꾸지 않는다 |
+| 후보 라벨 | 프롬프트가 만든 `label`을 **그대로** 표시하고 순서를 바꾸지 않는다. 의도를 비우면 v1의 3축("깊은 공감·수용형" / "공감 + 함께 해결형" / "공감 + 분위기 전환형"), 의도를 지정하면 "부드럽고 완곡하게" / "솔직하고 분명하게" / "따뜻한 유머를 곁들여"가 온다(PRD FR-13). **UI에 라벨 목록을 하드코딩하지 않는다** — 어느 쪽이 오든 같은 카드로 그린다 |
 | 복사 | `navigator.clipboard.writeText(response)` → 토스트 `✓ 복사됨`(성공). 실패 → `toast.copyFail` |
-| 실패 | 토스트에 `Error.message` 그대로(없으면 `toast.analyzeFail`). 입력은 유지 |
+| 실패 | 토스트에 `Error.message` 그대로(없으면 `toast.analyzeFail`). 입력은 유지(스레드·의도·수동 타겟 모두) |
 
 ---
 
@@ -484,7 +543,8 @@ export default {
 |---|---|
 | 목록 | `listAnalyses()` — `created_at` 내림차순. 카드 헤더 전체가 토글 버튼(`hover:bg-slate-50`) |
 | 펼침 | 아코디언 — 한 번에 하나만 펼친다(다른 카드를 펼치면 이전 카드는 접힘). 펼침 영역 `animate-fade-in` |
-| 미리보기 | `message`가 55자 초과면 `slice(0,55) + "..."`, 한 줄 `truncate` |
+| 미리보기 | `message`가 55자 초과면 `slice(0,55) + "..."`, 한 줄 `truncate`. v2에서 이 필드에는 **답장 대상 메시지**가 담긴다(TRD §3.8). v1에서 만든 기록도 같은 필드를 갖고 있어 목록 코드는 분기하지 않는다 |
+| 스레드·의도 표시 | 기록 레코드는 붙여넣은 스레드와 답장 의도도 보관하지만(PRD FR-33), **펼침 화면에 아직 표시하지 않는다.** 카드가 길어지고, 무엇을 어떤 형태로 보여줄지 정하지 않았다. 표시 여부는 §12 U24 |
 | 펼침 내용 | 분석 카드 → 후보 3장(§6과 같은 구조, 복사 버튼은 두지 않음 — 복사는 분석 탭에서, PRD FR-21. 추가 여부는 §12) → `기록 삭제` |
 | 삭제 | `window.confirm("이 분석 기록을 삭제할까요?")` → `removeAnalysis` → 목록에서 제거 → 토스트 `toast.historyDeleted`. 실패 → `toast.deleteFail` |
 | 빈 상태 | 점선 컨테이너 + `아직 분석 기록이 없어요`(CTA 없음 — 분석 탭에서 생성되므로) |
@@ -510,6 +570,7 @@ export default {
 | 목록 로딩(페르소나/기록/칩) | 텍스트 `불러오는 중...`(`text-slate-400 text-sm text-center py-8`) |
 | LLM 호출(생성) | 제출 버튼 `disabled` + 라벨 교체(`페르소나 생성 중...`). 다른 입력은 편집 가능하되 제출 불가. 캡처 이미지 모드도 같은 표시를 쓴다 — 타임아웃이 180초로 더 길지만 남은 시간을 알 수 없어 진행률·예상 시간을 넣지 않는다(§12 U10·U19) |
 | LLM 호출(분석) | 버튼 `disabled` + 라벨 `메시지 분석 중...` + 말풍선 점 3개 인디케이터 |
+| LLM 호출(페르소나 업데이트) | 업데이트 버튼 `disabled` + 라벨 `업데이트 중...`(`persona.detail.updateLoading`). 상세 모달은 열린 채 유지된다 — 결과를 그 자리에서 봐야 하기 때문이다(§5.3) |
 | 상세 조회 | 화면 전체 딤(`slate-900/20`) + 중앙 카드 `불러오는 중...` |
 | 진행률 | 표시하지 않음(LLM 응답 시간을 예측할 수 없음). 요청 타임아웃(텍스트 60초 / 캡처 이미지 180초)은 TRD의 `gemini.ts`가 오류로 변환해 토스트로 알린다. 두 경로의 타임아웃 문구는 같다 |
 
@@ -540,7 +601,7 @@ export default {
 | 오버레이 등장 | 시트·상세 `animate-slide-up`(0.24s), 온보딩 카드·결과·펼침 `animate-fade-in`(0.18s). 퇴장 애니메이션은 두지 않는다(즉시 언마운트) |
 | 스크롤 잠금 | 오버레이가 열린 동안 뒤 페이지 스크롤은 잠그지 않는다(0.1). 시트는 자체 `overflow-y-auto` |
 | 탭 전환 | 탭을 바꾸면 스크롤을 최상단으로 되돌린다. 각 탭은 진입 시 목록을 다시 조회한다(다른 탭에서의 생성·삭제 반영) |
-| 입력 유지 | 탭 전환 시 각 탭은 언마운트되어 입력값·결과를 보존하지 않는다. 생성 시트 닫기도 입력 폐기 |
+| 입력 유지 | 탭 전환 시 각 탭은 언마운트되어 입력값·결과를 보존하지 않는다. 생성 시트 닫기도 입력 폐기. **예외 하나** — 분석 탭의 최근 대화 스레드는 페르소나별 드래프트로 저장돼 다시 들어오면 복원된다(§6.3). 의도 선택·수동 타겟·결과 카드는 저장하지 않는다: 의도와 타겟은 그때그때 달라지는 값이고, 결과는 기록 탭에 이미 남는다 |
 | 복사 | 성공 → `✓ 복사됨` 토스트(성공 톤). 실패(권한 거부 등) → `toast.copyFail` |
 | 버튼 피드백 | 주 버튼 `active:scale-[.98]`, 목록 카드 `active:scale-[.99]`, 전부 `transition-all`. 호버는 데스크톱 보조(`hover:opacity-90`, `hover:text-slate-600`) |
 | 단축키 | 온보딩 키 입력 Enter = 저장, 헤더 인라인 편집 Enter/ESC, 분석 textarea Ctrl/Cmd+Enter = 분석 |
@@ -557,7 +618,7 @@ export default {
 - 저장되는 데이터(페르소나·분석 결과)는 LLM 출력 언어를 그대로 두며, UI 언어를 바꿔도 번역하지 않는다. 프롬프트의 출력 언어 지시는 생성 시점 언어를 따른다(TRD `buildPersonaPrompt(input, lang)`).
 
 ### 10.1 키 네이밍 규칙
-`<영역>.<대상>[.<세부>]` 소문자 점 표기. 영역은 아래 12종으로 고정한다.
+`<영역>.<대상>[.<세부>]` 소문자 점 표기. 영역은 아래 13종으로 고정한다(1.2에서 `intent.*` 추가).
 
 | 영역 | 용도 | 예 |
 |---|---|---|
@@ -567,16 +628,21 @@ export default {
 | `btn.*` | 화면 하나에만 쓰이는 주 버튼 라벨 | `btn.saveKey`(온보딩 "키 저장하고 시작하기") |
 | `status.*` | 헤더 키 상태 | `status.ready`, `status.noKey` |
 | `onboarding.*` | 온보딩 모달 | `onboarding.welcomeTitle`, `onboarding.welcomeDesc`, `onboarding.intro`, `onboarding.keyLabel`, `onboarding.consent`, `onboarding.helpCta`, `onboarding.saveKey` |
-| `persona.*` | 페르소나 탭·생성·상세 | `persona.empty.title`, `persona.create.title`, `persona.create.otherName`, `persona.create.convPlaceholder`, `persona.create.textHint`, `persona.create.tabText`, `persona.create.tabImage`, `persona.create.imageDropzone`, `persona.create.imageHint`, `persona.create.imagePlaceholder`, `persona.detail.title`, `persona.detail.convToggle`, `persona.field.communication_style` … `persona.field.relationship_dynamics` |
-| `analyze.*` | 분석 탭 | `analyze.selectPersona`, `analyze.messagePlaceholder`, `analyze.run`, `analyze.aiLabel`, `analyze.candidatesTitle`, `analyze.reason`, `analyze.copy`, `analyze.copied`, `analyze.noPersonaHint`, `analyze.loading` |
+| `persona.*` | 페르소나 탭·생성·상세 | `persona.empty.title`, `persona.create.title`, `persona.create.otherName`, `persona.create.convPlaceholder`, `persona.create.textHint`, `persona.create.tabText`, `persona.create.tabImage`, `persona.create.imageDropzone`, `persona.create.imageHint`, `persona.create.imagePlaceholder`, `persona.detail.title`, `persona.detail.convToggle`, **`persona.detail.updateTitle`**, **`persona.detail.updatePlaceholder`**, **`persona.detail.updateCta`**, **`persona.detail.updateLoading`**, `persona.field.communication_style` … `persona.field.relationship_dynamics` |
+| `analyze.*` | 분석 탭 | `analyze.selectPersona`, `analyze.run`, `analyze.aiLabel`, `analyze.candidatesTitle`, `analyze.reason`, `analyze.copy`, `analyze.copied`, `analyze.noPersonaHint`, `analyze.loading`, **`analyze.threadLabel`**, **`analyze.threadHint`**, **`analyze.threadPlaceholder`**, **`analyze.target`**, **`analyze.targetEmpty`**, **`analyze.pickTarget`**, **`analyze.intentLabel`** |
+| `intent.*` | 답장 의도 라벨(1.2 신규 영역) | `intent.none`, `intent.comfort`, `intent.solve`, `intent.lighten`, `intent.decline`, `intent.boundary`, `intent.persuade`, `intent.custom`, `intent.customPlaceholder` |
 | `history.*` | 기록 탭 | `history.empty`, `history.candidatesTitle`, `history.delete`, `history.confirmDelete` |
-| `toast.*` | 사용자 행위 결과 알림 | `toast.keySaved`, `toast.keyDeleted`, `toast.invalidKeyFormat`, `toast.confirmLocalOnly`, `toast.enterName`, `toast.convTooShort`, `toast.addImage`, `toast.imageLoadFail`, `toast.personaCreated`, `toast.personaCreateFail`, `toast.personaDeleted`, `toast.personaSelected`, `toast.selectPersona`, `toast.enterMessage`, `toast.analyzeFail`, `toast.copyFail`, `toast.historyDeleted`, `toast.deleteFail`, `toast.loadDetailFail`, `toast.load*Fail` |
+| `toast.*` | 사용자 행위 결과 알림 | `toast.keySaved`, `toast.keyDeleted`, `toast.invalidKeyFormat`, `toast.confirmLocalOnly`, `toast.enterName`, `toast.convTooShort`, `toast.addImage`, `toast.imageLoadFail`, `toast.personaCreated`, `toast.personaCreateFail`, `toast.personaDeleted`, `toast.personaSelected`, **`toast.enterConversation`**, **`toast.personaUpdated`**, **`toast.personaUpdateFail`**, `toast.selectPersona`, `toast.enterMessage`, `toast.analyzeFail`, `toast.copyFail`, `toast.historyDeleted`, `toast.deleteFail`, `toast.loadDetailFail`, `toast.load*Fail` |
 | `err.*` | Gemini/저장소 오류(gemini.ts·db.ts가 사용) | `err.invalidKey`, `err.network`, `err.rateLimit`, `err.timeout`, `err.serviceTemp`, `err.aiGeneric`, `err.keyNotSet`, `err.dbOpen` |
 | `parse.*` | LLM 응답 JSON 파싱 실패 폴백 문구(analysis.ts가 사용, TRD §3.8) | `parse.failAnalysis`, `parse.failLabel`, `parse.failReason` |
 
 - 필드 라벨 키의 세부 이름은 `PersonaFields`의 속성명과 **동일**하게 둔다(`persona.field.<속성명>`) — 알 수 없는 키가 와도 `t()` 폴백으로 속성명이 그대로 표시된다.
 - 보간 파라미터는 `{name}`, `{my}`, `{n}`, `{date}`, `{msg}`처럼 의미가 드러나는 이름을 쓴다.
 - `persona.create.imagePlaceholder`(`{n}` 보간)는 화면 라벨이 아니라 **저장되는 값**이다 — 캡처 이미지 모드에서 `PersonaRecord.conversation` 자리에 들어가 상세 모달의 "원본 대화 기록"에 그대로 보인다(TRD §3.7). 그래서 생성 당시 언어로 굳고, 나중에 UI 언어를 바꿔도 번역되지 않는다(위 §10의 저장 데이터 규칙과 같다). 영역을 따로 만들지 않고 생성 시트 영역(`persona.create.*`)에 둔다 — 이 문자열을 만드는 곳이 생성 시트 하나뿐이기 때문이다.
+- `intent.*`만 영역을 새로 만든 이유: 이 라벨 키들은 화면 소속이 아니라 **프리셋 자체의 이름**이고, `REPLY_INTENTS`(TRD §3.1)가 키를 데이터로 들고 다닌다. `analyze.*` 아래에 넣으면 나중에 다른 화면에서 같은 프리셋을 쓸 때 이름이 어긋난다. `intent.none`과 `intent.custom`은 프리셋이 아니지만 같은 칩 줄에 나란히 서므로 같은 영역에 둔다.
+- 페르소나 업데이트 문구는 상세 화면 소속이라 `persona.detail.*`에 둔다 — 이 표의 `<영역>.<대상>.<세부>` 규칙을 그대로 따른 것이다.
+- **스레드 드래프트에는 i18n 키가 없다.** 저장·복원이 조용히 일어나고 화면에 문구가 뜨지 않기 때문이다(§6.3).
+- v2로 바뀌면서 `analyze.messagePlaceholder`(v1의 "받은 메시지" 예시)는 쓰이지 않게 된다. 자리를 `analyze.threadPlaceholder`가 대신하며, 미사용 키 정리는 구현 시 함께 한다.
 - 최종 키 목록은 `src/lib/i18n.ts`가 단일 출처다. 이 표와 어긋나면 이 표를 갱신한다(1.0에서 `btn.*` 추가가 그 사례다).
 
 ---
@@ -607,21 +673,25 @@ M1 시점에 종결된 항목은 취소선과 결과만 남긴다. 나머지는 
 |---|---|---|---|
 | ~~U1~~ | 정식 표시명 | **확정: Persora**(M1 직전, 360px 헤더 잘림 실측이 근거 — LOG 참조) | 완료 |
 | ~~U2~~ | 로고·파비콘 자산 | **확정(P1)**: `public/`의 `favicon.png`·`app-icon-192.png`·`apple-touch-icon.png`·`app-logo.png`를 사용한다. 이니셜형 플레이스홀더는 쓰지 않았다 | 완료 |
-| U3 | Pretendard 웹폰트 로드 | 스택에만 선언(설치된 경우 사용, 아니면 시스템 폰트). CDN 로드는 P7 CSP와 충돌 가능성이 있어 보류 | P7 |
-| U4 | 생성 시트와 소프트 키보드 겹침 | `h-[92dvh]` + 내부 스크롤로 대응한다고 가정. **실기기 미확인**(A6가 미실행이라 P3 모바일 스모크에서도 확인하지 못했다) | P6 실기기 |
-| U5 | 하단 탭 safe-area 패딩의 실효 | `env(safe-area-inset-bottom)` 적용. 홈 인디케이터 기기에서 **미실측** | P6 실기기 |
-| U6 | 오버레이 ESC 닫기 | **미구현.** 생성 시트·상세 모달은 백드롭 클릭과 X 버튼으로만 닫힌다. ESC는 헤더 인라인 키 편집에만 있다(§4.2). 모바일에서 이득이 없어 M1에서 넣지 않았다 | P6 |
-| U7 | HTTP(LAN) 접속 시 클립보드 API | `navigator.clipboard`가 제한될 수 있음 → 실패 토스트로 안내. 대체 복사 경로는 미정. M1 스모크에서 복사 클릭은 동작했으나 자동화 브라우저의 권한 대기로 **성공 토스트 문구를 확인하지 못했다** | P6 실사용 |
-| U17 | 상세 모달 백드롭이 화면 최상단 약 20px를 덮지 않는 것으로 보임 | P3 스크린샷 관찰. 닫기·조작에는 영향이 없어 **원인 미조사**. 열린 오버레이의 `getBoundingClientRect().top`을 실측해 진단한다 | P6 안정화 |
-| U8 | 토스트 자동 닫힘 4초 | 임시값. 긴 오류 문구 가독성은 실사용 후 조정 | P6 |
-| U9 | 기록 탭 후보 카드의 복사 버튼 | M1은 미포함(분석 탭에서 복사, PRD FR-21). 실사용에서 요구되면 추가 | P6 |
+| U3 | Pretendard 웹폰트 로드 | 스택에만 선언(설치된 경우 사용, 아니면 시스템 폰트). CDN 로드는 P8 CSP와 충돌 가능성이 있어 보류 | P8 |
+| U4 | 생성 시트와 소프트 키보드 겹침 | `h-[92dvh]` + 내부 스크롤로 대응한다고 가정. **실기기 미확인**(A6가 미실행이라 P3 모바일 스모크에서도 확인하지 못했다) | P7 실기기 |
+| U5 | 하단 탭 safe-area 패딩의 실효 | `env(safe-area-inset-bottom)` 적용. 홈 인디케이터 기기에서 **미실측** | P7 실기기 |
+| U6 | 오버레이 ESC 닫기 | **미구현.** 생성 시트·상세 모달은 백드롭 클릭과 X 버튼으로만 닫힌다. ESC는 헤더 인라인 키 편집에만 있다(§4.2). 모바일에서 이득이 없어 M1에서 넣지 않았다 | P7 |
+| U7 | HTTP(LAN) 접속 시 클립보드 API | `navigator.clipboard`가 제한될 수 있음 → 실패 토스트로 안내. 대체 복사 경로는 미정. M1 스모크에서 복사 클릭은 동작했으나 자동화 브라우저의 권한 대기로 **성공 토스트 문구를 확인하지 못했다** | P7 실사용 |
+| U17 | 상세 모달 백드롭이 화면 최상단 약 20px를 덮지 않는 것으로 보임 | P3 스크린샷 관찰. 닫기·조작에는 영향이 없어 **원인 미조사**. 열린 오버레이의 `getBoundingClientRect().top`을 실측해 진단한다 | P7 안정화 |
+| U8 | 토스트 자동 닫힘 4초 | 임시값. 긴 오류 문구 가독성은 실사용 후 조정 | P7 |
+| U9 | 기록 탭 후보 카드의 복사 버튼 | M1은 미포함(분석 탭에서 복사, PRD FR-21). 실사용에서 요구되면 추가 | P7 |
 | U10 | LLM 대기 시간 표시 | 진행률 없이 점 3개. 지연 수치 미실측(키 필요)이라 기대 시간 문구를 넣지 않음 | M1 이후 |
 | U11 | `prefers-reduced-motion` | 비목표. 모션이 짧아 우선순위 낮음 | 미정 |
 | U12 | en 문구 품질 | P1에서 초안 작성, 원어민 검수 없음 | 미정 |
-| U13 | 이니셜 규칙 | `getInitial`은 첫 글자(영문 대문자). 다국어 이름·이모지 이름은 미검토 | P6 |
-| U14 | 생성 시트 백드롭 오클릭으로 입력 유실(§1.1 A) | 감수한다(확인 대화상자 없음). 실사용에서 발생 빈도를 관찰해 대응 필요 여부 판단 | P6 |
+| U13 | 이니셜 규칙 | `getInitial`은 첫 글자(영문 대문자). 다국어 이름·이모지 이름은 미검토 | P7 |
+| U14 | 생성 시트 백드롭 오클릭으로 입력 유실(§1.1 A) | 감수한다(확인 대화상자 없음). 실사용에서 발생 빈도를 관찰해 대응 필요 여부 판단 | P7 |
 | U15 | 온보딩 고지 문구·위치(PRD DR-4 Gemini 전송·민감정보 주의, DR-6 복구 불가) | 기본안은 온보딩 모달 intro/동의 문구. 세부 문구는 P2 온보딩 문구 작성 시 PRD/TRD와 맞춤 | P2 docs |
-| U16 | 색 대비 AA 미달(red-500/red-50 3.44, emerald-600/emerald-50 3.58, §11) | 배지·버튼 라벨에 한정해 감수. 더 진한 단계로 조정할지 검토(예: emerald-700/emerald-50은 5.21로 통과, red-600/red-50은 4.41로 여전히 미달) | P6 |
+| U16 | 색 대비 AA 미달(red-500/red-50 3.44, emerald-600/emerald-50 3.58, §11) | 배지·버튼 라벨에 한정해 감수. 더 진한 단계로 조정할지 검토(예: emerald-700/emerald-50은 5.21로 통과, red-600/red-50은 4.41로 여전히 미달) | P7 |
 | U18 | 캡처 장수 상한과 썸네일 그리드가 시트를 넘칠 때의 처리 | 상한을 두지 않고 시작한다(§5.2). 많이 고르면 그리드가 길어져 드롭존이 밀려 올라가는데, 시트 본문이 `overflow-y-auto`라 스크롤로 닿을 수는 있다. 몇 장부터 불편한지는 **미확인** — 상한·리사이즈 도입은 지연 실측(PRD §11)과 함께 판단 | P5 실측 후 |
 | U19 | 이미지 생성 대기 중 표시 | 텍스트와 같은 버튼 라벨 교체만 쓴다. 타임아웃이 180초로 길지만 **실제 지연을 재지 않아** 기대 시간 문구를 넣을 근거가 없다(U10과 같은 이유) | P5 실측 후 |
-| U20 | 드롭존이 실제 드래그 앤 드롭을 받지는 않음 | 이름은 드롭존이지만 동작은 **파일 선택 다이얼로그**다(`<label>` + hidden `<input type="file">`). 주 사용 환경이 모바일이라 드래그 앤 드롭의 이득이 작다고 보고 `onDrop` 처리를 넣지 않았다. 데스크톱 실사용에서 요구되면 추가 | P6 |
+| U20 | 드롭존이 실제 드래그 앤 드롭을 받지는 않음 | 이름은 드롭존이지만 동작은 **파일 선택 다이얼로그**다(`<label>` + hidden `<input type="file">`). 주 사용 환경이 모바일이라 드래그 앤 드롭의 이득이 작다고 보고 `onDrop` 처리를 넣지 않았다. 데스크톱 실사용에서 요구되면 추가 | P7 |
+| U21 | 타겟 피커의 라인 목록이 긴 스레드에서 쓸 만한지 | 목록에 `max-h-40 overflow-y-auto`만 두고 검색·접기를 넣지 않았다(§6.1). 수십 줄을 붙여넣으면 원하는 줄까지 스크롤이 길어지는데, **실사용에서 몇 줄부터 불편한지 확인하지 않았다.** 대개 답장 대상은 끝에서 한두 번째라 목록을 역순으로 두는 안도 후보다 | P6 검증 → P7 실사용 |
+| U22 | 타겟 칩의 60자 컷과 피커의 50자 컷 | 임시값이다. 컷이 짧으면 어느 메시지인지 구분이 안 되고, 길면 칩 한 줄이 두 줄로 늘어져 레이아웃이 흔들린다. 근거 실측은 없다 | P7 |
+| U23 | 스레드 드래프트의 삭제 수단 | 입력란을 비우면 지워지는 것 외에 전용 버튼을 두지 않았다(§6.3). 페르소나가 많아졌을 때 "저장된 드래프트가 있다"는 것을 목록에서 알 방법도 없다. 필요가 보이면 그때 넣는다 | P7 |
+| U24 | 기록 펼침에 스레드·의도를 보여줄지 | 레코드에는 남지만 화면에는 아직 없다(§7). 스레드 전문을 그대로 펼치면 카드가 매우 길어지므로 접힘 블록이나 의도 배지 한 줄이 후보다. 형태를 정하지 않았다 | P7 |
