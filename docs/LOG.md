@@ -11,7 +11,7 @@
 - 변경 예정 파일: `src/routes/PersonaPage.tsx`, `docs/DESIGN.md`, `docs/TRD.md`
 - 검증 계획: 오버레이 top 0·`elementFromPoint(200, 2)`가 오버레이, 백드롭 닫기·X 닫기 정상, 닫은 뒤 body에 포털 잔존 노드 0, tsc/build/test.
 
-## 2026-09-05 — [fix] P7-2 LAN IP(http)로 접속하면 페르소나 생성이 "crypto.randomUUID is not a function"으로 실패 — 진행중
+## 2026-09-05 — [fix] P7-2 LAN IP(http)로 접속하면 페르소나 생성이 "crypto.randomUUID is not a function"으로 실패 — 완료
 
 - 증상/재현(실측): 같은 Wi-Fi 휴대폰 시나리오를 재현하기 위해 `http://192.168.47.1:4121`로 접속 → `window.isSecureContext = false`, `typeof crypto.randomUUID = "undefined"`, `uuid()` 호출 시 "crypto.randomUUID is not a function". `http://localhost:4121`에서는 정상.
 - 1차 사고: 휴대폰 브라우저가 오래되어 API가 없는 것이다.
@@ -19,6 +19,8 @@
 - 종합: `randomUUID` → `getRandomValues` 기반 RFC 4122 v4 → `Math.random` 순 폴백. 마지막 폴백은 충돌 확률이 높지만 단일 사용자 로컬 DB 키로는 허용한다(문서에 명시). `id.test.ts`로 형식과 폴백 경로를 검증한다.
 - 변경 예정 파일: `src/lib/id.ts`, `src/lib/id.test.ts`(신규), `docs/TRD.md` §3.9
 - 검증 계획: `npm test`(id 테스트), LAN IP 재접속 후 `uuid()`가 v4 형식 문자열을 반환, tsc/build.
+- 변경 파일(실제): `src/lib/id.ts`(randomUUID → getRandomValues 기반 v4 → Math.random 폴백), `src/lib/id.test.ts`(신규, 4케이스: 현재 환경 v4 / randomUUID 없는 환경 / crypto 없는 환경 / 100회 중복 없음)
+- 검증: `npm test` → 4 files, 30/30 통과(id 4 포함) / tsc 0 / build 성공. LAN IP `http://192.168.47.1:4121` 재접속(비보안 컨텍스트, `crypto.randomUUID` undefined 그대로): `uuid()` 5회 모두 v4 형식, 중복 없음. `localhost`에서는 여전히 표준 API 경로(무회귀).
 
 ## 2026-09-05 — [fix] P7-1 모달 안에서 텍스트를 드래그하다 백드롭에서 손을 떼면 모달이 닫힘 (+ ErrorBoundary) — 완료
 
