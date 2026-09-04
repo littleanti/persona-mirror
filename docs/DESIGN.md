@@ -1,6 +1,6 @@
 # DESIGN — Persora 화면·인터랙션 설계
 
-> 문서 버전: 1.5 · 갱신일: 2026-09-05 · 상태: P9 착수 — 분석 탭에 텍스트/캡처 이미지 입력 세그먼트 추가(§6), 이미지 모드는 타겟 칩·피커·드래프트 없이 동작
+> 문서 버전: 1.6 · 갱신일: 2026-09-05 · 상태: P10 착수 — 페르소나 생성 시트를 **단일 흐름**으로 되돌린다(§5.2). 입력 모드 세그먼트·드롭존·썸네일을 걷어내고 대화 입력란 하나 + 카카오톡 대화 파일(.txt) 첨부 버튼을 둔다. 분석 탭(§6)의 캡처 모드는 그대로
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -14,6 +14,7 @@
 | 1.3 | 2026-09-05 | P7 착수: §9 백드롭 닫기 판정(pointer-down 기준), §2.6 포털 규칙, U17 원인 확정 |
 | 1.4 | 2026-09-05 | P8 착수(보안 점검·배포): §1.1(C) 탭 결정을 4개로 갱신(3단 사고), §3 셸 와이어프레임·탭 아이콘, §4 온보딩 intro 문구 정정(localStorage/IndexedDB), **신규 §7b 탭 4 — 설정**(개인정보·면책 카드, 백업 내보내기/가져오기, 전체 삭제), §8.2 로딩·§8.5 확인 대화상자 갱신, §10.1 `settings.*` 영역 추가(13→14종), §12 U3 종결·U25~U28 추가 |
 | 1.5 | 2026-09-05 | P9 착수(분석 이미지 입력): §6 와이어프레임에 입력 모드 세그먼트 + 이미지 모드 와이어프레임 추가, §6.1에 세그먼트·모드 전환·드롭존·썸네일·힌트 행 추가 및 타겟 칩·피커·되돌리기를 **텍스트 모드 전용**으로 명시, §6.2 검증 순서를 모드별로 재작성, §6.3 드래프트에 텍스트 모드 한정 단서, §10.1 `analyze.tabText`·`tabImage`·`imageDropzone`·`imageHint`·`imagePlaceholder` 추가, §12 U29~U31 |
+| 1.6 | 2026-09-05 | P10 착수(페르소나 입력 재평가): **§5.2 생성 시트를 단일 흐름으로 재작성**(입력 모드 세그먼트·드롭존·썸네일 그리드 삭제 → 대화 파일 첨부 버튼 + 첨부 안내 문구 추가, 검증·로딩·성공·실패 행 정리), §5.3 원본 대화 행에서 이미지 모드 규칙 제거(구 레코드의 플레이스홀더는 문자열 그대로 표시), §8.2 로딩에서 생성 시트의 180초 단서 제거, §10.1 `persona.create.*` 정리(tab*·image* 5키 삭제, attach* 4키 + `toast.chatFileReadFail` 추가), §6 도입부·§6.1 교차 참조 정정(세그먼트·드롭존 규칙의 단일 출처를 §6.1로), §12 U18~U20 종결 + U32·U33 신규 |
 
 관련 문서: 제품 요구는 [`./PRD.md`](./PRD.md), 모듈 계약·저장·LLM 호출은 [`./TRD.md`](./TRD.md), 단계 계획은 [`./PLAN.md`](./PLAN.md), 변경 이력은 [`./LOG.md`](./LOG.md). 이 문서는 **현재 시점의 설계 상태**만 서술하고, 변경 사유·이력은 LOG에 남긴다.
 
@@ -305,9 +306,12 @@ export default {
 ││ 상대방 이름            나의 이름 (선택)  ││  2열 grid
 ││ [ 예) 김민준     ]     [ 예) 나      ]   ││  rounded-xl input
 ││                                          ││
-││ ┌──────────────┬───────────────────────┐ ││  입력 모드 세그먼트(§2.5)
-││ │ ✍️ 텍스트     │  🖼️ 캡처 이미지        │ ││  기본 = 텍스트
-││ └──────────────┴───────────────────────┘ ││
+││ ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐ ││  첨부 버튼 = <label> + hidden input
+││ │  📎 카카오톡 대화 파일(.txt) 첨부    │ ││  border-dashed, 한 줄 높이
+││ └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘ ││
+││ 카카오톡에서 내보낸 .txt를 첨부하면      ││  attachHint text-xs slate-400
+││ 머리말을 빼고 최근 대화만 자동으로       ││
+││ 채워요. 채운 뒤 직접 편집할 수 있어요.   ││
 ││                                          ││
 ││ ┌──────────────────────────────────────┐ ││
 ││ │ 김민준: 야 오늘 뭐해?                │ ││  textarea flex-1 min-h-[10rem]
@@ -316,7 +320,9 @@ export default {
 ││ │ …                                    │ ││
 ││ │                                      │ ││
 ││ └──────────────────────────────────────┘ ││
-││ 📋 대화가 많을수록 더 정확한 페르소나가  ││  hint text-xs slate-400
+││ ✅ 원본 48,210자 중 최근 16,000자만      ││  attachedInfo text-xs indigo-500
+││    사용했어요                            ││  (첨부했을 때만. 편집하면 사라짐)
+││ 📋 대화가 많을수록 더 정확한 페르소나가  ││  textHint text-xs slate-400
 ││ 만들어져요. 최소 10줄 이상 권장합니다.   ││
 ││                                          ││
 ││ [           페르소나 생성              ] ││  주 버튼 w-full, 로딩 시 disabled
@@ -324,41 +330,23 @@ export default {
 └────────────────────────────────────────────┘
 ```
 
-**캡처 이미지 모드**(세그먼트에서 "🖼️ 캡처 이미지" 선택 — 이름 입력 두 칸과 하단 생성 버튼은 그대로다)
+**입력 흐름은 하나다**(P10). P5~P9의 텍스트/캡처 이미지 세그먼트와 드롭존·썸네일 그리드는 **삭제한다.** 대화를 넣는 자리는 textarea 하나이고, 파일 첨부는 그 textarea를 **채워 주는 보조 수단**이지 두 번째 모드가 아니다 — 첨부한 뒤 화면에 남는 것은 여느 입력값과 똑같은 텍스트다. 근거는 [PRD §8 부속 결정 3](./PRD.md)의 재검토이고, 분석 탭(§6)의 세그먼트는 그대로 둔다.
 
-```
-││ ┌──────────────┬───────────────────────┐ ││
-││ │ ✍️ 텍스트     │ [🖼️ 캡처 이미지]       │ ││  활성: bg-white text-indigo-600
-││ └──────────────┴───────────────────────┘ ││
-││                                          ││
-││ ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐ ││  드롭존 = <label> + hidden input
-││ │                                      │ ││  border-2 dashed, flex-1 min-h-32
-││ │   카카오톡·문자 캡처 이미지 선택     │ ││  hover: border-indigo-300
-││ │                                      │ ││
-││ └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘ ││
-││ ┌────┐ ┌────┐ ┌────┐                    ││  썸네일 그리드(flex-wrap gap-2)
-││ │▨ ⓧ│ │▨ ⓧ│ │▨ ⓧ│                    ││  64×64 rounded-xl, 우상단 제거 ×
-││ └────┘ └────┘ └────┘                    ││
-││ 🖼️ AI가 캡처에서 대화를 직접 읽어         ││  hint text-xs slate-400
-││ 페르소나를 만들어요. 여러 장을 시간      ││
-││ 순서대로 올리면 더 정확해요. 캡처        ││
-││ 이미지도 Google로 전송됩니다.            ││
-```
 | 요소 | 규칙 |
 |---|---|
 | 컨테이너 | 백드롭 `fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm flex items-end justify-center`; 시트 `w-full max-w-lg h-[92dvh] flex flex-col bg-white border border-slate-200 rounded-t-3xl shadow-soft-lg animate-slide-up` |
-| 본문 | `px-5 pb-6 flex-1 min-h-0 overflow-y-auto flex flex-col gap-3`. textarea(텍스트 모드)와 드롭존(이미지 모드)이 각각 `flex-1`로 남은 높이를 채운다(D3) |
-| 입력 | 상대방 이름(필수), 나의 이름(선택 — 비우면 `my_name: ""`), 그리고 **입력 모드에 따라** 대화 textarea(`rows=8`, `resize-none`, `leading-relaxed`) 또는 캡처 이미지 드롭존 |
-| 입력 모드 세그먼트 | 이름 두 칸 **아래**, 대화 입력 **위**에 놓는다(무엇을 넣을지 고른 뒤 넣는 순서). §2.5 세그먼트 탭 레시피 그대로 — 컨테이너 `flex rounded-2xl bg-slate-100 p-1 text-xs font-semibold`, 각 버튼 `flex-1 rounded-xl px-3 py-2`, 활성 `bg-white text-indigo-600 shadow-soft-sm`. 라벨은 `persona.create.tabText`("✍️ 텍스트") / `persona.create.tabImage`("🖼️ 캡처 이미지"). **기본은 텍스트**(PRD §8 부속 결정 3) |
-| 모드 전환 | 두 모드의 입력값은 **각각 보존**한다 — 텍스트로 돌아오면 붙여넣던 대화가 남아 있고, 이미지로 돌아오면 고른 썸네일이 남아 있다. 전환만으로 값을 지우면 잘못 누른 사용자가 입력을 잃는다(§12 U14와 같은 종류의 손실). 제출 시에는 **현재 선택된 모드의 값만** 보낸다 |
-| 드롭존(이미지 모드) | `<label>` 안에 `<input type="file" accept="image/*" multiple hidden>`을 넣어 라벨 전체가 클릭 영역이 된다. 모양 `flex flex-1 flex-col items-center justify-center gap-2 min-h-32 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-slate-400 text-sm font-medium cursor-pointer`, 호버 `border-indigo-300 text-indigo-500`. 문구 `persona.create.imageDropzone`. 선택한 파일은 `fileToInlineImage`(TRD §3.4.1)로 변환해 **기존 목록 뒤에 이어 붙인다** — 여러 번 나눠 고를 수 있고 순서는 고른 순서 그대로다(TRD §4 파트 순서 전제). 변환 실패 → 토스트 `toast.imageLoadFail` |
-| 썸네일 그리드 | 드롭존 아래 `flex flex-wrap gap-2`. 각 항목 `relative w-16 h-16 overflow-hidden rounded-xl border border-slate-200`에 `<img class="w-full h-full object-cover" alt="">`(장식이므로 빈 alt), 우상단에 제거 버튼 `absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/70 text-white text-xs`. 제거는 확인 없이 즉시(다시 고르면 되므로). 0장이면 그리드를 렌더하지 않는다 |
-| 힌트 | 텍스트 모드 `persona.create.textHint`("📋 대화가 많을수록 더 정확한 페르소나가 만들어져요. 최소 10줄 이상 권장합니다."), 이미지 모드 `persona.create.imageHint`("🖼️ AI가 캡처에서 대화를 직접 읽어 페르소나를 만들어요. 여러 장을 시간 순서대로 올리면 더 정확해요. 캡처 이미지도 Google로 전송됩니다."). 마지막 문장이 PRD DR-4의 캡처 전송 고지다 — 온보딩 동의 문구는 그대로 두고 여기 한 줄만 더한다 |
-| 검증(제출 시, 순서대로 토스트) | ① 이름 공백 → `toast.enterName` ② 키 없음 → `status.noKey` ③ **모드별**: 텍스트 모드는 대화 trim 길이 < 20(PRD FR-7의 임시값) → `toast.convTooShort`, 이미지 모드는 이미지 0장 → `toast.addImage`. 앞 두 검사는 모드와 무관하게 같은 순서로 먼저 돈다. 힌트의 "10줄 이상 권장"은 안내이고 거부 기준은 20자다 — 둘은 다른 개념 |
-| 로딩 | 버튼 `disabled` + 라벨 `페르소나 생성 중...`(`persona.create.loading`, 두 모드 공통). 시트는 열린 채 유지, 백드롭 닫기 비활성(§1.1 A). 이미지 요청은 타임아웃이 180초라 텍스트보다 오래 기다릴 수 있다(§8.2) |
-| 성공 | 토스트 `toast.personaCreated {name}`(성공) → 폼 초기화(모드도 텍스트로 되돌림, 썸네일 비움) → 시트 닫힘 → 목록 재조회 |
-| 실패 | 토스트에 `Error.message`(TRD `gemini.ts`가 만든 사용자 문구) 그대로. 없으면 `toast.personaCreateFail`. 시트와 입력은 **유지**(재시도 가능 — 고른 캡처도 남는다). LLM 응답이 JSON이 아니면 실패로 보지 않고 원문을 보존해 저장한다(PRD FR-11) — 목록 요약은 비고, 상세 모달이 `raw` 항목으로 원문을 보여 준다 |
-| 취소 | 닫기(X)·백드롭 → 입력 폐기(고른 캡처 포함). ESC는 없다(§12 U6) |
+| 본문 | `px-5 pb-6 flex-1 min-h-0 overflow-y-auto flex flex-col gap-3`. textarea가 `flex-1`로 남은 높이를 채우고, 첨부 버튼·안내 문구·힌트·생성 버튼은 `shrink-0`으로 밀리지 않게 둔다(D3) |
+| 입력 | 상대방 이름(필수), 나의 이름(선택 — 비우면 `my_name: ""`), 대화 textarea(`rows=8`, `resize-none`, `leading-relaxed`) 하나 |
+| 첨부 버튼 | 이름 두 칸 **아래**, 대화 textarea **위**에 놓는다 — "파일이 있으면 여기서 채우고, 없으면 아래에 붙여넣는다"는 순서다. `<label>` 안에 `<input type="file" accept=".txt,text/plain" hidden>`을 넣어 라벨 전체가 클릭 영역이 된다. 모양은 한 줄 높이의 점선 상자 `flex items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-500 cursor-pointer`, 호버 `border-indigo-300 text-indigo-500`. 라벨은 `persona.create.attachFile`("📎 카카오톡 대화 파일(.txt) 첨부"). **`multiple`을 두지 않는다** — 대화 파일은 하나를 고르는 것이고, 여러 개를 이어 붙이는 규칙을 정할 근거가 없다 |
+| 첨부 동작 | 파일을 읽어(`FileReader.readAsText`) `parseKakaoChatTail`(TRD §3.15)로 머리말 제거 + 말미 `PERSONA_CHAT_TAIL_CHARS` 컷을 거친 결과로 **textarea 값을 교체**하고, 안내 문구를 세운다. 이어 붙이지 않고 **교체**하는 이유는 첨부가 "이 대화로 만들겠다"는 선언이기 때문이며, 붙여넣던 내용이 있으면 그것이 사라지는 것이 사용자 의도에 가깝다. 읽기 실패 → 토스트 `toast.chatFileReadFail`, textarea는 **건드리지 않는다** |
+| 같은 파일 재첨부 | 파일을 읽은 직후 `input.value`를 비운다. 비우지 않으면 같은 파일을 다시 고를 때 `change`가 발생하지 않아 아무 일도 일어나지 않는다 — 채운 뒤 편집했다가 원본으로 되돌리려는 사용자가 실제로 걸리는 자리다(PRD FR-7) |
+| 첨부 안내 문구 | textarea **아래**, 힌트 **위**에 한 줄. 잘렸으면 `persona.create.attachedInfoTrimmed`("✅ 원본 {total}자 중 최근 {n}자만 사용했어요"), 잘리지 않았으면 `persona.create.attachedInfo`("✅ 최근 {n}자를 사용했어요"). 색은 `text-xs text-indigo-500`로 힌트(`slate-400`)와 구분한다 — 방금 일어난 일에 대한 **응답**이지 상시 안내가 아니기 때문이다. **사용자가 textarea를 직접 편집하면 즉시 사라진다**(그 순간부터 문구가 참이 아니다). 첨부 전에는 자리에 `persona.create.attachHint`가 대신 놓인다 |
+| 힌트 | `persona.create.textHint`("📋 대화가 많을수록 더 정확한 페르소나가 만들어져요. 최소 10줄 이상 권장합니다.") 한 줄만 상시 표시한다. **캡처 전송 고지 줄은 여기서 사라진다** — 이 화면은 더 이상 이미지를 보내지 않는다(PRD DR-4). 첨부 파일 자체가 업로드되지 않고 잘린 텍스트만 나간다는 사실은 `attachHint`의 "최근 대화만 자동으로 채워요"가 이미 드러낸다 |
+| 검증(제출 시, 순서대로 토스트) | ① 이름 공백 → `toast.enterName` ② 키 없음 → `status.noKey` ③ 대화 trim 길이 < 20(PRD FR-7의 임시값) → `toast.convTooShort`. **모드 분기가 없어져 한 줄기다.** 힌트의 "10줄 이상 권장"은 안내이고 거부 기준은 20자다 — 둘은 다른 개념 |
+| 로딩 | 버튼 `disabled` + 라벨 `페르소나 생성 중...`(`persona.create.loading`). 시트는 열린 채 유지, 백드롭 닫기 비활성(§1.1 A). 요청은 항상 텍스트 경로(60초 타임아웃)다 |
+| 성공 | 토스트 `toast.personaCreated {name}`(성공) → 폼 초기화(이름·대화·첨부 안내 문구 비움, 파일 입력 `value`도 비움) → 시트 닫힘 → 목록 재조회 |
+| 실패 | 토스트에 `Error.message`(TRD `gemini.ts`가 만든 사용자 문구) 그대로. 없으면 `toast.personaCreateFail`. 시트와 입력은 **유지**(재시도 가능 — 첨부로 채운 텍스트도 남는다). LLM 응답이 JSON이 아니면 실패로 보지 않고 원문을 보존해 저장한다(PRD FR-11) — 목록 요약은 비고, 상세 모달이 `raw` 항목으로 원문을 보여 준다 |
+| 취소 | 닫기(X)·백드롭 → 입력 폐기. ESC는 없다(§12 U6) |
 
 ### 5.3 상세 모달
 하단에서 올라오는 시트형 모달(`items-end`, `max-h-[92dvh] overflow-y-auto`, `animate-slide-up`). 생성 시트와 같은 컨테이너 스타일이라 시각적 일관성을 갖는다.
@@ -409,7 +397,7 @@ export default {
 | 필드 표시 순서 | `PERSONA_FIELDS` 순서(TRD): summary(상단 블록) → communication_style, speech_level, vocabulary_examples, sentence_style, emoji_symbol_usage, texting_habits, emotional_tendencies, what_they_value, how_they_seek_response, relationship_dynamics. 라벨은 i18n `persona.field.*` |
 | 값 렌더 | 배열 → 태그(`rounded-full bg-indigo-50 text-indigo-600 text-xs`), 문자열 → `text-sm whitespace-pre-wrap`. 객체가 오면 값들을 ` / `로 이어 문자열화(LLM이 스키마를 벗어나도 깨지지 않게). 빈 값 항목은 숨김. 알 수 없는 키는 키 이름을 라벨로 그대로 표시 |
 | 나/상대 탭 | `my_name`이 있고 `my_persona`가 비어 있지 않을 때만 세그먼트 표시. 기본 탭 = 상대. 탭에 따라 summary 블록·항목 카드가 교체된다 |
-| 원본 대화 | 기본 접힘. 펼치면 `pre text-xs whitespace-pre-wrap max-h-48 overflow-y-auto`. **캡처 이미지 모드로 만든 페르소나는 여기에 플레이스홀더 한 줄만 있다**("[채팅 캡처 이미지 3장으로 생성된 페르소나]") — 이미지는 저장하지 않으므로 근거 대화를 되짚어 볼 수 없다(TRD §3.7). 토글·레이아웃은 그대로 두고 별도 안내를 덧붙이지 않는다 |
+| 원본 대화 | 기본 접힘. 펼치면 `pre text-xs whitespace-pre-wrap max-h-48 overflow-y-auto`. **모델에 보낸 대화 텍스트가 그대로 들어 있다** — 붙여넣었든 .txt 첨부로 채웠든 같다(TRD §3.7). P5~P9 사이에 캡처로 만든 레코드에는 플레이스홀더 문자열("[채팅 캡처 이미지 3장으로 생성된 페르소나]")이 남아 있을 수 있는데, 화면은 그것도 **평범한 문자열로 그대로** 표시한다. 별도 분기·안내를 두지 않는다 |
 | 추가 대화로 업데이트 | 원본 대화 토글 **아래**, 하단 행동 버튼 **위**에 두는 정보 카드(`rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3 space-y-2`). 제목 `persona.detail.updateTitle`("추가 대화로 업데이트") + textarea(`rows=3`, `resize-none`, placeholder `persona.detail.updatePlaceholder`) + 전체폭 보조 버튼 `persona.detail.updateCta`("업데이트"). 위치 근거: 사용자가 기존 대화를 확인한 **직후**에 "여기에 더 붙이겠다"가 자연스럽고, 삭제 버튼과는 떨어뜨려야 오조작이 줄어든다 |
 | 업데이트 검증·상태 | 순서대로 토스트: ① 키 없음 → `status.noKey` ② 대화 공백 → `toast.enterConversation`. 입력이 비어 있으면 버튼도 `disabled`라 ②는 방어선이다. 실행 중에는 버튼 `disabled` + 라벨 `persona.detail.updateLoading`("업데이트 중..."). 성공 → 토스트 `toast.personaUpdated {name}`, textarea 비움, 모달은 **열린 채로** 갱신된 내용을 보여준다(닫으면 결과를 못 본다). 실패 → `Error.message` 그대로, 없으면 `toast.personaUpdateFail`. 입력은 유지 |
 | 삭제 | `window.confirm("\"{name}\" 페르소나를 삭제할까요?")` → 확인 시 `removePersona` → 토스트 `toast.personaDeleted` → 모달 닫힘 → 목록 재조회. 실패 → `toast.deleteFail` |
@@ -422,7 +410,9 @@ export default {
 
 v1은 "받은 메시지" textarea 하나였다. v2는 그 자리에 **최근 대화 스레드**를 받고, 앱이 잡은 **답장 대상**을 보여 주며, **답장 의도**를 고르는 줄을 더한다(근거는 [PRD §8 부속 결정 4](./PRD.md)). 결과 영역(분석 카드 + 후보 3장)은 v1과 **완전히 같다** — 바뀐 것은 입력부뿐이다.
 
-P9에서 최근 대화 입력에 **텍스트 / 캡처 이미지 세그먼트**를 더했다([PRD §8 부속 결정 5](./PRD.md), FR-39). 생성 시트(§5.2)와 **같은 패턴**이다 — 같은 세그먼트 레시피, 같은 드롭존, 같은 썸네일 그리드, 기본은 텍스트. 두 화면이 같은 모양으로 같은 선택을 묻게 해서 사용자가 한 번만 배우게 한다. 다만 결과는 다르다: 생성 시트는 두 모드가 같은 것을 만들지만, 분석 탭의 이미지 모드는 **타겟 칩·타겟 피커·스레드 드래프트가 통째로 사라진다.** 앱이 답장 대상을 모르기 때문이며, 그 사실을 화면이 숨기지 않는다.
+P9에서 최근 대화 입력에 **텍스트 / 캡처 이미지 세그먼트**를 더했다([PRD §8 부속 결정 5](./PRD.md), FR-39). **P10 이후 이 패턴이 남아 있는 화면은 여기 하나다** — 생성 시트(§5.2)는 캡처 모드를 걷어내고 단일 흐름으로 돌아갔고, 이 탭은 그대로 둔다. 분석이 필요로 하는 것은 화면 한 장 분량의 단기 맥락이라 캡처가 맞는 크기이기 때문이다([PRD §8 부속 결정 3](./PRD.md)의 재검토 ④). 따라서 아래 §6.1의 세그먼트·드롭존·썸네일 규칙은 **이 문서에서 그 형태의 단일 출처**이며, 다른 화면을 참조하지 않는다.
+
+이미지 모드에서는 **타겟 칩·타겟 피커·스레드 드래프트가 통째로 사라진다.** 앱이 답장 대상을 모르기 때문이며, 그 사실을 화면이 숨기지 않는다.
 
 ```
 ┌────────────────────────────────────────────┐
@@ -523,10 +513,10 @@ P9에서 최근 대화 입력에 **텍스트 / 캡처 이미지 세그먼트**�
 | 페르소나 칩 | `listPersonaSummaries()` 결과. 칩 = 6×6 이니셜 아바타 + 이름, 활성/비활성은 §2.5 칩 레시피. 진입 시 `useApp.selectedPersonaId`(TRD §3.9)가 목록에 있으면 그것을, 없으면 첫 번째를 선택. 가로 스크롤 `flex gap-2 overflow-x-auto pb-1 scrollbar-none` |
 | 페르소나 전환 | 스레드를 **그 페르소나의 드래프트로 갈아 끼우고**(§6.3), 수동 타겟과 피커 열림 상태를 초기화하며, **고른 캡처도 비운다** — 다른 상대의 대화 캡처를 들고 갈 이유가 없고, 캡처는 드래프트로 저장되지 않아 복원할 대상도 아니다. 입력 모드 자체는 유지한다(방금 고른 선택을 되돌릴 이유가 없다). 이전 결과 카드는 그대로 둔다 — 사용자가 방금 본 답장을 아직 복사 중일 수 있다 |
 | 페르소나 없음 | 상단 amber 배너 안내. 분석 버튼 `disabled` |
-| 입력 모드 세그먼트 | 섹션 라벨 **아래**, 입력 카드 **위**에 놓는다(무엇을 넣을지 고른 뒤 넣는 순서 — §5.2와 같다). §2.5 세그먼트 탭 레시피 그대로: 컨테이너 `flex rounded-2xl bg-slate-100 p-1 text-xs font-semibold`, 각 버튼 `flex-1 rounded-xl px-3 py-2`, 활성 `bg-white text-indigo-600 shadow-soft-sm`. 라벨은 `analyze.tabText`("✍️ 텍스트") / `analyze.tabImage`("🖼️ 캡처 이미지"). **기본은 텍스트**(PRD §8 부속 결정 5) |
-| 모드 전환 | 두 모드의 입력값은 **각각 보존**한다 — 텍스트로 돌아오면 붙여넣던 스레드가, 이미지로 돌아오면 고른 썸네일이 남아 있다. 전환만으로 값을 지우면 잘못 누른 사용자가 입력을 잃는다(§5.2와 같은 규칙). 제출 시에는 **현재 선택된 모드의 값만** 보낸다 |
-| 드롭존(이미지 모드) | `<label>` 안에 `<input type="file" accept="image/*" multiple hidden>`. 모양 `flex flex-col items-center justify-center gap-2 min-h-32 rounded-2xl border-2 border-dashed border-slate-200 bg-white text-slate-400 text-sm font-medium cursor-pointer`, 호버 `border-indigo-300 text-indigo-500`. 문구 `analyze.imageDropzone`(생성 시트와 같은 "카카오톡·문자 캡처 이미지 선택"). 고른 파일은 `fileToInlineImage`(TRD §3.4.1)로 변환해 **기존 목록 뒤에 이어 붙인다**. 변환 실패 → 토스트 `toast.imageLoadFail` |
-| 썸네일 그리드(이미지 모드) | 드롭존 아래 `flex flex-wrap gap-2`. 각 항목 `relative w-16 h-16 overflow-hidden rounded-xl border border-slate-200`에 `<img class="w-full h-full object-cover" alt="">`, 우상단 제거 버튼 `absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/70 text-white text-xs`. 제거는 확인 없이 즉시. 0장이면 렌더하지 않는다 — §5.2와 완전히 같다 |
+| 입력 모드 세그먼트 | 섹션 라벨 **아래**, 입력 카드 **위**에 놓는다(무엇을 넣을지 고른 뒤 넣는 순서). §2.5 세그먼트 탭 레시피 그대로: 컨테이너 `flex rounded-2xl bg-slate-100 p-1 text-xs font-semibold`, 각 버튼 `flex-1 rounded-xl px-3 py-2`, 활성 `bg-white text-indigo-600 shadow-soft-sm`. 라벨은 `analyze.tabText`("✍️ 텍스트") / `analyze.tabImage`("🖼️ 캡처 이미지"). **기본은 텍스트**(PRD §8 부속 결정 5) |
+| 모드 전환 | 두 모드의 입력값은 **각각 보존**한다 — 텍스트로 돌아오면 붙여넣던 스레드가, 이미지로 돌아오면 고른 썸네일이 남아 있다. 전환만으로 값을 지우면 잘못 누른 사용자가 입력을 잃는다(§12 U14와 같은 종류의 손실). 제출 시에는 **현재 선택된 모드의 값만** 보낸다 |
+| 드롭존(이미지 모드) | `<label>` 안에 `<input type="file" accept="image/*" multiple hidden>`. 모양 `flex flex-col items-center justify-center gap-2 min-h-32 rounded-2xl border-2 border-dashed border-slate-200 bg-white text-slate-400 text-sm font-medium cursor-pointer`, 호버 `border-indigo-300 text-indigo-500`. 문구 `analyze.imageDropzone`("카카오톡·문자 캡처 이미지 선택" — P5가 생성 시트에 쓰던 문구와 같고, 그 화면이 사라진 뒤에도 이 키는 그대로다). 고른 파일은 `fileToInlineImage`(TRD §3.4.1)로 변환해 **기존 목록 뒤에 이어 붙인다**. 변환 실패 → 토스트 `toast.imageLoadFail` |
+| 썸네일 그리드(이미지 모드) | 드롭존 아래 `flex flex-wrap gap-2`. 각 항목 `relative w-16 h-16 overflow-hidden rounded-xl border border-slate-200`에 `<img class="w-full h-full object-cover" alt="">`, 우상단 제거 버튼 `absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/70 text-white text-xs`. 제거는 확인 없이 즉시(다시 고르면 되므로). 0장이면 렌더하지 않는다 |
 | 힌트(이미지 모드) | 썸네일 아래 `text-xs text-slate-400 leading-relaxed`, 문구 `analyze.imageHint`: **"🖼️ 캡처의 맨 아래 상대 메시지에 답장해요. 답장할 메시지가 잘 보이게, 여러 장이면 시간 순서대로 올려주세요. 캡처 이미지도 Google로 전송됩니다."** 세 문장이 각각 일한다 — ① 앱이 타겟을 표시하지 못하는 자리를 대신해 무엇에 답할지 알려주고, ② 오판을 줄이는 촬영 지침(PRD R10의 완화책)이며, ③ PRD DR-4의 캡처 전송 고지다 |
 | 스레드 입력 카드 | **텍스트 모드 전용.** `rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-soft-sm`; textarea `bg-transparent px-5 pt-4 pb-2 rows=7 resize-none leading-relaxed`, placeholder는 카카오톡식 3줄 예시(`analyze.threadPlaceholder`). v1의 5행에서 **7행으로 키웠다** — 이제 한 줄이 아니라 대화 몇 줄을 넣는 자리이기 때문이다(D3) |
 | 타겟 칩 | **텍스트 모드 전용.** 카드 하단 `border-t border-slate-100` 영역. `analyze.target`("이 메시지에 답장") 라벨(인디고 semibold) + 검출된 메시지를 따옴표로 감싸 **60자에서 자르고 `…`** 를 붙인다. 스레드가 비었거나 타겟을 못 잡으면 대신 `analyze.targetEmpty` 안내를 회색으로 보여준다. **이 줄이 v2의 핵심 UI다** — 앱이 무엇에 답하는지 사용자가 항상 볼 수 있어야 한다(PRD FR-29) |
@@ -542,7 +532,7 @@ P9에서 최근 대화 입력에 **텍스트 / 캡처 이미지 세그먼트**�
 
 ① 페르소나 미선택 → `toast.selectPersona` ② **모드별 입력 검사** — 텍스트 모드는 스레드 공백 → `toast.enterMessage`, 이미지 모드는 캡처 0장 → `toast.addImage` ③ 키 없음 → `status.noKey`.
 
-①과 ③은 모드와 무관하게 같은 순서로 돌고, 바뀌는 것은 ②뿐이다. v1·v2의 순서와 키를 그대로 두어 텍스트 경로에 회귀가 없게 했고, ②의 이미지 분기는 생성 시트(§5.2)가 쓰는 것과 **같은 토스트 키**(`toast.addImage`)를 재사용한다.
+①과 ③은 모드와 무관하게 같은 순서로 돌고, 바뀌는 것은 ②뿐이다. v1·v2의 순서와 키를 그대로 두어 텍스트 경로에 회귀가 없게 했고, ②의 이미지 분기는 P5가 생성 시트용으로 만든 토스트 키(`toast.addImage`)를 재사용한다 — **P10에서 생성 시트가 그 자리를 떠나 이제 이 화면이 유일한 사용처다**(§10.1).
 
 의도는 **검증하지 않는다** — 비어 있는 것이 정상값이기 때문이다. 타겟도 검증하지 않는다. 텍스트 모드에서는 파서가 마지막 줄 폴백까지 갖고 있어(TRD §3.11) 스레드가 비어 있지 않으면 타겟이 항상 잡히고, 이미지 모드에서는 **애초에 클라이언트가 검증할 타겟이 없다**(모델이 캡처에서 고른다 — PRD FR-39).
 
@@ -657,7 +647,7 @@ P9에서 최근 대화 입력에 **텍스트 / 캡처 이미지 세그먼트**�
 | 레이아웃 | 다른 탭과 같은 `section max-w-2xl mx-auto px-4 py-6 space-y-5`. 제목 + 부제(`settings.subtitle`) 뒤에 카드 3장 |
 | 카드 1·2 | `rounded-2xl bg-white border border-slate-200 shadow-soft-sm overflow-hidden`. 머리(`px-4 py-3 border-b border-slate-100`)에 제목 + 설명, 본문에 내용. §2.5의 목록 카드 레시피를 그대로 쓴다 |
 | 버튼 3개 | `p-4 grid gap-3 sm:grid-cols-3` — 모바일에서는 세로로 쌓이고 넓은 화면에서만 한 줄이 된다. 내보내기·가져오기는 중립(`border-slate-200 bg-slate-50 text-slate-700`), **전체 삭제만 red**(`border-red-100 bg-red-50 text-red-600`)로 무게를 달리한다. 아이콘은 텍스트 글리프(`↓`/`↑`/`×`, `aria-hidden`)로 두어 새 SVG를 늘리지 않는다 |
-| 가져오기 입력 | 화면에 보이는 것은 버튼이고, 실제 입력은 `<input type="file" accept="application/json,.json" hidden>`이다. 버튼이 `ref`로 그 입력을 클릭한다 — 생성 시트의 드롭존과 같은 패턴(§5.2)이며, 파일 입력의 기본 모양이 화면 톤과 맞지 않기 때문이다. **같은 파일을 다시 고를 수 있도록** 처리 후 `input.value`를 비운다(비우지 않으면 `change`가 오지 않는다) |
+| 가져오기 입력 | 화면에 보이는 것은 버튼이고, 실제 입력은 `<input type="file" accept="application/json,.json" hidden>`이다. 버튼이 `ref`로 그 입력을 클릭한다 — 생성 시트의 대화 파일 첨부 버튼과 같은 발상(§5.2)이며, 파일 입력의 기본 모양이 화면 톤과 맞지 않기 때문이다. **같은 파일을 다시 고를 수 있도록** 처리 후 `input.value`를 비운다(비우지 않으면 `change`가 오지 않는다) |
 | 동작 잠금 | 세 버튼은 `busy` 상태 하나(`'export' \| 'import' \| 'clear' \| null`)를 공유해 **하나가 도는 동안 셋 다 비활성**이다. 백업 도중에 전체 삭제가 겹치면 무엇이 저장됐는지 말할 수 없기 때문이다. 진행 중인 버튼은 라벨이 `common.saving`/`common.loading`으로 바뀐다 |
 | 전체 삭제 확인 | `window.confirm(settings.confirmClearAll)` — "API 키, 페르소나, 분석 기록, 작성 중인 대화를 이 브라우저에서 모두 삭제할까요? 이 작업은 되돌릴 수 없습니다." 삭제 대상을 **문구에 열거한다**(§8.5의 확인 대화상자 규칙을 따르되, 되돌릴 수 없는 유일한 동작이라 무엇이 사라지는지 이름으로 말한다) |
 | 삭제 후 | 키가 사라지므로 **온보딩 모달이 즉시 다시 화면을 점유한다.** 설정 탭에 머문 채로 모달이 뜨는 모습이며, 별도 화면 이동을 하지 않는다 — 키를 다시 넣으면 그 자리에서 이어진다 |
@@ -685,12 +675,13 @@ P9에서 최근 대화 입력에 **텍스트 / 캡처 이미지 세그먼트**�
 | 상황 | 표현 |
 |---|---|
 | 목록 로딩(페르소나/기록/칩) | 텍스트 `불러오는 중...`(`text-slate-400 text-sm text-center py-8`) |
-| LLM 호출(생성) | 제출 버튼 `disabled` + 라벨 교체(`페르소나 생성 중...`). 다른 입력은 편집 가능하되 제출 불가. 캡처 이미지 모드도 같은 표시를 쓴다 — 타임아웃이 180초로 더 길지만 남은 시간을 알 수 없어 진행률·예상 시간을 넣지 않는다(§12 U10·U19) |
-| LLM 호출(분석) | 버튼 `disabled` + 라벨 `메시지 분석 중...` + 말풍선 점 3개 인디케이터. **캡처 이미지 모드도 같은 표시를 쓴다** — 생성과 같은 이유로 진행률·예상 시간을 넣지 않는다(§12 U10·U19). 분석 경로의 이미지 요청 지연은 아직 실측하지 않았다(PRD §11) |
+| LLM 호출(생성) | 제출 버튼 `disabled` + 라벨 교체(`페르소나 생성 중...`). 다른 입력은 편집 가능하되 제출 불가. **P10 이후 생성은 언제나 텍스트 요청**(60초 타임아웃)이므로 이미지 경로를 위한 단서가 필요 없다. 진행률·예상 시간은 넣지 않는다(§12 U10) |
+| LLM 호출(분석) | 버튼 `disabled` + 라벨 `메시지 분석 중...` + 말풍선 점 3개 인디케이터. **캡처 이미지 모드도 같은 표시를 쓴다** — 같은 이유로 진행률·예상 시간을 넣지 않는다(§12 U10). 캡처 1장 분석 지연은 2.75s로 한 번 실측했다(표본 1, PRD §11) |
+| 대화 파일 첨부 | **로딩 표시를 두지 않는다.** 파일 읽기는 로컬 `FileReader`라 네트워크를 타지 않고, 완료 신호는 textarea가 채워지는 것과 첨부 안내 문구가 나타나는 것 자체다(§5.2). 매우 큰 파일에서 체감 지연이 있는지는 **미확인**(§12 U32) |
 | LLM 호출(페르소나 업데이트) | 업데이트 버튼 `disabled` + 라벨 `업데이트 중...`(`persona.detail.updateLoading`). 상세 모달은 열린 채 유지된다 — 결과를 그 자리에서 봐야 하기 때문이다(§5.3) |
 | 상세 조회 | 화면 전체 딤(`slate-900/20`) + 중앙 카드 `불러오는 중...` |
 | 설정 탭 백업·삭제 | 해당 버튼 라벨을 `저장 중...`/`불러오는 중...`으로 바꾸고 **세 버튼을 모두 비활성**한다(§7b). 딤이나 스피너를 두지 않는다 — IndexedDB 조회·쓰기라 LLM 호출과 달리 대개 즉시 끝나고, 오래 걸리면 그때 다시 본다 |
-| 진행률 | 표시하지 않음(LLM 응답 시간을 예측할 수 없음). 요청 타임아웃(텍스트 60초 / 캡처 이미지 180초)은 TRD의 `gemini.ts`가 오류로 변환해 토스트로 알린다. 두 경로의 타임아웃 문구는 같다 |
+| 진행률 | 표시하지 않음(LLM 응답 시간을 예측할 수 없음). 요청 타임아웃(텍스트 60초 / 캡처 이미지 180초 — 후자는 P10 이후 분석 탭에만 걸린다)은 TRD의 `gemini.ts`가 오류로 변환해 토스트로 알린다. 두 경로의 타임아웃 문구는 같다 |
 
 ### 8.3 빈 상태
 | 화면 | 구성 |
@@ -746,20 +737,23 @@ P9에서 최근 대화 입력에 **텍스트 / 캡처 이미지 세그먼트**�
 | `btn.*` | 화면 하나에만 쓰이는 주 버튼 라벨 | `btn.saveKey`(온보딩 "키 저장하고 시작하기") |
 | `status.*` | 헤더 키 상태 | `status.ready`, `status.noKey` |
 | `onboarding.*` | 온보딩 모달 | `onboarding.welcomeTitle`, `onboarding.welcomeDesc`, `onboarding.intro`, `onboarding.keyLabel`, `onboarding.consent`, `onboarding.helpCta`, `onboarding.saveKey` |
-| `persona.*` | 페르소나 탭·생성·상세 | `persona.empty.title`, `persona.create.title`, `persona.create.otherName`, `persona.create.convPlaceholder`, `persona.create.textHint`, `persona.create.tabText`, `persona.create.tabImage`, `persona.create.imageDropzone`, `persona.create.imageHint`, `persona.create.imagePlaceholder`, `persona.detail.title`, `persona.detail.convToggle`, **`persona.detail.updateTitle`**, **`persona.detail.updatePlaceholder`**, **`persona.detail.updateCta`**, **`persona.detail.updateLoading`**, `persona.field.communication_style` … `persona.field.relationship_dynamics` |
+| `persona.*` | 페르소나 탭·생성·상세 | `persona.empty.title`, `persona.create.title`, `persona.create.otherName`, `persona.create.convPlaceholder`, `persona.create.textHint`, **`persona.create.attachFile`**, **`persona.create.attachHint`**, **`persona.create.attachedInfo`**(`{n}`), **`persona.create.attachedInfoTrimmed`**(`{n}`·`{total}`), `persona.detail.title`, `persona.detail.convToggle`, `persona.detail.updateTitle`, `persona.detail.updatePlaceholder`, `persona.detail.updateCta`, `persona.detail.updateLoading`, `persona.field.communication_style` … `persona.field.relationship_dynamics` |
 | `analyze.*` | 분석 탭 | `analyze.selectPersona`, `analyze.run`, `analyze.aiLabel`, `analyze.candidatesTitle`, `analyze.reason`, `analyze.copy`, `analyze.copied`, `analyze.noPersonaHint`, `analyze.loading`, `analyze.threadLabel`, `analyze.threadHint`, `analyze.threadPlaceholder`, `analyze.target`, `analyze.targetEmpty`, `analyze.pickTarget`, `analyze.intentLabel`, **`analyze.tabText`**, **`analyze.tabImage`**, **`analyze.imageDropzone`**, **`analyze.imageHint`**, **`analyze.imagePlaceholder`** |
 | `intent.*` | 답장 의도 라벨(1.2 신규 영역) | `intent.none`, `intent.comfort`, `intent.solve`, `intent.lighten`, `intent.decline`, `intent.boundary`, `intent.persuade`, `intent.custom`, `intent.customPlaceholder` |
 | `history.*` | 기록 탭 | `history.empty`, `history.candidatesTitle`, `history.delete`, `history.confirmDelete` |
 | `settings.*` | 설정 탭(1.4 신규 영역) — 화면 문구와 그 화면 전용 토스트를 함께 담는다 | `settings.subtitle`, `settings.dataTitle`, `settings.dataDesc`, `settings.exportBtn`, `settings.importBtn`, `settings.clearBtn`, `settings.privacyTitle`, `settings.privacyDesc`, `settings.privacyLocal`, `settings.privacyGemini`, `settings.privacyKey`, `settings.privacyLoss`, `settings.privacyConsent`, `settings.disclaimerTitle`, `settings.disclaimerDesc`, `settings.confirmClearAll`, `settings.toastExported`, `settings.toastExportFailed`, `settings.toastImported`(`{personas}`·`{analyses}`·`{drafts}`), `settings.toastImportFailed`, `settings.toastCleared`, `settings.toastClearFailed` |
-| `toast.*` | 사용자 행위 결과 알림 | `toast.keySaved`, `toast.keyDeleted`, `toast.invalidKeyFormat`, `toast.confirmLocalOnly`, `toast.enterName`, `toast.convTooShort`, `toast.addImage`, `toast.imageLoadFail`, `toast.personaCreated`, `toast.personaCreateFail`, `toast.personaDeleted`, `toast.personaSelected`, **`toast.enterConversation`**, **`toast.personaUpdated`**, **`toast.personaUpdateFail`**, `toast.selectPersona`, `toast.enterMessage`, `toast.analyzeFail`, `toast.copyFail`, `toast.historyDeleted`, `toast.deleteFail`, `toast.loadDetailFail`, `toast.load*Fail` |
+| `toast.*` | 사용자 행위 결과 알림 | `toast.keySaved`, `toast.keyDeleted`, `toast.invalidKeyFormat`, `toast.confirmLocalOnly`, `toast.enterName`, `toast.convTooShort`, **`toast.chatFileReadFail`**, `toast.addImage`, `toast.imageLoadFail`, `toast.personaCreated`, `toast.personaCreateFail`, `toast.personaDeleted`, `toast.personaSelected`, **`toast.enterConversation`**, **`toast.personaUpdated`**, **`toast.personaUpdateFail`**, `toast.selectPersona`, `toast.enterMessage`, `toast.analyzeFail`, `toast.copyFail`, `toast.historyDeleted`, `toast.deleteFail`, `toast.loadDetailFail`, `toast.load*Fail` |
 | `err.*` | Gemini/저장소 오류(gemini.ts·db.ts가 사용) | `err.invalidKey`, `err.network`, `err.rateLimit`, `err.timeout`, `err.serviceTemp`, `err.aiGeneric`, `err.keyNotSet`, `err.dbOpen` |
 | `parse.*` | LLM 응답 JSON 파싱 실패 폴백 문구(analysis.ts가 사용, TRD §3.8) | `parse.failAnalysis`, `parse.failLabel`, `parse.failReason` |
 
 - 필드 라벨 키의 세부 이름은 `PersonaFields`의 속성명과 **동일**하게 둔다(`persona.field.<속성명>`) — 알 수 없는 키가 와도 `t()` 폴백으로 속성명이 그대로 표시된다.
 - 보간 파라미터는 `{name}`, `{my}`, `{n}`, `{date}`, `{msg}`처럼 의미가 드러나는 이름을 쓴다.
-- `persona.create.imagePlaceholder`(`{n}` 보간)는 화면 라벨이 아니라 **저장되는 값**이다 — 캡처 이미지 모드에서 `PersonaRecord.conversation` 자리에 들어가 상세 모달의 "원본 대화 기록"에 그대로 보인다(TRD §3.7). 그래서 생성 당시 언어로 굳고, 나중에 UI 언어를 바꿔도 번역되지 않는다(위 §10의 저장 데이터 규칙과 같다). 영역을 따로 만들지 않고 생성 시트 영역(`persona.create.*`)에 둔다 — 이 문자열을 만드는 곳이 생성 시트 하나뿐이기 때문이다.
-- **P9의 신규 키 5종은 모두 `analyze.*`에 둔다.** `analyze.tabText`·`analyze.tabImage`·`analyze.imageDropzone`·`analyze.imageHint`는 분석 탭 화면 문구이므로 자리가 자명하다. 저장되는 값인 **`analyze.imagePlaceholder`(`{n}` 보간)도 새 영역을 만들지 않고 여기에 둔다** — 바로 위 `persona.create.imagePlaceholder` 항목과 같은 판단이며, 이 문자열을 만드는 곳이 분석 경로 하나뿐이기 때문이다. 문구는 생성 쪽과 대구를 이룬다: "[채팅 캡처 이미지 {n}장으로 생성된 페르소나]" / "[채팅 캡처 이미지 {n}장으로 분석한 답장]".
-- **P9은 새 토스트 키를 만들지 않는다.** 이미지 0장 거부는 생성 시트가 쓰는 `toast.addImage`를, 파일 변환 실패는 `toast.imageLoadFail`을 그대로 재사용한다. 두 화면에서 같은 상황에 같은 문구를 보여 주는 것이 맞고, 화면마다 키를 나누면 문구가 갈라진다.
+- **P10에서 `persona.create.*`의 다섯 키를 지운다** — `tabText`·`tabImage`·`imageDropzone`·`imageHint`·`imagePlaceholder`. 생성 시트에 이미지 모드가 없어져 어느 것도 렌더되지 않기 때문이며, 남겨 두면 다음 사람이 "어딘가 쓰이는 문구"로 오해한다. **`analyze.*`의 같은 이름 키들은 지우지 않는다**(분석 탭이 계속 쓴다). `toast.addImage`·`toast.imageLoadFail`도 분석 탭이 쓰므로 남는다 — P5에서 만들 때 두 화면이 공유하도록 이름에 화면을 넣지 않은 것이 여기서 값을 한다.
+  - `persona.create.imagePlaceholder`가 사라져도 **이미 저장된 문자열은 그대로 남는다.** 그것은 키가 아니라 생성 시점에 굳은 값이라 사전에서 키를 지워도 화면 표시가 바뀌지 않는다(§10의 저장 데이터 규칙).
+- **P10의 신규 키 4종은 모두 `persona.create.*`에 둔다.** `attachFile`·`attachHint`는 버튼과 안내 문구이고, `attachedInfo`·`attachedInfoTrimmed`는 첨부 직후의 응답 문구다. 뒤 둘을 **한 키에 조건 분기로 몰지 않고 둘로 나눈 이유**는 잘렸을 때만 원본 글자 수를 말해야 하기 때문이다 — 잘리지 않았는데 "원본 1,200자 중 1,200자"라고 적으면 없는 손실을 암시한다.
+- **`toast.chatFileReadFail`은 `toast.*`에 둔다.** 파일 읽기 실패는 사용자 행위의 결과 알림이고, `settings.*`처럼 화면 전용 예외를 만들 이유가 없다.
+- **P9의 신규 키 5종은 모두 `analyze.*`에 둔다.** `analyze.tabText`·`analyze.tabImage`·`analyze.imageDropzone`·`analyze.imageHint`는 분석 탭 화면 문구이므로 자리가 자명하다. 저장되는 값인 **`analyze.imagePlaceholder`(`{n}` 보간)도 새 영역을 만들지 않고 여기에 둔다** — 이 문자열을 만드는 곳이 분석 경로 하나뿐이기 때문이다. 화면 라벨이 아니라 `AnalysisRecord.message`·`target_message`에 들어가 기록 목록 미리보기에 보이는 값이므로 **생성 당시 언어로 굳고**, 나중에 UI 언어를 바꿔도 번역되지 않는다(TRD §3.8).
+- **P9은 새 토스트 키를 만들지 않았다.** 이미지 0장 거부는 `toast.addImage`, 파일 변환 실패는 `toast.imageLoadFail`을 P5의 생성 시트와 공유했다. **P10에서 생성 시트가 그 자리를 떠나면서 두 키의 유일한 사용처가 분석 탭이 됐다** — 이름에 화면을 넣지 않았기에 사용처가 줄어도 그대로 쓸 수 있다.
 - `intent.*`만 영역을 새로 만든 이유: 이 라벨 키들은 화면 소속이 아니라 **프리셋 자체의 이름**이고, `REPLY_INTENTS`(TRD §3.1)가 키를 데이터로 들고 다닌다. `analyze.*` 아래에 넣으면 나중에 다른 화면에서 같은 프리셋을 쓸 때 이름이 어긋난다. `intent.none`과 `intent.custom`은 프리셋이 아니지만 같은 칩 줄에 나란히 서므로 같은 영역에 둔다.
 - 페르소나 업데이트 문구는 상세 화면 소속이라 `persona.detail.*`에 둔다 — 이 표의 `<영역>.<대상>.<세부>` 규칙을 그대로 따른 것이다.
 - **`settings.*`의 토스트만 `toast.*`가 아니라 자기 영역에 둔다.** 다른 화면의 결과 알림은 `toast.*`에 모아 두었지만, 설정 탭의 여섯 문구는 그 화면 밖에서 쓰일 일이 없고 화면 문구(`settings.dataDesc` 등)와 짝을 이뤄 함께 고쳐진다. 규칙의 예외이므로 여기 적어 둔다 — 다른 화면의 새 토스트는 계속 `toast.*`로 간다.
@@ -810,9 +804,9 @@ M1 시점에 종결된 항목은 취소선과 결과만 남긴다. 나머지는 
 | U14 | 생성 시트 백드롭 오클릭으로 입력 유실(§1.1 A) | 감수한다(확인 대화상자 없음). 실사용에서 발생 빈도를 관찰해 대응 필요 여부 판단 | 실사용 관찰(계속) |
 | U15 | 온보딩 고지 문구·위치(PRD DR-4 Gemini 전송·민감정보 주의, DR-6 복구 불가) | 기본안은 온보딩 모달 intro/동의 문구. 세부 문구는 P2 온보딩 문구 작성 시 PRD/TRD와 맞춤 | P2 docs |
 | U16 | 색 대비 AA 미달(red-500/red-50 3.44, emerald-600/emerald-50 3.58, §11) | 배지·버튼 라벨에 한정해 감수. 더 진한 단계로 조정할지 검토(예: emerald-700/emerald-50은 5.21로 통과, red-600/red-50은 4.41로 여전히 미달) | 실사용 후 |
-| U18 | 캡처 장수 상한과 썸네일 그리드가 시트를 넘칠 때의 처리 | 상한을 두지 않고 시작한다(§5.2). 많이 고르면 그리드가 길어져 드롭존이 밀려 올라가는데, 시트 본문이 `overflow-y-auto`라 스크롤로 닿을 수는 있다. 몇 장부터 불편한지는 **미확인** — 상한·리사이즈 도입은 지연 실측(PRD §11)과 함께 판단 | 실사용 관찰(계속) |
-| U19 | 이미지 생성 대기 중 표시 | 텍스트와 같은 버튼 라벨 교체만 쓴다. 타임아웃이 180초로 길지만 **실제 지연을 재지 않아** 기대 시간 문구를 넣을 근거가 없다(U10과 같은 이유) | 실사용 관찰(계속) |
-| U20 | 드롭존이 실제 드래그 앤 드롭을 받지는 않음 | 이름은 드롭존이지만 동작은 **파일 선택 다이얼로그**다(`<label>` + hidden `<input type="file">`). 주 사용 환경이 모바일이라 드래그 앤 드롭의 이득이 작다고 보고 `onDrop` 처리를 넣지 않았다. 데스크톱 실사용에서 요구되면 추가 | 실사용 후 |
+| ~~U18~~ | 생성 시트의 캡처 장수 상한과 썸네일 그리드가 넘칠 때의 처리 | **종결(P10)** — 생성 시트에서 캡처 모드를 제거해 이 자리가 사라졌다. 분석 탭의 같은 물음은 U31로 남는다 | 완료 |
+| ~~U19~~ | 이미지 생성 대기 중 표시 | **종결(P10)** — 생성이 텍스트 전용이 되어 이미지 대기 시간이라는 상황이 없어졌다. 분석 탭의 대기 표시는 §8.2 그대로이고, 대기 시간 문구를 넣지 않는 이유는 U10에 남는다 | 완료 |
+| ~~U20~~ | 생성 시트의 드롭존이 실제 드래그 앤 드롭을 받지는 않음 | **종결(P10)** — 드롭존이 사라졌다. 새 첨부 버튼도 같은 형태(`<label>` + hidden `<input type="file">`)이고 `onDrop`을 두지 않는다. 판단 근거는 그대로다 — 주 사용 환경이 모바일이라 드래그 앤 드롭의 이득이 작다. 분석 탭 드롭존에는 U20의 물음이 그대로 유효하다 | 완료(분석 탭은 유지) |
 | U21 | 타겟 피커의 라인 목록이 긴 스레드에서 쓸 만한지 | 목록에 `max-h-40 overflow-y-auto`만 두고 검색·접기를 넣지 않았다(§6.1). 수십 줄을 붙여넣으면 원하는 줄까지 스크롤이 길어지는데, **실사용에서 몇 줄부터 불편한지 확인하지 않았다.** 대개 답장 대상은 끝에서 한두 번째라 목록을 역순으로 두는 안도 후보다 | 실사용 관찰(계속) |
 | U22 | 타겟 칩의 60자 컷과 피커의 50자 컷 | 임시값이다. 컷이 짧으면 어느 메시지인지 구분이 안 되고, 길면 칩 한 줄이 두 줄로 늘어져 레이아웃이 흔들린다. 근거 실측은 없다 | 실사용 후 |
 | U23 | 스레드 드래프트의 삭제 수단 | **부분 해소(P8).** 설정 탭의 전체 삭제가 드래프트도 함께 지운다(§7b). 페르소나별 개별 삭제 버튼과 "저장된 드래프트가 있다"는 표시는 여전히 없다 | 실사용 후 |
@@ -823,4 +817,6 @@ M1 시점에 종결된 항목은 취소선과 결과만 남긴다. 나머지는 
 | U28 | 잘못된 백업 파일을 골랐을 때의 안내 수준 | 실패 토스트 한 줄(`settings.toastImportFailed`)로만 알린다. "형식이 아니다 / 버전이 다르다 / JSON이 깨졌다"를 구분해 보여주지 않는다 — 사용자가 할 일은 어느 쪽이든 "맞는 파일을 다시 고르기" 하나라고 봤다. 구분이 필요하다는 신호가 보이면 문구를 나눈다 | 실사용 후 |
 | U29 | 이미지 모드에서 답장 대상을 보여줄 수 없는 자리(§6.1) | 안내 문구를 두지 않고 힌트 첫 문장("캡처의 맨 아래 상대 메시지에 답장해요")으로 대신한다. 대안은 분석 **결과**에 모델이 무엇에 답했는지를 한 줄로 되돌려 받아 표시하는 것인데, 그러려면 출력 JSON에 필드를 하나 더해야 하고 그 순간 두 모드의 출력 계약이 갈라진다(TRD §3.5가 지키려는 것). 오판이 실제로 잦다면 그 비용을 다시 저울질한다 | 실사용 관찰(§12 U30과 함께) |
 | U30 | 이미지 모드 답장 대상 오판의 체감 빈도 | **미확정.** 모델이 말풍선 좌/우 위치와 순서로 마지막 상대 메시지를 고르며, 틀려도 고칠 수단이 없다(PRD R10 / TRD §10 #27). 화면 완화책은 힌트의 촬영 지침 한 줄뿐이다. 잦다면 후보는 셋 — U29의 결과 표시, 이미지 모드에서도 타겟을 직접 입력하는 칸, 그리고 텍스트 모드 권유 | P9 검증에서 1회 관찰, 판단은 실사용 |
-| U31 | 분석 탭 캡처 장수 상한·썸네일이 화면을 밀어내는 정도 | 상한을 두지 않고 시작한다(§5.2 U18과 같은 판단). 분석 탭은 시트가 아니라 페이지라 그리드가 길어지면 의도 칩과 실행 버튼이 아래로 밀리는데, 페이지 스크롤로 닿을 수는 있다. 최근 맥락은 대개 한두 장이라 문제가 늦게 온다고 봤다 — **몇 장부터 불편한지는 미확인** | 실사용 관찰(계속) |
+| U31 | 분석 탭 캡처 장수 상한·썸네일이 화면을 밀어내는 정도 | 상한을 두지 않고 시작한다(P10에서 종결된 U18과 같은 판단이었다). 분석 탭은 시트가 아니라 페이지라 그리드가 길어지면 의도 칩과 실행 버튼이 아래로 밀리는데, 페이지 스크롤로 닿을 수는 있다. 최근 맥락은 대개 한두 장이라 문제가 늦게 온다고 봤다 — **몇 장부터 불편한지는 미확인** | 실사용 관찰(계속) |
+| U32 | 큰 대화 파일을 첨부했을 때의 체감 | 카카오톡 대화 내보내기는 수 MB에 이를 수 있는데, `FileReader.readAsText`로 **전체를 읽은 뒤** 말미만 잘라 쓴다(TRD §3.15). 읽는 동안 로딩 표시가 없고(§8.2), **몇 MB부터 체감 지연이 생기는지 재지 않았다.** 필요가 보이면 후보는 둘 — 읽는 동안 버튼 라벨을 바꾸거나, 파일의 뒷부분만 잘라 읽는 것(`File.slice`). 후자는 멀티바이트 문자가 경계에서 깨질 수 있어 그 처리가 따라붙는다 | 실사용 후 |
+| U33 | 첨부 안내 문구가 첨부 직후에만 참이라는 점 | 사용자가 textarea를 편집하면 문구를 지우는 것으로 다룬다(§5.2). 단순하지만 **한 글자만 고쳐도 사라지므로** "얼마나 쓰였는지"를 다시 보려면 재첨부해야 한다. 대안은 문구를 남기되 "편집됨" 표시를 붙이는 것인데, 상태가 하나 늘고 화면 문구도 늘어 지금은 두지 않았다 | 실사용 후 |

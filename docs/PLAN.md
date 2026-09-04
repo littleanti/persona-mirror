@@ -1,6 +1,6 @@
 # PLAN — Persora 구현 계획
 
-> 문서 버전: 2.1 · 갱신일: 2026-09-05 · 상태: P9 완료(§3 표·§4 체크리스트가 단일 출처)
+> 문서 버전: 2.2 · 갱신일: 2026-09-05 · 상태: P10 착수 — 페르소나 생성 입력을 캡처 이미지에서 카카오톡 대화 파일(.txt) 첨부로 교체(§3 표·§4 체크리스트가 단일 출처)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -20,8 +20,9 @@
 | 1.9 | 2026-09-05 | P8 완료 반영(§3 상태·§4 체크) |
 | 2.0 | 2026-09-05 | P9 착수(분석 이미지 입력): §3 표에 P9 행 추가(진행중)·P8 완료 표기 유지, §4 P9 체크리스트, §6 순서 그림·의존 근거에 P9, §7 리스크에 분석 이미지 경로 가산, §8 미확정 갱신(이미지 모드 타겟 오판율·분석 이미지 지연) |
 | 2.1 | 2026-09-05 | P9 완료 반영(§3 상태·§4 체크) |
+| 2.2 | 2026-09-05 | P10 착수(페르소나 입력 재평가 — 세 번째 피벗): §2 트리에 `chatFile.ts`·`chatFile.test.ts` 추가 및 `image.ts`·`types.ts`·`prompts.ts` 주석 정정, §3 표에 P10 행(진행중), §4 P10 체크리스트, §6 순서 그림·의존 근거에 P10, §7 리스크에 **삭감 리스크**(기능 제거가 분석 탭에 새는 경우) 추가, §8 미확정 갱신(캡처 정확도 종결 → tail 상한 적정성 신규) |
 
-> 기준 문서: [`./PRD.md`](./PRD.md) 1.4(요구사항·Acceptance), [`./TRD.md`](./TRD.md) 1.8(아키텍처·모듈 계약), [`./DESIGN.md`](./DESIGN.md) 1.5(화면·토큰). 변경 이력은 [`./LOG.md`](./LOG.md)에만 적고, 이 문서는 **현재 계획**만 서술한다. 단계가 끝날 때마다 §3 상태와 §4 체크리스트를 갱신하고 문서 버전을 0.1 올린다(M1에서 1.0에 도달했고, 이후 P5부터 1.1·1.2로 이어간다).
+> 기준 문서: [`./PRD.md`](./PRD.md) 1.5(요구사항·Acceptance), [`./TRD.md`](./TRD.md) 2.0(아키텍처·모듈 계약), [`./DESIGN.md`](./DESIGN.md) 1.6(화면·토큰). 변경 이력은 [`./LOG.md`](./LOG.md)에만 적고, 이 문서는 **현재 계획**만 서술한다. 단계가 끝날 때마다 §3 상태와 §4 체크리스트를 갱신하고 문서 버전을 0.1 올린다(M1에서 1.0에 도달했고, 이후 P5부터 1.1·1.2로 이어간다).
 
 ## 1. 원칙
 
@@ -72,7 +73,7 @@ CLAUDE.md 검증 정책을 이 프로젝트 명령으로 옮긴 것이다. **매
 
 ## 2. 목표 디렉터리 구조
 
-M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + P6의 5개(`lib/thread.ts`, `lib/drafts.ts`, 테스트 3개) + P7의 `components/ErrorBoundary.tsx`·`lib/id.test.ts` + **P8에서 만들 4개**(`routes/SettingsPage.tsx`, `lib/dataManagement.ts`, `lib/assets.ts`, `.github/workflows/deploy-pages.yml`)다. 괄호는 생성 단계이며 `(P8)`은 아직 없는 파일이라는 뜻이다.
+M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + P6의 5개(`lib/thread.ts`, `lib/drafts.ts`, 테스트 3개) + P7의 `components/ErrorBoundary.tsx`·`lib/id.test.ts` + P8의 4개(`routes/SettingsPage.tsx`, `lib/dataManagement.ts`, `lib/assets.ts`, `.github/workflows/deploy-pages.yml`) + **P10에서 만들 2개**(`lib/chatFile.ts`, `lib/chatFile.test.ts`)다. 괄호는 생성 단계이며 `(P10)`은 아직 없는 파일이라는 뜻이다. **P9까지는 파일이 늘기만 했고, P10은 파일을 지우지 않으면서 화면·계약에서 코드를 덜어내는 첫 단계다**(TRD ADR-10).
 
 ```
 (repo root)/
@@ -106,16 +107,18 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + P6의 5개(`lib/thread.t
     └── lib/
         ├── i18n.ts / useI18n.ts  # ko/en 사전, t(), 로케일(모듈 상태 + onLangChange 구독, localStorage 'pm_lang'), 훅   (P1)
         ├── store.ts              # Zustand: toasts · apiKey 미러 · selectedPersonaId (locale은 i18n.ts)   (P1, apiKey는 P2, selectedPersonaId는 P3)
-        ├── config.ts             # TEXT_MODEL · TEXT_REQUEST_TIMEOUT_MS · API_KEY_STORAGE_KEY · LEGACY_COOKIE_KEY_NAME · DB_*   (P2, IMAGE_REQUEST_TIMEOUT_MS는 P5, 저장소 키 상수 교체는 P8)
+        ├── config.ts             # TEXT_MODEL · TEXT_REQUEST_TIMEOUT_MS · API_KEY_STORAGE_KEY · LEGACY_COOKIE_KEY_NAME · DB_*   (P2, IMAGE_REQUEST_TIMEOUT_MS는 P5, 저장소 키 상수 교체는 P8, PERSONA_CHAT_TAIL_CHARS는 P10)
         ├── gemini.ts             # generate(prompt, images?) · extractJson(text) · 에러 변환   (P2, images 인자는 P5)
-        ├── image.ts              # fileToInlineImage — File → InlineImage(base64, data URL 접두 제거)   (P5)
-        ├── types.ts              # PersonaFields · PersonaRecord · PersonaSummary · CreatePersonaInput · CandidateReply · AnalysisRecord   (P3, Analysis 타입은 P4, InlineImage·images?는 P5, ReplyIntentKey·REPLY_INTENTS·AnalyzeReplyInput·선택 필드 가산은 P6)
-        ├── prompts.ts            # PERSONA_FIELDS · buildPersonaPrompt · buildAnalyzePrompt   (P3 → P4, v2는 P6)
+        ├── image.ts              # fileToInlineImage — File → InlineImage(base64, data URL 접두 제거)   (P5, P10 이후 AnalyzePage 전용)
+        ├── chatFile.ts           # parseKakaoChatTail — 카카오톡 .txt 머리말 제거 + 말미 컷(순수 함수)   (P10)
+        ├── types.ts              # PersonaFields · PersonaRecord · PersonaSummary · CreatePersonaInput · CandidateReply · AnalysisRecord   (P3, Analysis 타입은 P4, InlineImage·images?는 P5, ReplyIntentKey·REPLY_INTENTS·AnalyzeReplyInput·선택 필드 가산은 P6, CreatePersonaInput.images 제거는 P10)
+        ├── prompts.ts            # PERSONA_FIELDS · buildPersonaPrompt · buildAnalyzePrompt   (P3 → P4, v2는 P6, buildPersonaPrompt 이미지 분기 제거는 P10)
         ├── thread.ts             # parseThread · detectTarget — 최근 대화 스레드 파서(순수 함수)   (P6-1)
         ├── drafts.ts             # getThreadDraft · setThreadDraft · clearThreadDraft — localStorage `pm_thread_draft:<id>`   (P6-2, list/import/clearAll은 P8)
         ├── dataManagement.ts     # exportAppData · downloadBackup · importAppData · clearAllLocalAppData   (P8)
         ├── assets.ts             # publicAsset · APP_LOGO_SRC — BASE_URL 기준 public 자산 경로   (P8)
         ├── thread.test.ts        # vitest — 파서 형식·화자 분류·타겟 검출   (P6-1)
+        ├── chatFile.test.ts      # vitest — 머리말 제거·평문 통과·말미 컷 줄 경계·짧은 입력·CRLF   (P10)
         ├── id.test.ts            # vitest — uuid 형식·폴백 경로   (P7-2)
         ├── gemini.test.ts        # vitest — extractJson 4경로   (P6-1)
         ├── drafts.test.ts        # vitest — localStorage 스텁으로 저장·복원·폴백   (P6-2)
@@ -152,6 +155,8 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + P6의 5개(`lib/thread.t
 | **P8** 보안 점검·GitHub Pages 배포 | 배포 전에 키 취급을 실제로 점검하고, 그 결과로 **저장 매체를 바꾼다.** 함께 설정 탭(백업·전체 삭제·고지)·CSP·Pages 배포를 넣는다([PRD §8 부속 결정 1](./PRD.md) / TRD ADR-8) | `lib/config.ts`(`API_KEY_STORAGE_KEY`·`LEGACY_COOKIE_KEY_NAME`), `lib/repos/settingsRepo.ts`(localStorage + 레거시 쿠키 1회 이전), `lib/dataManagement.ts`(신규), `lib/drafts.ts`(list/import/clearAll 가산) + `lib/drafts.test.ts`, `routes/SettingsPage.tsx`(신규), `App.tsx`(탭 4개·`/settings`), `lib/assets.ts`(신규), `lib/i18n.ts`(`settings.*`·`nav.settings`·`common.saving`, `onboarding.intro` 정정), `index.html`(CSP·referrer meta, 아이콘 상대 경로), `vite.config.ts`(`base: '/persora/'`), `.github/workflows/deploy-pages.yml`(신규), `README.md`(배포·개인정보·키 제한) | 키가 우리 호스트로 가는 요청에 **실리지 않는다**(쿠키 프로브 재실행 0건). 설정 탭에서 백업 내보내기 → 전체 삭제 → 가져오기 왕복이 성립하고 백업에 키가 없다. 빌드본에서 CSP 위반 0. `main` push 후 Pages URL에서 A1~A4 재확인 | 쿠키 프로브 재실행, `npm test`, `tsc`/`build`, UI 스모크(설정 탭), `npm audit`, 배포 후 브라우저 확인(DevTools Network·Application) | **완료**(배포 URL 재확인은 push 후) |
 
 | **P9** 메시지 분석에 캡처 이미지 입력 | 분석 탭도 캡처만으로 답장을 받을 수 있게 한다. 텍스트 붙여넣기는 기본 모드로 남기고 이미지를 **선택 모드로 가산**([PRD §8 부속 결정 5](./PRD.md) / TRD ADR-9) | `lib/types.ts`(`AnalyzeReplyInput.images?`), `lib/analysis.ts`(`analyzeReply` 이미지 분기 — 파싱 생략·`useImages` 전달·플레이스홀더 저장), `lib/prompts.ts`(`buildAnalyzePrompt`에 `useImages?` 플래그와 두 블록 분기), `routes/AnalyzePage.tsx`(입력 모드 세그먼트·드롭존·썸네일 그리드·모드별 검증), `lib/i18n.ts`(`analyze.tabText`·`tabImage`·`imageDropzone`·`imageHint`·`imagePlaceholder`) | 캡처만으로 분석이 끝까지 동작하고 결과가 기록에 남는다. **텍스트 경로 회귀 없음**(`images` 미전달 시 P6~P8과 동일한 요청). 이미지 모드에서는 타겟 칩·피커가 렌더되지 않고, 기록 미리보기에 캡처 장수 플레이스홀더가 보인다. `DB_VERSION` 1 유지 | `npm test`, `tsc`/`build`, UI 스모크(모드 토글·0장 거부·썸네일·텍스트 무회귀), **실제 캡처로 분석 1회 실키 실행**(지연 실측 + 답장 대상 판별 관찰) | **완료** |
+
+| **P10** 페르소나 생성 입력 재평가 | 페르소나 생성의 **캡처 이미지 모드를 제거**하고 대화 텍스트 단일 흐름 + 카카오톡 대화 파일(.txt) 첨부로 교체한다. 정확도를 좌우하는 것은 분량인데 캡처는 적게 담고 무겁다는 계산이 근거다([PRD §8 부속 결정 3 재검토](./PRD.md) / TRD ADR-10). 분석 탭의 캡처 모드(P9)는 **건드리지 않는다** | `lib/chatFile.ts`(신규) + `lib/chatFile.test.ts`(신규), `lib/config.ts`(`PERSONA_CHAT_TAIL_CHARS = 16_000`), `lib/types.ts`(`CreatePersonaInput.images` 제거), `lib/prompts.ts`(`buildPersonaPrompt` 이미지 분기 제거), `lib/persona.ts`(`generate(prompt)` 텍스트 전용), `routes/PersonaPage.tsx`(세그먼트·드롭존·썸네일 제거 → 대화 textarea + .txt 첨부 버튼 + 사용 글자수 안내), `lib/i18n.ts`(`persona.create.attach*` 4키 + `toast.chatFileReadFail` 추가, `persona.create.tab*`·`image*` 5키 제거) | `.txt` 첨부로 입력란이 **대화 첫 줄부터** 채워지고 상한을 넘으면 말미만 남는다(줄 경계 보존). 채운 결과를 편집할 수 있고 사용 글자수 안내가 보인다. 같은 파일을 다시 첨부해도 동작한다. **붙여넣기 경로 무회귀**, **분석 탭 무회귀**(캡처 모드가 그대로). `DB_VERSION` 1 유지, 기존 캡처 레코드는 문자열 그대로 표시 | `npm test`(신규 `chatFile.test.ts` 포함), `tsc`/`build`, UI 스모크(첨부·재첨부·편집·검증 토스트·분석 탭 확인), **실제 `.txt` 1개로 실키 생성 1회**(원본/사용 글자 수·지연 기록) | **진행중** |
 
 **단계 번호 재편.** 1.2까지 P6은 안정화, P7은 보안·배포였다. 분석 재설계를 그 앞에 넣으면서 두 단계를 P7·P8로 한 칸씩 밀었다. 순서를 이렇게 둔 이유는 §6에 적는다. 다른 문서(PRD §10·§11, TRD §10, DESIGN §12)의 단계 참조도 같은 규칙으로 옮겼다.
 
@@ -315,6 +320,38 @@ M1(P4 완료) 시점의 파일 + P5의 `lib/image.ts` + P6의 5개(`lib/thread.t
 - [x] 기록 확인 — 목록 미리보기에 캡처 장수 플레이스홀더가 보이고 기존 텍스트 기록도 그대로 렌더
 - [x] LOG `완료`(검증 결과 정정 반영) → `feat(analyze)` 커밋
 
+### P10 — 페르소나 생성 입력 재평가(캡처 이미지 → 카카오톡 대화 파일 첨부)
+
+**① 문서(완료)**
+- [x] 근거 계산: 캡처 1장(원본 162,080 B → base64 약 211 KB)이 담는 것은 화면 한 장 분량 약 10~15개 메시지(추정), `.txt` 말미 16,000자(약 46 KB)는 샘플 평균 32.6자/메시지 기준 약 490개 메시지. **더 무거운 입력이 더 적게 담는다**
+- [x] PRD 1.5 — §2.3 S2·S3 정정, **FR-7 재작성**(단일 흐름 + .txt 첨부·머리말 제거·말미 컷·편집 가능·사용 글자수 안내·재첨부), FR-9에서 캡처 플레이스홀더 규정 삭제, DR-4 정정(페르소나는 텍스트만 / 분석은 텍스트 또는 캡처), NFR-3 정정, **§8 부속 결정 3을 원 결정(P5)/재검토(P10) 두 단으로**, §9 R5b·R8 정정 + R5c 신설, §10 P9 완료·P10 진행중, §11 캡처 정확도 종결 + tail 상한 신규
+- [x] TRD 2.0 — §3.0 트리, §3.1 `CreatePersonaInput` 텍스트 전용, §3.2 `PERSONA_CHAT_TAIL_CHARS`, §3.4.1 `image.ts` 사용처 정정, §3.5 `buildPersonaPrompt` 분기 제거(analyze `useImages` 유지), §3.7 텍스트 전용·플레이스홀더 규정 삭제, §3.9 i18n, §3.10 단일 흐름·재첨부, **신규 §3.15 `chatFile.ts`**, §4 요청 경로 표, §8 전송 고지, **ADR-6 종결 + ADR-10**, §9.2에 `chatFile.test.ts`, 신규 §9.9 검증 계획, §10 #15·#16·#17·#28 정정/종결 + #29·#30 신규
+- [x] DESIGN 1.6 — **§5.2 단일 흐름 재작성**(세그먼트·드롭존·썸네일 삭제, 첨부 버튼·첨부 안내·검증·로딩·성공·실패 정리), §5.3 원본 대화 행, §8.2 로딩, §10.1 키 정리(attach* 4키 + `toast.chatFileReadFail` 추가 / tab*·image* 5키 삭제), §12 U18~U20 종결 + U32·U33
+- [x] PLAN 2.2 — 이 문서(§2 트리, §3 P10 행, 이 체크리스트, §6, §7, §8)
+- [x] LOG `진행중` 항목 추가 → `docs(p10)` 커밋
+
+**② 구현(대기)**
+- [ ] `lib/chatFile.ts`(신규) — `parseKakaoChatTail(rawText, maxChars)`: ① CRLF/CR → LF ② 선두 머리말 제거(대화 제목·`저장한 날짜`·`Date Saved`·날짜 구분선·빈 줄, **패턴 불일치 시 원문 유지**) ③ 말미 `maxChars` 컷 후 첫 줄바꿈 이후부터(부분 줄 버림) ④ `trim`. 순수 함수, 상수를 직접 읽지 않고 인자로 받는다(TRD §3.15)
+- [ ] `lib/chatFile.test.ts`(신규) — 머리말 제거 / 평문 통과 / 말미 컷의 줄 경계 / `maxChars` 이하 짧은 입력 무변경 / CRLF 정규화(TRD §9.2)
+- [ ] `lib/config.ts` — `PERSONA_CHAT_TAIL_CHARS = 16_000` 추가. `IMAGE_REQUEST_TIMEOUT_MS`는 **그대로 둔다**(분석 탭이 쓴다)
+- [ ] `lib/types.ts` — `CreatePersonaInput.images` 제거. **`InlineImage`와 `AnalyzeReplyInput.images?`는 남긴다**(TRD §3.1)
+- [ ] `lib/prompts.ts` — `buildPersonaPrompt`의 `input.images` 분기 삭제, 입력 소스 블록을 `대화 기록:` 하나로. **`buildAnalyzePrompt`의 `useImages` 분기는 손대지 않는다**(TRD §3.5)
+- [ ] `lib/persona.ts` — `createPersona`가 `generate(prompt)`를 부른다(두 번째 인자 제거). 플레이스홀더 관련 서술·주석 정리(TRD §3.7)
+- [ ] `routes/PersonaPage.tsx` — 입력 모드 세그먼트·드롭존·썸네일 그리드·`fileToInlineImage` import 제거 → 대화 textarea 하나 + **`📎 카카오톡 대화 파일(.txt) 첨부` 버튼**(`<label>` + hidden `input[type=file][accept=".txt,text/plain"]`, `multiple` 없음) + 첨부 안내 문구. 파일 읽기는 `FileReader.readAsText` → `parseKakaoChatTail(raw, PERSONA_CHAT_TAIL_CHARS)` → textarea 교체 + 안내 설정. **textarea 직접 편집 시 안내 제거**, **읽은 직후 `input.value = ''`로 재첨부 보장**, 읽기 실패 → `toast.chatFileReadFail`. 검증은 ① 이름 ② 키 ③ 20자 한 줄기(DESIGN §5.2)
+- [ ] `lib/i18n.ts` — ko/en에 `persona.create.attachFile`·`attachHint`·`attachedInfo`(`{n}`)·`attachedInfoTrimmed`(`{n}`·`{total}`), `toast.chatFileReadFail` 추가. `persona.create.tabText`·`tabImage`·`imageDropzone`·`imageHint`·`imagePlaceholder` 제거. **`analyze.*`의 이미지 키와 `toast.addImage`·`toast.imageLoadFail`은 남긴다**
+- [ ] 미사용 확인 — 위 제거 후 `image.ts`의 import가 `AnalyzePage` 하나인지, 지운 i18n 키를 참조하는 곳이 없는지 grep으로 확인
+
+**③ 검증(대기 — 계획은 TRD §9.9)**
+- [ ] `npm test` 0 실패(신규 `chatFile.test.ts` 포함) / `npx tsc --noEmit` 0 에러 / `npx vite build` 성공
+- [ ] **`.txt` 첨부 실측** — 실제 카카오톡 대화 내보내기 파일을 첨부해 ① 머리말이 사라지고 대화 첫 줄부터 채워지는지 ② 상한을 넘으면 "원본 N자 중 최근 M자" 안내가 뜨고 M ≤ 16,000인지 ③ 채워진 텍스트의 **첫 줄이 온전한 줄**인지. 원본/사용 글자 수를 LOG에 적는다
+- [ ] **같은 파일 재첨부** — 첨부 → 편집 → 같은 파일 재첨부에서 다시 채워지는지(파일 입력 `value` 초기화 확인)
+- [ ] **붙여넣기 무회귀** — 파일 없이 대화를 붙여넣어 생성, 20자 미만 거부 토스트 동작
+- [ ] **분석 탭 무회귀** — 분석 탭의 텍스트/캡처 이미지 세그먼트·드롭존·썸네일·플레이스홀더 저장이 P9와 동일하게 동작(**삭감이 옆 화면으로 새지 않았는지**가 목적)
+- [ ] **실키 생성 1회** — 첨부로 채운 텍스트로 페르소나 생성. 11필드 파싱 성공 여부와 **지연 실측**(Resource Timing), `vocabulary_examples`가 어미·표현 인용으로 채워지는지 **관찰**(표본 1이므로 정확도를 주장하지 않는다)
+- [ ] 기존 레코드 표시 — P5~P9에 캡처로 만든 페르소나 상세에서 플레이스홀더 문자열이 그대로 보이고 화면이 깨지지 않는지
+- [ ] 주석 위생 grep(작업 메모·단계 번호 등) → 없음
+- [ ] LOG `완료`(검증 결과 정정 반영) → `feat(persona)` 커밋
+
 ## 5. 마일스톤 M1 (= P4 완료, MVP)
 
 M1은 "키를 등록한 사용자가 페르소나를 만들고, 받은 메시지 1건으로 답변 후보 3개를 받고, 기록을 다시 볼 수 있다"는 상태다. **달성했다.** 출구 조건은 **키 불필요 묶음(실측 통과 필수)** 과 **키 필요 묶음(UI 스모크 통과 + 실호출은 미확정 허용)** 으로 나눠 두었는데, 유효 키가 확보되어 키 필요 묶음도 실호출로 확인했다. 대신 계획에서 "키 불필요"로 분류했던 A6가 미실행으로 남았다 — 실기기 접속은 키가 아니라 기기가 필요한 항목이었고, 그 점을 M1에서야 분리해 인식했다.
@@ -352,8 +389,8 @@ M1은 A1~A5 통과로 인정하고, A6는 미확정 상태로 P7에 넘긴다. C
 ## 6. 의존성·순서 근거
 
 ```
-P0 문서 ─▶ P1 셸 ─▶ P2 온보딩·Gemini ─▶ P3 페르소나 ─▶ P4 분석·기록 ═▶ M1 ─▶ P5 이미지 ─▶ P6 분석 재설계 ─▶ P7 안정화 ─▶ P8 보안·배포 ─▶ P9 분석 이미지
-                                                                                        (P6-1 스레드·타겟·의도 ─▶ P6-2 드래프트·교정·업데이트)
+P0 문서 ─▶ P1 셸 ─▶ P2 온보딩·Gemini ─▶ P3 페르소나 ─▶ P4 분석·기록 ═▶ M1 ─▶ P5 이미지 ─▶ P6 분석 재설계 ─▶ P7 안정화 ─▶ P8 보안·배포 ─▶ P9 분석 이미지 ─▶ P10 페르소나 입력 재평가
+                                                                                        (P6-1 스레드·타겟·의도 ─▶ P6-2 드래프트·교정·업데이트)                                   (P5가 만든 것을 P10이 되돌린다)
 ```
 
 | 의존 | 이유 |
@@ -366,6 +403,7 @@ P0 문서 ─▶ P1 셸 ─▶ P2 온보딩·Gemini ─▶ P3 페르소나 ─�
 | P6 → P7 | 재설계로 화면·계약이 통째로 바뀌므로, 그 전에 안정화를 하면 곧 뜯어낼 v1 화면의 버그를 고치게 된다. 실사용 버그 수집은 v2가 자리를 잡은 뒤에 하는 편이 값싸다. 대신 M1에서 넘어온 미확정(A6 실기기, 상세 모달 백드롭 상단 미커버)이 한 단계 더 밀린다 — 둘 다 조작을 막지 않는 항목이라 감수한다 |
 | P7 → P8 | 배포 후의 버그는 사용자에게 노출된다. LAN 휴대폰 실사용(A6)이 배포 전 실사용의 대리다 |
 | P5·P6 → P9 | 분석 이미지 모드는 두 단계 위에 얹힌다 — P5가 만든 멀티모달 경로(`generate(prompt, images?)`·`fileToInlineImage`·이미지 타임아웃)와 P6이 만든 분석 v2 계약(`analyzeReply`·`buildAnalyzePrompt` v2)이 모두 있어야 선택 필드 하나와 프롬프트 분기 하나로 끝난다. 순서를 뒤집으면 같은 인프라를 두 번 만들게 된다 |
+| P5·P9 → P10 | P10은 **P5를 되돌리는 단계**라 P5 없이는 성립하지 않는다. 더 중요한 것은 P9과의 순서다 — P9이 분석 탭에 캡처 모드를 세워 둔 **뒤에** 페르소나의 캡처 모드를 걷어내야, 멀티모달 인프라(`InlineImage`·`image.ts`·`generate(prompt, images?)`·이미지 타임아웃)를 지울지 남길지가 자명해진다. 순서를 뒤집어 P9보다 먼저 걷어냈다면 그 인프라를 지웠다가 P9에서 다시 만드는 낭비가 났을 것이다 |
 | P8 → P9 | 앞뒤를 바꿔도 기술적으로는 성립하지만, P8은 **배포 게이트**라 앞에 두는 편이 낫다고 봤다. 배포가 늦어질수록 하위 경로(`/persora/`)·CSP·키 취급에서 나올 문제를 늦게 발견하고, 그 문제들은 P9의 화면 변경과 무관해 원인이 섞이지 않는다. P9은 기능 가산이라 배포 뒤에 붙여도 되돌리기가 쉽다 |
 
 **온보딩(P2)이 페르소나(P3)보다 먼저인 이유(3단 사고)**
@@ -377,6 +415,11 @@ P0 문서 ─▶ P1 셸 ─▶ P2 온보딩·Gemini ─▶ P3 페르소나 ─�
 - 1차 사고: 멀티모달 모델을 이미 선정했으니 P3에 텍스트/이미지 토글을 함께 넣으면 한 번에 끝난다.
 - 비판적 재사고: 이미지 경로는 파일 읽기·base64 인코딩·페이로드 크기·긴 타임아웃·드롭존 UI라는 별도 실패 표면을 가진다. M1의 검증 표면이 커지면 A2 실패 시 원인 분리가 어렵다. 그리고 텍스트 붙여넣기만으로도 MVP 가치(페르소나 → 답변 후보)는 성립한다.
 - 종합: M1은 텍스트 전용으로 작게 닫고, P5에서 `generate`에 선택 인자를 **가산**하는 방식으로 붙인다. 이미지 판독 품질은 키가 있어야 확인되므로 P5 출구에서도 "미확정"으로 남을 수 있다.
+
+**만든 기능을 P10에서 파기하는 것이 낭비가 아닌 이유(3단 사고)**
+- 1차 사고: P5에 들인 시간이 아깝다. 캡처 모드는 동작하고 사용자가 쓸 수 있으니, 남겨 두고 .txt 첨부를 **하나 더** 얹으면 잃는 것이 없다.
+- 비판적 재사고: "잃는 것이 없다"가 사실인지 따졌다. 남겨 두면 생성 시트에 모드 세그먼트가 계속 서 있고, 사용자는 매번 **더 나쁜 선택지를 고를 수 있는 화면**을 본다(같은 페이로드로 두 자릿수 적은 메시지를 넣는 쪽). 코드 쪽 비용도 남는다 — `CreatePersonaInput.images` 분기, `buildPersonaPrompt`의 이미지 블록, 시트의 드롭존·썸네일 상태가 모두 유지 대상이 되고, 앞으로의 모든 변경이 두 경로를 함께 통과해야 한다. 반대 방향 공격도 있다: "텍스트로 아예 넣을 수 없는 대화는 어쩌나." 이건 반박하지 못했고, 실제로 잃는 기능이다(PRD §8 부속 결정 3의 종합에 명시했다).
+- 종합: 파기한다. 살아남은 근거는 "선택지를 남기는 비용이 그 선택지의 가치보다 크다"는 것이다. 그리고 **P5가 낭비였다는 뜻이 아니다** — 캡처 모드를 만들어 실제로 써 봤기 때문에 "5개 중 2개가 음식 명사"라는 관찰이 나왔고, 그 관찰이 없었다면 지금도 분량 문제를 추측으로만 이야기하고 있었을 것이다. 만들어 보고 재서 뒤집는 것이 이 워크플로가 의도한 경로다.
 
 **분석 재설계(P6)를 안정화보다 앞에 둔 이유(3단 사고)**
 - 1차 사고: 계획대로 안정화를 먼저 한다. 실사용 버그가 이미 쌓여 있고(A6 실기기, 상세 모달 백드롭), 사용자에게 보이는 결함부터 없애는 것이 순서다.
@@ -395,7 +438,9 @@ P0 문서 ─▶ P1 셸 ─▶ P2 온보딩·Gemini ─▶ P3 페르소나 ─�
 | 이미지 경로(P5)가 텍스트 경로를 망가뜨림 | **가산만 한다**: 선택 필드(`CreatePersonaInput.images?`)·선택 인자(`generate(prompt, images?)`)·상수 1개(`IMAGE_REQUEST_TIMEOUT_MS`)로만 붙이고 기존 호출부는 손대지 않는다. `images`가 없으면 M1과 완전히 같은 요청이 나간다(TRD §3.4) | 이미지 관련 코드만 되돌리면 텍스트 경로가 그대로 남는다. 저장 스키마를 건드리지 않아 `DB_VERSION`도 그대로(1) |
 | **분석 이미지 경로(P9)가 분석 v2를 망가뜨림** | 같은 가산 원칙: 선택 필드 1개(`AnalyzeReplyInput.images?`)와 프롬프트 분기 플래그 1개(`useImages`)만 더한다. 모델·타임아웃 상수·`AnalysisRecord` 스키마는 손대지 않고, `images`를 넘기지 않으면 P6~P8과 완전히 같은 요청이 나간다(TRD §3.8). 회귀 확인은 검증 항목으로 못 박는다(§4 P9 ③) | 이미지 관련 코드만 되돌리면 텍스트 분석 경로가 그대로 남는다. 이미 저장된 플레이스홀더 기록도 그냥 문자열이라 되돌린 코드에서 그대로 읽힌다 |
 | **이미지 모드에서 답장 대상을 모델이 오판** | 완화책은 프롬프트의 "맨 아래(최신) 상대 메시지" 지시와 화면 힌트의 촬영 지침뿐이다. 근본 완화는 **텍스트 모드를 기본으로 남겨 두는 것** — 앱이 타겟을 알고 사용자가 고칠 수 있는 경로가 항상 있다(PRD R10) | 사용자가 텍스트 모드로 다시 넣는다. 오판이 잦으면 DESIGN U29·U30의 후보(결과에 타겟 표시, 타겟 직접 입력)를 검토한다 |
-| 캡처 요청이 느리거나 타임아웃에 걸림 | 이미지 경로 전용 타임아웃 180초(PRD NFR-3). 값의 근거는 없으므로 P5 검증에서 실측한다 | `config.ts` 상수 1곳 수정 |
+| 캡처 요청이 느리거나 타임아웃에 걸림 | 이미지 경로 전용 타임아웃 180초(PRD NFR-3). 실측은 표본 1건씩(생성 4.95s·분석 2.75s)이라 값은 그대로 둔다. **P10 이후 이 경로는 분석 탭 하나** | `config.ts` 상수 1곳 수정 |
+| **P10의 기능 삭감이 분석 탭으로 샌다** — 페르소나 쪽 이미지 코드를 걷어내다 공용 인프라(`InlineImage`·`image.ts`·`generate(prompt, images?)`·`IMAGE_REQUEST_TIMEOUT_MS`·`toast.addImage`·`toast.imageLoadFail`)까지 지우면 P9이 함께 무너진다 | **지울 것을 명시적으로 열거한다**: `CreatePersonaInput.images`, `buildPersonaPrompt`의 이미지 분기, `PersonaPage`의 세그먼트·드롭존·썸네일, `persona.create.tab*`·`image*` 5키. 그 밖의 것은 **남긴다**(TRD ADR-10). 제거 후 grep으로 `image.ts` import가 `AnalyzePage` 하나인지 확인하고, **분석 탭 무회귀를 검증 항목으로 못 박는다**(§4 P10 ③) | 분석 탭 코드는 손대지 않으므로 페르소나 쪽 변경만 되돌리면 된다 |
+| **첨부 파일이 매우 크거나 형식이 다름** | 앱이 **말미 16,000자만** 쓰므로 파일 크기와 무관하게 전송량이 고정된다(PRD R5c). 머리말 패턴에 걸리지 않는 파일은 **원문을 그대로 통과**시켜 파괴적으로 실패하지 않는다(TRD §3.15). 채워진 결과는 사용자가 눈으로 보고 편집할 수 있다 | 패턴을 더하거나 `PERSONA_CHAT_TAIL_CHARS` 1곳을 고친다. 최악의 경우에도 사용자는 붙여넣기 경로를 그대로 쓸 수 있다 |
 | LLM이 JSON 아닌 텍스트나 여분 키를 반환 | `extractJson` 방어 파싱(펜스 제거 → 균형 블록 → 전체 → `{ raw }`), `PersonaFields`는 추가 키를 허용하는 관대한 타입, UI는 없는 항목을 건너뜀 | 프롬프트 문구 수정(`prompts.ts` 1곳). `responseMimeType` 옵션은 후속 후보(§8) |
 | 표시명 변경 시 로컬 데이터·키 호환 깨짐 | 표시명은 i18n `app.title`·`index.html` title·README·`package.json` name에 둔다(모두 로컬 데이터·키와 무관). `DB_NAME`·쿠키명만 호환을 위해 코드네임 기반으로 고정(TRD §10 #9) | 표시명만 되돌리면 데이터 무영향 |
 | docs와 코드가 한 커밋에 섞여 되돌리기 어려움 | 단계마다 docs 커밋 → feat 커밋 분리 | feat 커밋만 `git revert`, 문서는 다음 docs 커밋에서 정정 |
@@ -424,9 +469,12 @@ P0 문서 ─▶ P1 셸 ─▶ P2 온보딩·Gemini ─▶ P3 페르소나 ─�
 | A6 실기기 확인(같은 Wi-Fi 휴대폰) | **미실행** — 자동화 뷰포트 390/360px와 P7의 LAN IP 재현(PC 브라우저)만 했고 실기기 접속은 없다 | P8 배포 후 실기기 |
 | ~~상세 모달 백드롭 상단 미커버(약 20px)~~ | **원인 확정·수정(P7-3)**: `space-y-5` 부모의 margin-top 주입 → 오버레이를 `createPortal(document.body)`로 렌더. 적용 후 top 0 실측 | 완료 |
 | 첫 로드 JS 코드 스플리팅 | **도입하지 않고 배포한다** — P7 빌드 JS 544.45 kB(gzip 136.37 kB), 대부분 `@google/genai`. 정적 호스트에서 1회 로드 후 캐시되는 자산이라 실제 체감을 배포 후에 본다(TRD §10 #12) | P8 배포 후 |
-| ~~이미지 입력 UX(P5)의 타임아웃 값·드롭존/썸네일 형태~~ | **확정(P5 docs)**: 타임아웃 `IMAGE_REQUEST_TIMEOUT_MS = 180_000`(이미지가 붙은 요청만), 드롭존은 `<label>` + hidden 파일 입력, 썸네일 64×64 그리드에 개별 제거(TRD §3.2·DESIGN §5.2) | 완료 |
+| ~~이미지 입력 UX(P5)의 타임아웃 값·드롭존/썸네일 형태~~ | **확정(P5 docs)**: 타임아웃 `IMAGE_REQUEST_TIMEOUT_MS = 180_000`(이미지가 붙은 요청만), 드롭존은 `<label>` + hidden 파일 입력, 썸네일 64×64 그리드에 개별 제거. **P10 이후 이 형태가 남아 있는 곳은 분석 탭**(TRD §3.2·DESIGN §6.1) | 완료 |
 | ~~캡처 이미지 요청의 지연·페이로드 크기~~ | **실측(P5, 표본 1)**: 캡처 1장(JPEG 162 kB, base64 약 216 kB) 4.95s. 180초 타임아웃은 여유가 크지만 표본이 1건이라 값은 그대로 둔다 | 완료(부분) |
-| 캡처 페르소나의 정확도(텍스트 대비)·장수 상한·이미지 압축 | **미확정** — 캡처 한 장이 담는 발화가 적을 수 있다는 지적을 반증하지 못했다(TRD ADR-6). 상한과 리사이즈는 두지 않고 시작하며 지연 실측 뒤 판단 | 실사용 관찰(계속) |
+| ~~캡처 페르소나의 정확도(텍스트 대비)~~ | **결정으로 종결(P10)** — 반증하지 못한 지적이 P5 관찰로 신호를 냈고, 분량·페이로드 계산(캡처 1장 약 10~15개 메시지·211 KB vs `.txt` 말미 16,000자 약 490개 메시지·46 KB)이 방향을 굳혀 **캡처 모드 제거**로 이어졌다(TRD ADR-10). 두 경로를 나란히 비교한 표본은 끝내 없었으므로 **정확도 차이 자체는 정성 판단**이다 | 완료 |
+| 캡처 장수 상한·이미지 압축 | 미확정 — 상한과 리사이즈는 두지 않는다. **적용 범위는 P10 이후 분석 탭 하나**(DESIGN U31) | 실사용 관찰(계속) |
+| **첨부 대화 파일의 말미 컷 상한 16,000자** | **미실측** — 근거는 "샘플 평균 32.6자/메시지 기준 약 490개 메시지"라는 계산 하나이고, 이 분량에서 토큰·지연·품질을 재 본 적이 없다(TRD §10 #29). 늘리면 인용 재료가 늘지만 지연·컨텍스트 압박이 커지고, 줄이면 P5에서 본 "얇은 근거"로 되돌아간다 | P10 검증 실측 후 |
+| **카카오톡 내보내기 머리말 패턴의 적중률** | **미확정** — 상정한 다섯 가지 외의 형태(카카오톡 버전·플랫폼·언어 설정 차이)는 표본이 없다. 걸리지 않으면 원문을 그대로 통과시켜 파괴적이지 않고, 사용자가 입력란에서 지울 수 있는 것이 완화책이다(TRD §10 #30) | 실사용 관찰(계속) |
 | **이미지 모드 분석의 답장 대상 오판율** | **미확정** — 캡처만 넣으면 앱이 타겟을 모르고 모델이 말풍선 좌/우 위치와 순서로 고른다. 틀려도 사용자가 고칠 수단이 없다(TRD ADR-9의 반증 실패 항목, §10 #27). 완화는 프롬프트 지시·화면 힌트·텍스트 모드 존치 | P9 검증에서 1회 관찰, 판단은 실사용 |
 | **분석 경로 이미지 요청의 지연** | **미실측** — P5의 4.95s는 페르소나 생성 프롬프트에서 잰 값이라 분석에 그대로 쓸 수 없다. 타임아웃은 같은 상수(180초)를 쓰되 적정성은 재 봐야 한다(TRD §10 #28) | P9 검증에서 실제 캡처로 1회 실측 |
 | 분석 탭 캡처 장수 상한 | 두지 않고 시작한다(DESIGN U31). 분석 탭은 시트가 아니라 페이지라 썸네일이 늘면 의도 칩·실행 버튼이 아래로 밀린다. 최근 맥락은 대개 한두 장이라 문제가 늦게 온다고 봤고, 몇 장부터 불편한지는 **미확인** | 실사용 후 |
@@ -439,5 +487,5 @@ P0 문서 ─▶ P1 셸 ─▶ P2 온보딩·Gemini ─▶ P3 페르소나 ─�
 | 배포 후 Acceptance A1~A4 재확인 | **미실행** — `main` push 이후에만 가능하다. 그전까지 미확정으로 남긴다 | P8 배포 후 |
 | 백업 파일 크기·암호화 | 대화 원문이 통째로 들어가 파일이 커질 수 있고, 암호화는 두지 않는다(분실 시 복구 불가라 백업의 목적과 충돌 — PRD R9·DESIGN U27) | 실사용 후 |
 | 모바일 브라우저 저장소 동작(시크릿 모드, 용량, iOS Safari 정책) | 미확인 — P8에서 키가 localStorage로 옮겨져 시크릿 모드에서는 세션 메모리 폴백으로 동작한다(TRD §3.3). 실기기 확인은 아직 없다 | P8 배포 후 실기기 |
-| 대화 입력 최소·최대 길이 | 최소 길이 거부 기준은 trim 후 20자(임시값, 근거 실측 없음 — PRD FR-7). 최대는 모델 컨텍스트에 맡김 | 실사용 후 |
+| 대화 입력 최소·최대 길이 | 최소 길이 거부 기준은 trim 후 20자(임시값, 근거 실측 없음 — PRD FR-7). **붙여넣기에는 상한이 없고**(모델 컨텍스트에 맡긴다), **.txt 첨부에만 말미 16,000자 상한이 걸린다**. 두 경로의 상한이 다른 것은 의도다 — 붙여넣는 양은 사람이 고른 것이고, 파일은 사람이 양을 보지 않고 고른 것이라 앱이 잘라야 한다 | 실사용 후 |
 | 후보 복사 성공 토스트 문구 | 미확정 — 자동화 브라우저의 클립보드 권한 대기로 확인하지 못함 | 실사용 관찰(계속) |
