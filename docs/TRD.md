@@ -1,6 +1,6 @@
-# TRD — Persona Mirror (코드네임) 기술 요구사항·설계
+# TRD — Persora 기술 요구사항·설계
 
-> 문서 버전: 0.6 · 갱신일: 2026-09-05 · 상태: P4 완료 — 분석 프롬프트 지연 1회 실측 반영. 기준: [PRD 0.1](./PRD.md) / [PLAN 0.1](./PLAN.md) / [DESIGN 0.1](./DESIGN.md)
+> 문서 버전: 0.7 · 갱신일: 2026-09-05 · 상태: 표시명 Persora 확정 반영. 기준: [PRD 0.1](./PRD.md) / [PLAN 0.1](./PLAN.md) / [DESIGN 0.1](./DESIGN.md)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -11,6 +11,7 @@
 | 0.4 | 2026-09-05 | P3 착수: §3.7 파싱 실패 시 원문 보존 저장 확정, `splitPersonaRaw` 헬퍼 명시, §10 #6 종결 |
 | 0.5 | 2026-09-05 | P3 완료: §10 #1에 페르소나 프롬프트 지연 실측(6.57s) 추가 |
 | 0.6 | 2026-09-05 | P4 완료: §10 #1에 분석 프롬프트 지연 실측(3.49s) 추가 |
+| 0.7 | 2026-09-05 | 표시명 Persora 확정: §3.2 DB_NAME 주석, §7 package name, §10 #9 종결 |
 
 > 이 문서는 **현재 확정된 설계**를 서술한다. 변경 이력은 [`LOG.md`](./LOG.md)에만 적는다. §3의 시그니처는 모든 구현 작업이 따라야 하는 **계약**이며, 계약을 바꿀 때는 코드보다 이 문서를 먼저 갱신한다(CLAUDE.md 그라운드 룰 2). 아직 코드가 없으므로 아래 식별자는 모두 "해당 단계(P1~P4)에서 만들 예정"인 것이다.
 
@@ -205,7 +206,7 @@ export const GEMINI_API_KEY_HELP_URL = 'https://aistudio.google.com/app/apikey';
 ```
 
 - 모델명·저장소 이름·DB 이름은 **여기서만** 정의한다. 다른 모듈은 리터럴을 쓰지 않는다. 예외 하나: UI 언어 저장 키 `'pm_lang'`(localStorage)은 `i18n.ts` 내부 상수 `LANG_STORAGE_KEY`로 둔다 — `i18n.ts`는 P1에서 `config.ts`(P2)보다 먼저 만들어지고, 다른 모듈이 이 키를 참조하지 않기 때문이다.
-- `DB_NAME`은 코드네임을 따른다. 표시명이 M1 전에 확정되어도 이미 만들어진 로컬 DB와의 호환을 위해 **DB 이름은 바꾸지 않는다**(바꾸면 기존 데이터가 보이지 않게 됨).
+- `DB_NAME`은 코드네임(Persona Mirror)을 따른다. 표시명이 Persora로 확정된 뒤에도 이미 만들어진 로컬 DB와의 호환을 위해 **DB 이름은 바꾸지 않는다**(바꾸면 기존 데이터가 보이지 않게 됨).
 
 ### 3.3 `src/lib/repos/settingsRepo.ts` — API 키(쿠키)
 
@@ -487,7 +488,7 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 ## 7. 빌드 · 실행
 
 ```jsonc
-// package.json (P1) — name: "persona-mirror", version: "0.1.0", private, type: module
+// package.json — name: "persora"(M1 직전 코드네임 persona-mirror에서 변경), version: "0.1.0", private, type: module
 "engines": { "node": ">=20" },
 "scripts": {
   "dev": "vite",
@@ -563,6 +564,6 @@ app.get('*', (_req, res) => res.sendFile(join(DIST_DIR, 'index.html'))); // SPA 
 | 6 | ~~페르소나 생성에서 JSON 파싱 실패(`raw`) 시 처리~~ **확정(P3)**: 원문 보존 저장(§3.7) | P3 docs |
 | 7 | IndexedDB `list()`의 메모리 정렬 → 인덱스 커서 전환 기준 | 데이터 규모 문제 발생 시 |
 | 8 | 데이터 전송(DR-4)·휘발성(DR-6) 고지의 노출 위치(기본안 온보딩 모달)·문구 수준 | P2 온보딩 문구 작성 시 PRD/DESIGN과 맞춤 |
-| 9 | 표시명(코드네임 "Persona Mirror" → 정식명) | M1 전 확정. `DB_NAME`은 유지 |
+| 9 | ~~표시명(코드네임 "Persona Mirror" → 정식명)~~ **확정(M1 직전)**: Persora. `DB_NAME`·쿠키명은 유지 | 완료 |
 | 10 | `gemini-3.1-flash-lite` 모델명 유효성·`thinkingConfig` 수락 여부 | P2 임의 키 호출에서 함께 드러나면 기록하되, 인증 오류가 먼저 돌아오면 확인되지 않으므로 P3 첫 실호출을 확정 시점으로 둔다 |
 | 11 | AI Studio 키의 API/referrer 제한 UI 존재 여부(§8 안내 문구의 전제) | P2 온보딩 문구 작성 시 확인 |

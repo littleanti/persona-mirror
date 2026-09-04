@@ -1,6 +1,15 @@
-# LOG — Persona Mirror (코드네임) 변경 이력 (Changelog)
+# LOG — Persora 변경 이력 (Changelog)
 
 > 규칙(CLAUDE.md 그라운드 룰 2): 최신 항목을 맨 위에 둔다. 각 항목은 태그(`[feat]`/`[fix]`/`[test]`/`[docs]`/`[chore]`), 절대 날짜, 변경 파일, 상태(`진행중`/`완료`/`완료(미검증)`)를 적는다. 코드 변경은 착수 전에 `진행중` 항목을 먼저 추가하고, 검증 후 `완료`로 바꾸며 실제 변경 파일을 정정한다. 검증을 돌리지 않았으면 "검증 비대상" 또는 "미실행"으로 사실대로 적는다. 원인 진단·설계 선택·수치 판단에는 그라운드 룰 1의 3단 사고(1차 사고 / 비판적 재사고 / 종합)를 남긴다.
+
+## 2026-09-05 — [chore] 앱 표시명을 "Persora"로 통일 (코드네임 Persona Mirror 종료) — 완료
+
+- 배경/목적: PLAN §5 M1 마무리 항목 "표시명 확정". 코드네임을 그대로 정식명으로 쓸지 결정한다.
+- 1차 사고: 코드네임 "Persona Mirror"를 정식명으로 채택 — 뜻이 직관적(페르소나를 비추는 거울)이고 바꿀 비용이 없다.
+- 비판적 재사고(반증을 실측): ① **좁은 화면에서 잘린다.** 360px 폭(보급형 안드로이드)에서 헤더 앱명이 "Persona ···"로 말줄임 처리됨(scrollWidth 112 > clientWidth 87, `truncate`). 390px에서도 인디케이터와 여백이 21px로 빡빡하다(P3 LOG 관찰). ② 두 단어라 한국어 표기가 흔들린다("페르소나 미러"/"Persona Mirror" 혼용) — 한·영 단일 표기 원칙(DESIGN §10)과 충돌. ③ 일반명사 조합이라 고유성이 약하고 저장소명과도 다르다.
+- 종합: 한 단어 고유명 **Persora**(Persona + -ora)로 확정, 한·영 동일 표기. 교체 범위는 표시 문구(i18n 2키)·`index.html` title·서버 로그·README·패키지명으로 한정한다. 이미 만들어진 로컬 데이터와의 호환을 위해 IndexedDB 이름 `persona-mirror`와 쿠키명 `pm_gemini_key`는 유지한다(TRD §3.2).
+- 변경 파일: `index.html`, `src/lib/i18n.ts`(app.title·onboarding.welcomeTitle ko/en), `server/index.js`, `package.json`·`package-lock.json`(name persora), `README.md`, `src/lib/config.ts`(DB_NAME 주석), `docs/PRD.md`(0.3)·`TRD.md`(0.7)·`DESIGN.md`(0.3)·`PLAN.md`(0.3)·`LOG.md`(제목)
+- 검증: `npx tsc --noEmit` 0 에러 / `npx vite build` 성공(js 529.88 kB, gzip 131.68 kB) / 브라우저 360px: 문서 제목 "Persora", 헤더 앱명 57px·말줄임 없음·인디케이터와 여백 46px(변경 전 87px 잘림·여백 16px).
 
 ## 2026-09-05 — [feat] P4 메시지 분석 v1(받은 메시지 1건)과 기록 — 완료
 

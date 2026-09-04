@@ -1,12 +1,13 @@
-# PLAN — Persona Mirror (코드네임) 구현 계획
+# PLAN — Persora 구현 계획
 
-> 문서 버전: 0.2 · 갱신일: 2026-09-05 · 상태: 진행 중 — 단계별 상태는 §3 표와 §4 체크리스트가 단일 출처(P4 완료 — M1 마일스톤 정리 진행)
+> 문서 버전: 0.3 · 갱신일: 2026-09-05 · 상태: 표시명 Persora 확정 반영(M1 마무리 진행 중)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
 |---|---|---|
 | 0.1 | 2026-09-05 | 초안 |
 | 0.2 | 2026-09-05 | P1~P3 완료 반영(§3 상태·§4 체크), 상태 문구 갱신 |
+| 0.3 | 2026-09-05 | 표시명 Persora 확정 반영(§2 트리, §5, §8) |
 
 > 기준 문서: [`./PRD.md`](./PRD.md) 0.1(요구사항·Acceptance), [`./TRD.md`](./TRD.md) 0.1(아키텍처·모듈 계약), [`./DESIGN.md`](./DESIGN.md) 0.1(화면·토큰). 변경 이력은 [`./LOG.md`](./LOG.md)에만 적고, 이 문서는 **현재 계획**만 서술한다. 단계가 끝날 때마다 §3 상태와 §4 체크리스트를 갱신하고 문서 버전을 0.1 올린다(M1에서 1.0).
 
@@ -63,7 +64,7 @@ P0 시점에 M1(P4 완료)까지 만들 파일이다. 괄호는 생성 단계. P
 ├── README.md                                        (P1)
 ├── docs/  PRD.md · TRD.md · DESIGN.md · PLAN.md · LOG.md   (P0)
 ├── index.html                # Vite 엔트리, #root 하나          (P1)
-├── package.json              # name persona-mirror, engines.node >= 20   (P1)
+├── package.json              # name persora(M1 직전 개명), engines.node >= 20   (P1)
 ├── tsconfig.json · vite.config.ts · tailwind.config.js · postcss.config.js   (P1)
 ├── public/                   # favicon · 앱 아이콘 · 로고 이미지   (P1)
 ├── server/
@@ -206,7 +207,7 @@ M1은 "키를 등록한 사용자가 페르소나를 만들고, 받은 메시지
 | A6 같은 Wi-Fi의 휴대폰에서 동일하게 동작한다 | 키 불필요(UI 범위) | P1·P4 | `npm start` → `http://<PC IP>:8000` 휴대폰 접속, 온보딩·생성 시트·탭 확인. 실호출은 A2와 같은 기준 | 대기 |
 
 M1에서 함께 끝내는 것:
-- **표시명 확정** — 코드네임 "Persona Mirror"를 정식 표시명으로 바꿀지 결정하고 i18n `app.title`·`index.html` title·README에 반영한다. 표시명이 바뀌면 `package.json` name도 함께 바꾼다(로컬 데이터·키와 무관). `DB_NAME='persona-mirror'`·쿠키 `pm_gemini_key`만 기존 로컬 데이터·키 호환을 위해 고정한다(§7 참고).
+- **표시명 확정** — 코드네임 "Persona Mirror" → **Persora**로 확정(근거·3단 사고는 LOG). i18n `app.title`·`onboarding.welcomeTitle`, `index.html` title, README, `package.json` name 반영. `DB_NAME`·쿠키명은 유지.
 - **문서 1.0** — PRD/TRD/DESIGN/PLAN을 실제 구현 상태로 정정해 1.0으로 올린다. 그때까지 못 확인한 항목(Gemini 실호출 품질·지연 등)은 "미확정" 목록으로 남긴다.
 - **`package.json` 1.0.0**.
 - LOG에 M1 검증 기록(`tsc`/`build`/UI 스모크/LAN 접속 결과)을 사실대로 적고, 키 필요 묶음 중 어느 항목이 미확정으로 남았는지 항목별로 명시한다.
@@ -254,7 +255,7 @@ P0 문서 ─▶ P1 셸 ─▶ P2 온보딩·Gemini ─▶ P3 페르소나 ─�
 
 | 항목 | 현재 상태 | 결정 시점 |
 |---|---|---|
-| 정식 표시명 | 코드네임 "Persona Mirror" 사용 | M1 직전 |
+| ~~정식 표시명~~ | **확정: Persora** | 완료 |
 | vitest 도입 시점·대상 | M1 이후. 대상은 TRD §9.2(`extractJson`, 프롬프트 빌더 분기(`my_name`·`lang`), `formatDate`/`getInitial`) | `extractJson` 외에 분기가 비자명한 순수 모듈이 하나 더 생기는 단계(§1.3) |
 | Gemini 실호출 지연·품질 | 미실측(키 필요). `thinkingBudget=0`의 지연 단축 효과도 문헌 근거일 뿐 실측 없음. 모델명·`thinkingConfig` 수락 여부도 미확인 | 키 확보 시 P3/P4에서 측정, LOG 기록 |
 | `@google/genai` 정확한 버전 고정 | 2.x 최신 확인 후 고정(Node 20+ 요구) | P2(`gemini.ts` 작성 시 `package.json`) |

@@ -13,7 +13,7 @@ type Dict = Record<string, string>;
 
 const MESSAGES: Record<Lang, Dict> = {
   ko: {
-    'app.title': 'Persona Mirror',
+    'app.title': 'Persora',
 
     'nav.personas': '페르소나',
     'nav.analyze': '분석하기',
@@ -119,7 +119,7 @@ const MESSAGES: Record<Lang, Dict> = {
 
     // 온보딩(OnboardingModal)
     'onboarding.title': 'Gemini API 키 설정',
-    'onboarding.welcomeTitle': 'Persona Mirror에 오신 걸 환영합니다',
+    'onboarding.welcomeTitle': 'Persora에 오신 걸 환영합니다',
     'onboarding.welcomeDesc': '상대방의 페르소나에 맞는 답장을 찾아드려요.',
     'onboarding.intro':
       '이 앱은 당신의 Google AI Studio(Gemini) API 키로 동작합니다. 키와 모든 데이터는 이 브라우저에만 저장되며 서버로 전송되지 않습니다.',
@@ -149,7 +149,7 @@ const MESSAGES: Record<Lang, Dict> = {
     'err.aiGeneric': 'AI 응답 중 오류가 발생했습니다: {msg}',
   },
   en: {
-    'app.title': 'Persona Mirror',
+    'app.title': 'Persora',
 
     'nav.personas': 'Personas',
     'nav.analyze': 'Analyze',
@@ -255,7 +255,7 @@ const MESSAGES: Record<Lang, Dict> = {
 
     // Onboarding (OnboardingModal)
     'onboarding.title': 'Gemini API key',
-    'onboarding.welcomeTitle': 'Welcome to Persona Mirror',
+    'onboarding.welcomeTitle': 'Welcome to Persora',
     'onboarding.welcomeDesc': 'Find the perfect reply that fits the other person’s persona.',
     'onboarding.intro':
       'This app runs on your own Google AI Studio (Gemini) API key. Your key and all data are stored only in this browser and never sent to any server.',

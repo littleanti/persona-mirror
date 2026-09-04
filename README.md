@@ -1,4 +1,6 @@
-# 🧠 Persona Mirror
+# 🧠 Persora
+
+> 표시명은 **Persora**(한·영 단일 표기). 초기 코드네임은 "Persona Mirror"였고 M1 직전에 통일했다. 브라우저 IndexedDB 이름 `persona-mirror`는 기존 로컬 데이터 호환을 위해 유지한다.
 
 > 대화 기록으로 상대방의 페르소나를 분석하고, 받은 메시지에서 "상대방이 원하는 답변"을 추론해주는 모바일 웹 앱
 
@@ -45,7 +47,7 @@ npm start
 ## 프로젝트 구조 (P1 시점)
 
 ```
-persona-mirror/
+persora/
 ├── docs/                       # PRD / TRD / DESIGN / PLAN / LOG
 ├── index.html                  # Vite React 엔트리 (#root)
 ├── server/index.js             # Express 정적 서버 (dist/ 서빙)
