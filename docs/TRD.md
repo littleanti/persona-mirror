@@ -1,6 +1,6 @@
 # TRD — Persora 기술 요구사항·설계
 
-> 문서 버전: 2.1 · 갱신일: 2026-09-05 · 상태: P10 완료 — §3.15 머리말 패턴 정정, §10 #29·#30 실측. 기준: [PRD 1.5](./PRD.md) / [PLAN 2.2](./PLAN.md) / [DESIGN 1.6](./DESIGN.md)
+> 문서 버전: 2.2 · 갱신일: 2026-09-05 · 상태: P11 마무리 — analyzeMessage 래퍼 제거 반영(§3.8, §10 #18). 기준: [PRD 1.5](./PRD.md) / [PLAN 2.2](./PLAN.md) / [DESIGN 1.6](./DESIGN.md)
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -24,6 +24,7 @@
 | 1.9 | 2026-09-05 | P9 완료: §10 #28 분석 이미지 지연 실측(2.75s) |
 | 2.0 | 2026-09-05 | P10 착수(페르소나 입력 재평가): §3.0 트리에 `chatFile.ts`·`chatFile.test.ts`, §3.1 `CreatePersonaInput`을 **텍스트 전용으로 축소**(`images` 제거), §3.2 `PERSONA_CHAT_TAIL_CHARS`, §3.4.1 `image.ts` 사용처를 분석 탭 하나로 정정, §3.5 `buildPersonaPrompt` 이미지 분기 제거(analyze의 `useImages`는 유지), §3.7 `createPersona` 텍스트 전용·플레이스홀더 규정 삭제, §3.9 i18n 키 정리, §3.10 `PersonaPage` 단일 흐름, **신규 §3.15 `chatFile.ts`**, §4 요청 경로 표 정정, **ADR-6 종결 + ADR-10**, §9.2에 `chatFile.test.ts`, 신규 §9.9 P10 검증 계획, §10 #15·#16·#17 정정/종결 + #29 신규 |
 | 2.1 | 2026-09-05 | P10 완료: §3.15 머리말 패턴(님과/님과의) 정정, §10 #29 tail 지연 실측, #30 패턴 결함 발견·수정 |
+| 2.2 | 2026-09-05 | P11: §3.8 analyzeMessage 제거, §10 #18 종결 |
 
 > **2.0에서 정한 P10 계약(`chatFile.ts`의 `parseKakaoChatTail`, `PERSONA_CHAT_TAIL_CHARS`, 텍스트 전용 `CreatePersonaInput`, 이미지 분기가 사라진 `buildPersonaPrompt`, 단일 흐름 `PersonaPage`)은 P10에서 만들 것이며 아직 코드에 없다** — 해당 자리마다 그 사실을 밝혀 둔다. **제거되는 것도 마찬가지로 아직 코드에 남아 있다**(`CreatePersonaInput.images`, 생성 시트의 입력 모드 세그먼트·드롭존·썸네일, `persona.create.tab*`·`image*` 키). 1.8에서 추가한 P9 계약(`AnalyzeReplyInput.images?`, `buildAnalyzePrompt`의 `useImages` 분기, `analyzeReply`의 이미지 경로와 플레이스홀더 저장, `AnalyzePage`의 입력 모드 토글)과 1.6에서 추가한 P8 계약(`dataManagement.ts`, `assets.ts`, `SettingsPage`, `drafts.ts`의 백업 헬퍼 3종, `config.ts`의 저장소 키 상수 교체, localStorage 기반 `settingsRepo`)은 모두 구현돼 코드에 실재한다.
 >
@@ -509,7 +510,6 @@ export async function analyzeReply(
 ): Promise<AnalysisRecord>;
 
 /** v1 하위 호환 래퍼 — 메시지 1건을 thread이자 targetMessage로 넘긴다. */
-export async function analyzeMessage(personaId: string, message: string): Promise<AnalysisRecord>;
 
 export function listAnalyses(): Promise<AnalysisRecord[]>;
 export function removeAnalysis(id: string): Promise<void>;
@@ -531,7 +531,7 @@ export function removeAnalysis(id: string): Promise<void>;
 
 `generate(prompt, images)`가 이미지 요청에 `IMAGE_REQUEST_TIMEOUT_MS`(180초)를 적용하는 것은 §3.4·§4가 이미 정한 동작이며, 분석 경로도 같은 상수를 그대로 쓴다. **다만 그 값이 분석 프롬프트에 적정한지는 재 본 적이 없다** — P5의 4.95s는 페르소나 생성 프롬프트에서 잰 값이다(§10 #28).
 
-`analyzeMessage`는 **하위 호환 래퍼로만 남긴다** — `analyzeReply(personaId, { thread: message, intent: '' })`를 부르는 한 줄이다. 화면이 전부 `analyzeReply`로 옮겨 가면 호출부가 없어지므로, 그때 제거 여부를 판단한다(§10 #18).
+`analyzeMessage`(v1 단발 메시지 래퍼)는 P11에서 **제거**했다 — 화면·모듈 어디에도 호출부가 없었고, v1 기록은 `message` 필드로 그대로 읽힌다.
 
 ### 3.9 `i18n.ts` / `useI18n.ts` / `store.ts` / `id.ts` / `dom.ts`
 
@@ -1080,7 +1080,7 @@ P7에서 `src/lib/id.test.ts`가, P8에서 `drafts.test.ts`의 케이스가 더�
 | 15 | 캡처 이미지 요청의 지연·페이로드 크기와 `IMAGE_REQUEST_TIMEOUT_MS = 180_000`의 적정성 | **부분 실측(표본 각 1).** 페르소나 생성 4.95s(P5 — 캡처 1장, 원본 162,080 B → base64 약 211 KB), 분석 2.75s(P9 — 캡처 1장, 크기 미기록). 둘 다 180초에 한참 못 미치지만 표본이 1건씩이라 값은 그대로 둔다. **P10 이후 이 상수가 걸리는 경로는 분석 탭 하나**이고, 여러 장 첨부의 지연은 여전히 미실측이다 |
 | 16 | ~~캡처 이미지로 만든 페르소나의 정확도(텍스트 대비)~~ | **결정으로 종결(P10, ADR-10).** 반증하지 못한 채 남아 있던 항목이 P5 관찰(캡처 1장의 `vocabulary_examples` 5개 중 2개가 음식 명사)로 신호를 냈고, 분량·페이로드 계산이 방향을 굳혀 **페르소나 생성의 캡처 모드를 제거**하는 결정이 됐다. **정확도 차이 자체를 재지는 못했다** — 같은 대화를 두 경로로 넣어 비교한 표본은 끝내 만들지 않았으므로 그 부분은 정성 판단으로 남는다. 캡처 장수 상한·압축은 분석 탭 항목으로 옮겨 간다(DESIGN U31) |
 | 17 | 캡처로 만든 페르소나에 `updatePersona`로 텍스트를 이어 붙였을 때의 결과(§3.7) | **미확정, 그러나 범위가 닫혔다.** P10 이후 새로 만들어지는 페르소나에는 플레이스홀더가 들어가지 않으므로, 이 상황은 **P5~P9 사이에 캡처로 만든 기존 레코드에만** 남는다. 그 경우 `conversation`이 "플레이스홀더 한 줄 + 새 대화"가 되어 앞줄이 근거 없는 한 줄로 남는다. 동작은 하지만 품질을 잰 적이 없고, 새 레코드가 더 생기지 않으므로 실측 우선순위는 낮다 |
-| 18 | `analyzeMessage` 하위 호환 래퍼의 존치 여부(§3.8) | 화면이 모두 `analyzeReply`로 옮겨 가면 호출부가 없어진다. 미사용이 확인되면 마무리 단계에서 제거를 판단한다 |
+| 18 | ~~`analyzeMessage` 하위 호환 래퍼의 존치 여부(§3.8)~~ **종결(P11)**: 호출부 없음 확인 후 제거 | P11 완료 |
 | 19 | 스레드 파서(§3.11)의 실제 적중률 | **미확정.** 카카오톡 내보내기 형식과 `이름: 내용` 두 가지만 상정했다. 다른 메신저 형식·이름 표기 흔들림·라벨 없는 붙여넣기에서 화자와 타겟이 얼마나 맞는지 표본이 없다. 오검출은 수동 교정(PRD FR-30)으로 복구되는 것이 완화책이다. P6 검증에서 몇 형태를 넣어 보고 판단은 P7 실사용으로 넘긴다 |
 | 20 | ~~답장 의도가 실제로 후보 방향을 바꾸는지~~ **실측 확인(P6-1, 표본 1)**: 같은 스레드에 `decline` 의도를 주자 후보 3개가 모두 상대의 요청을 부드럽게 거절하는 방향으로 바뀌고(3.86s), 라벨도 의도에 맞게 생성됨. 말투 보존. 표본이 1건이라 프리셋 6종 전체 검증은 남아 있다 | P6-1 완료 |
 | 21 | 스레드 드래프트(§3.12)를 IndexedDB로 옮길 필요가 있는지 | 미확정 — localStorage 한 칸으로 시작한다. 스레드가 매우 길거나 페르소나가 많아 용량이 문제가 되면 그때 다시 본다 |

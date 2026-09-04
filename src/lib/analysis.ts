@@ -1,7 +1,7 @@
 // 메시지 분석 도메인 서비스. TRD §3.8.
 // 분석 도메인 서비스 — 페르소나 조회 → 최근 대화 스레드 파싱·타겟 검출 → 프롬프트 → Gemini →
 // JSON 추출 → IndexedDB 저장.
-// analyzeReply(최근 대화 스레드 + 답장 의도) / analyzeMessage(하위 호환 래퍼) / listAnalyses / removeAnalysis.
+// analyzeReply(최근 대화 스레드 + 답장 의도) / listAnalyses / removeAnalysis.
 
 import type { AnalysisRecord, CandidateReply, InlineImage } from '@/lib/types';
 import { uuid } from '@/lib/id';
@@ -89,10 +89,6 @@ export async function analyzeReply(
   return record;
 }
 
-/** 하위 호환 래퍼 — 메시지 1건을 thread이자 targetMessage로 넘긴다(의도 미지정). */
-export function analyzeMessage(personaId: string, message: string): Promise<AnalysisRecord> {
-  return analyzeReply(personaId, { thread: message, intent: '' });
-}
 
 /** 기록 탭용 전체 목록(created_at 내림차순). */
 export function listAnalyses(): Promise<AnalysisRecord[]> {
