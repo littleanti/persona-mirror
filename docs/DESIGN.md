@@ -1,6 +1,6 @@
 # DESIGN — Persora 화면·인터랙션 설계
 
-> 문서 버전: 1.6 · 갱신일: 2026-09-05 · 상태: P10 착수 — 페르소나 생성 시트를 **단일 흐름**으로 되돌린다(§5.2). 입력 모드 세그먼트·드롭존·썸네일을 걷어내고 대화 입력란 하나 + 카카오톡 대화 파일(.txt) 첨부 버튼을 둔다. 분석 탭(§6)의 캡처 모드는 그대로
+> 문서 버전: 1.7 · 갱신일: 2026-09-05 · 상태: P11 최종 — 코드 최종 상태와 대조 완료
 
 ## 문서 이력
 | 버전 | 날짜 | 변경 |
@@ -14,11 +14,28 @@
 | 1.3 | 2026-09-05 | P7 착수: §9 백드롭 닫기 판정(pointer-down 기준), §2.6 포털 규칙, U17 원인 확정 |
 | 1.4 | 2026-09-05 | P8 착수(보안 점검·배포): §1.1(C) 탭 결정을 4개로 갱신(3단 사고), §3 셸 와이어프레임·탭 아이콘, §4 온보딩 intro 문구 정정(localStorage/IndexedDB), **신규 §7b 탭 4 — 설정**(개인정보·면책 카드, 백업 내보내기/가져오기, 전체 삭제), §8.2 로딩·§8.5 확인 대화상자 갱신, §10.1 `settings.*` 영역 추가(13→14종), §12 U3 종결·U25~U28 추가 |
 | 1.5 | 2026-09-05 | P9 착수(분석 이미지 입력): §6 와이어프레임에 입력 모드 세그먼트 + 이미지 모드 와이어프레임 추가, §6.1에 세그먼트·모드 전환·드롭존·썸네일·힌트 행 추가 및 타겟 칩·피커·되돌리기를 **텍스트 모드 전용**으로 명시, §6.2 검증 순서를 모드별로 재작성, §6.3 드래프트에 텍스트 모드 한정 단서, §10.1 `analyze.tabText`·`tabImage`·`imageDropzone`·`imageHint`·`imagePlaceholder` 추가, §12 U29~U31 |
+| 1.7 | 2026-09-05 | P11 최종 동기화: **신규 §0 화면 최종 상태**, §5.2 와이어프레임의 첨부 안내 문구 위치를 구현대로 정정, §10.1에서 존재하지 않는 키 2개 정정(`onboarding.saveKey`→`btn.saveKey`, `analyze.copied`→`toast.copied`)과 완료된 정리 항목의 시제 정리, **§11 안전 영역·§12 U5를 "미구현"으로 정정**(`env(safe-area-inset-bottom)`이 코드 어디에도 없다), §12를 종결/남은 미확정으로 정리 |
 | 1.6 | 2026-09-05 | P10 착수(페르소나 입력 재평가): **§5.2 생성 시트를 단일 흐름으로 재작성**(입력 모드 세그먼트·드롭존·썸네일 그리드 삭제 → 대화 파일 첨부 버튼 + 첨부 안내 문구 추가, 검증·로딩·성공·실패 행 정리), §5.3 원본 대화 행에서 이미지 모드 규칙 제거(구 레코드의 플레이스홀더는 문자열 그대로 표시), §8.2 로딩에서 생성 시트의 180초 단서 제거, §10.1 `persona.create.*` 정리(tab*·image* 5키 삭제, attach* 4키 + `toast.chatFileReadFail` 추가), §6 도입부·§6.1 교차 참조 정정(세그먼트·드롭존 규칙의 단일 출처를 §6.1로), §12 U18~U20 종결 + U32·U33 신규 |
 
 관련 문서: 제품 요구는 [`./PRD.md`](./PRD.md), 모듈 계약·저장·LLM 호출은 [`./TRD.md`](./TRD.md), 단계 계획은 [`./PLAN.md`](./PLAN.md), 변경 이력은 [`./LOG.md`](./LOG.md). 이 문서는 **현재 시점의 설계 상태**만 서술하고, 변경 사유·이력은 LOG에 남긴다.
 
 > 표시명: **Persora**(한·영 동일 표기). 초기 코드네임 "Persona Mirror"를 M1 직전에 교체했다 — 표시 문구는 i18n `app.title`·`onboarding.welcomeTitle` 두 곳에서만 바꿨다.
+
+---
+
+## 0. 화면 최종 상태 (P11)
+
+여러 단계에 걸쳐 화면이 늘고 줄었으므로, 각 화면이 **지금 어떤 모습인지**를 먼저 한 표로 못 박는다. 상세 규칙은 각 절이 단일 출처다.
+
+| 화면 | 최종 상태 | 절 |
+|---|---|---|
+| 셸 | 상단바(로고·앱명·키 인디케이터·한/EN 토글) + **하단 탭 4개**(페르소나 / 분석하기 / 기록 / 설정) + 온보딩 게이트 + 토스트. HashRouter, `#/` → `#/personas` | §3 |
+| 온보딩 모달 | 키 입력 + 발급 링크 + 저장 동의 체크박스. **닫기 수단 없음.** 사전 검증 호출 없음 | §4 |
+| 탭 1 페르소나 | 목록·빈 상태 CTA / 생성 바텀 시트는 **단일 흐름**(이름 두 칸 + `.txt` 첨부 버튼 + 대화 textarea 하나 + 첨부 안내) / 상세 모달(나·상대 탭, 11항목, 원본 대화 토글, 추가 대화로 업데이트, 삭제). **P5~P9의 입력 모드 세그먼트·드롭존·썸네일은 P10에서 사라졌다** | §5 |
+| 탭 2 분석하기 | 페르소나 칩 + **입력 모드 세그먼트(텍스트 / 캡처 이미지)**. 텍스트 모드는 스레드 textarea·자동 타겟 칩·수동 타겟 피커·드래프트, 이미지 모드는 드롭존·썸네일·힌트. **의도 칩 6종 + 기본 + 직접 입력은 두 모드 공통.** 결과는 분석 카드 1장 + 후보 3장 | §6 |
+| 탭 3 기록 | 최신순 카드 목록, 아코디언 펼침(분석 + 후보 3, 복사 버튼 없음), 개별 삭제 | §7 |
+| 탭 4 설정 | 카드 3장 — 데이터 관리(내보내기·가져오기·전체 삭제) / 개인정보와 보안 5항목 / 면책. 입력 필드도 LLM 호출도 없다 | §7b |
+| 오류 복구 화면 | `ErrorBoundary`가 렌더 예외를 잡아 안내 + 새로고침 버튼을 보여준다. **문구는 ko 고정 문자열이며 i18n 키가 없다**(§12) | §12 |
 
 ---
 
@@ -309,9 +326,6 @@ export default {
 ││ ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐ ││  첨부 버튼 = <label> + hidden input
 ││ │  📎 카카오톡 대화 파일(.txt) 첨부    │ ││  border-dashed, 한 줄 높이
 ││ └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘ ││
-││ 카카오톡에서 내보낸 .txt를 첨부하면      ││  attachHint text-xs slate-400
-││ 머리말을 빼고 최근 대화만 자동으로       ││
-││ 채워요. 채운 뒤 직접 편집할 수 있어요.   ││
 ││                                          ││
 ││ ┌──────────────────────────────────────┐ ││
 ││ │ 김민준: 야 오늘 뭐해?                │ ││  textarea flex-1 min-h-[10rem]
@@ -320,8 +334,11 @@ export default {
 ││ │ …                                    │ ││
 ││ │                                      │ ││
 ││ └──────────────────────────────────────┘ ││
+││ 카카오톡에서 내보낸 .txt를 첨부하면      ││  attachHint text-xs slate-400
+││ 머리말을 빼고 최근 대화만 자동으로       ││  (첨부 전 · 편집 후에 이 자리)
+││ 채워요. 채운 뒤 직접 편집할 수 있어요.   ││
 ││ ✅ 원본 48,210자 중 최근 16,000자만      ││  attachedInfo text-xs indigo-500
-││    사용했어요                            ││  (첨부했을 때만. 편집하면 사라짐)
+││    사용했어요                            ││  (첨부 직후 같은 자리를 차지)
 ││ 📋 대화가 많을수록 더 정확한 페르소나가  ││  textHint text-xs slate-400
 ││ 만들어져요. 최소 10줄 이상 권장합니다.   ││
 ││                                          ││
@@ -736,19 +753,19 @@ P9에서 최근 대화 입력에 **텍스트 / 캡처 이미지 세그먼트**�
 | `common.*` | 공용 동작/상태 | `common.loading`, `common.save`, `common.cancel`, `common.delete`, `common.candidateN`, **`common.saving`** |
 | `btn.*` | 화면 하나에만 쓰이는 주 버튼 라벨 | `btn.saveKey`(온보딩 "키 저장하고 시작하기") |
 | `status.*` | 헤더 키 상태 | `status.ready`, `status.noKey` |
-| `onboarding.*` | 온보딩 모달 | `onboarding.welcomeTitle`, `onboarding.welcomeDesc`, `onboarding.intro`, `onboarding.keyLabel`, `onboarding.consent`, `onboarding.helpCta`, `onboarding.saveKey` |
+| `onboarding.*` | 온보딩 모달 | `onboarding.welcomeTitle`, `onboarding.welcomeDesc`, `onboarding.intro`, `onboarding.keyLabel`, `onboarding.consent`, `onboarding.helpCta`(제출 버튼 라벨은 `btn.saveKey`) |
 | `persona.*` | 페르소나 탭·생성·상세 | `persona.empty.title`, `persona.create.title`, `persona.create.otherName`, `persona.create.convPlaceholder`, `persona.create.textHint`, **`persona.create.attachFile`**, **`persona.create.attachHint`**, **`persona.create.attachedInfo`**(`{n}`), **`persona.create.attachedInfoTrimmed`**(`{n}`·`{total}`), `persona.detail.title`, `persona.detail.convToggle`, `persona.detail.updateTitle`, `persona.detail.updatePlaceholder`, `persona.detail.updateCta`, `persona.detail.updateLoading`, `persona.field.communication_style` … `persona.field.relationship_dynamics` |
-| `analyze.*` | 분석 탭 | `analyze.selectPersona`, `analyze.run`, `analyze.aiLabel`, `analyze.candidatesTitle`, `analyze.reason`, `analyze.copy`, `analyze.copied`, `analyze.noPersonaHint`, `analyze.loading`, `analyze.threadLabel`, `analyze.threadHint`, `analyze.threadPlaceholder`, `analyze.target`, `analyze.targetEmpty`, `analyze.pickTarget`, `analyze.intentLabel`, **`analyze.tabText`**, **`analyze.tabImage`**, **`analyze.imageDropzone`**, **`analyze.imageHint`**, **`analyze.imagePlaceholder`** |
+| `analyze.*` | 분석 탭 | `analyze.selectPersona`, `analyze.run`, `analyze.aiLabel`, `analyze.candidatesTitle`, `analyze.reason`, `analyze.copy`, `analyze.noPersonaHint`, `analyze.loading`, `analyze.threadLabel`, `analyze.threadHint`, `analyze.threadPlaceholder`, `analyze.target`, `analyze.targetEmpty`, `analyze.pickTarget`, `analyze.intentLabel`, **`analyze.tabText`**, **`analyze.tabImage`**, **`analyze.imageDropzone`**, **`analyze.imageHint`**, **`analyze.imagePlaceholder`** |
 | `intent.*` | 답장 의도 라벨(1.2 신규 영역) | `intent.none`, `intent.comfort`, `intent.solve`, `intent.lighten`, `intent.decline`, `intent.boundary`, `intent.persuade`, `intent.custom`, `intent.customPlaceholder` |
 | `history.*` | 기록 탭 | `history.empty`, `history.candidatesTitle`, `history.delete`, `history.confirmDelete` |
 | `settings.*` | 설정 탭(1.4 신규 영역) — 화면 문구와 그 화면 전용 토스트를 함께 담는다 | `settings.subtitle`, `settings.dataTitle`, `settings.dataDesc`, `settings.exportBtn`, `settings.importBtn`, `settings.clearBtn`, `settings.privacyTitle`, `settings.privacyDesc`, `settings.privacyLocal`, `settings.privacyGemini`, `settings.privacyKey`, `settings.privacyLoss`, `settings.privacyConsent`, `settings.disclaimerTitle`, `settings.disclaimerDesc`, `settings.confirmClearAll`, `settings.toastExported`, `settings.toastExportFailed`, `settings.toastImported`(`{personas}`·`{analyses}`·`{drafts}`), `settings.toastImportFailed`, `settings.toastCleared`, `settings.toastClearFailed` |
-| `toast.*` | 사용자 행위 결과 알림 | `toast.keySaved`, `toast.keyDeleted`, `toast.invalidKeyFormat`, `toast.confirmLocalOnly`, `toast.enterName`, `toast.convTooShort`, **`toast.chatFileReadFail`**, `toast.addImage`, `toast.imageLoadFail`, `toast.personaCreated`, `toast.personaCreateFail`, `toast.personaDeleted`, `toast.personaSelected`, **`toast.enterConversation`**, **`toast.personaUpdated`**, **`toast.personaUpdateFail`**, `toast.selectPersona`, `toast.enterMessage`, `toast.analyzeFail`, `toast.copyFail`, `toast.historyDeleted`, `toast.deleteFail`, `toast.loadDetailFail`, `toast.load*Fail` |
+| `toast.*` | 사용자 행위 결과 알림 | `toast.keySaved`, `toast.keyDeleted`, `toast.copied`, `toast.invalidKeyFormat`, `toast.confirmLocalOnly`, `toast.enterName`, `toast.convTooShort`, **`toast.chatFileReadFail`**, `toast.addImage`, `toast.imageLoadFail`, `toast.personaCreated`, `toast.personaCreateFail`, `toast.personaDeleted`, `toast.personaSelected`, **`toast.enterConversation`**, **`toast.personaUpdated`**, **`toast.personaUpdateFail`**, `toast.selectPersona`, `toast.enterMessage`, `toast.analyzeFail`, `toast.copyFail`, `toast.historyDeleted`, `toast.deleteFail`, `toast.loadDetailFail`, `toast.load*Fail` |
 | `err.*` | Gemini/저장소 오류(gemini.ts·db.ts가 사용) | `err.invalidKey`, `err.network`, `err.rateLimit`, `err.timeout`, `err.serviceTemp`, `err.aiGeneric`, `err.keyNotSet`, `err.dbOpen` |
 | `parse.*` | LLM 응답 JSON 파싱 실패 폴백 문구(analysis.ts가 사용, TRD §3.8) | `parse.failAnalysis`, `parse.failLabel`, `parse.failReason` |
 
 - 필드 라벨 키의 세부 이름은 `PersonaFields`의 속성명과 **동일**하게 둔다(`persona.field.<속성명>`) — 알 수 없는 키가 와도 `t()` 폴백으로 속성명이 그대로 표시된다.
 - 보간 파라미터는 `{name}`, `{my}`, `{n}`, `{date}`, `{msg}`처럼 의미가 드러나는 이름을 쓴다.
-- **P10에서 `persona.create.*`의 다섯 키를 지운다** — `tabText`·`tabImage`·`imageDropzone`·`imageHint`·`imagePlaceholder`. 생성 시트에 이미지 모드가 없어져 어느 것도 렌더되지 않기 때문이며, 남겨 두면 다음 사람이 "어딘가 쓰이는 문구"로 오해한다. **`analyze.*`의 같은 이름 키들은 지우지 않는다**(분석 탭이 계속 쓴다). `toast.addImage`·`toast.imageLoadFail`도 분석 탭이 쓰므로 남는다 — P5에서 만들 때 두 화면이 공유하도록 이름에 화면을 넣지 않은 것이 여기서 값을 한다.
+- **P10에서 `persona.create.*`의 다섯 키를 지웠다** — `tabText`·`tabImage`·`imageDropzone`·`imageHint`·`imagePlaceholder`. 생성 시트에 이미지 모드가 없어져 어느 것도 렌더되지 않기 때문이며, 남겨 두면 다음 사람이 "어딘가 쓰이는 문구"로 오해한다. **`analyze.*`의 같은 이름 키들은 지우지 않는다**(분석 탭이 계속 쓴다). `toast.addImage`·`toast.imageLoadFail`도 분석 탭이 쓰므로 남는다 — P5에서 만들 때 두 화면이 공유하도록 이름에 화면을 넣지 않은 것이 여기서 값을 한다.
   - `persona.create.imagePlaceholder`가 사라져도 **이미 저장된 문자열은 그대로 남는다.** 그것은 키가 아니라 생성 시점에 굳은 값이라 사전에서 키를 지워도 화면 표시가 바뀌지 않는다(§10의 저장 데이터 규칙).
 - **P10의 신규 키 4종은 모두 `persona.create.*`에 둔다.** `attachFile`·`attachHint`는 버튼과 안내 문구이고, `attachedInfo`·`attachedInfoTrimmed`는 첨부 직후의 응답 문구다. 뒤 둘을 **한 키에 조건 분기로 몰지 않고 둘로 나눈 이유**는 잘렸을 때만 원본 글자 수를 말해야 하기 때문이다 — 잘리지 않았는데 "원본 1,200자 중 1,200자"라고 적으면 없는 손실을 암시한다.
 - **`toast.chatFileReadFail`은 `toast.*`에 둔다.** 파일 읽기 실패는 사용자 행위의 결과 알림이고, `settings.*`처럼 화면 전용 예외를 만들 이유가 없다.
@@ -758,8 +775,8 @@ P9에서 최근 대화 입력에 **텍스트 / 캡처 이미지 세그먼트**�
 - 페르소나 업데이트 문구는 상세 화면 소속이라 `persona.detail.*`에 둔다 — 이 표의 `<영역>.<대상>.<세부>` 규칙을 그대로 따른 것이다.
 - **`settings.*`의 토스트만 `toast.*`가 아니라 자기 영역에 둔다.** 다른 화면의 결과 알림은 `toast.*`에 모아 두었지만, 설정 탭의 여섯 문구는 그 화면 밖에서 쓰일 일이 없고 화면 문구(`settings.dataDesc` 등)와 짝을 이뤄 함께 고쳐진다. 규칙의 예외이므로 여기 적어 둔다 — 다른 화면의 새 토스트는 계속 `toast.*`로 간다.
 - **스레드 드래프트에는 i18n 키가 없다.** 저장·복원이 조용히 일어나고 화면에 문구가 뜨지 않기 때문이다(§6.3).
-- v2로 바뀌면서 `analyze.messagePlaceholder`(v1의 "받은 메시지" 예시)는 쓰이지 않게 된다. 자리를 `analyze.threadPlaceholder`가 대신하며, 미사용 키 정리는 구현 시 함께 한다.
-- 최종 키 목록은 `src/lib/i18n.ts`가 단일 출처다. 이 표와 어긋나면 이 표를 갱신한다(1.0에서 `btn.*` 추가가 그 사례다).
+- v1의 `analyze.messagePlaceholder`("받은 메시지" 예시)는 v2에서 쓰이지 않게 되어 **P6-1에서 사전과 함께 지웠다.** 자리는 `analyze.threadPlaceholder`가 대신한다.
+- 최종 키 목록은 `src/lib/i18n.ts`가 단일 출처다. 이 표와 어긋나면 이 표를 갱신한다 — 1.0의 `btn.*` 추가와 1.7의 두 건(`onboarding.saveKey`·`analyze.copied`는 사전에 없는 키였다)이 그 사례다. **P11 대조 결과 14개 영역과 이 표의 키가 코드와 일치한다.**
 
 ---
 
@@ -769,7 +786,7 @@ P9에서 최근 대화 입력에 **텍스트 / 캡처 이미지 세그먼트**�
 |---|---|
 | 터치 타깃 | 탭 가능한 요소는 최소 44×44px. 하단 탭(`py-3` + 아이콘 + 라벨), 주 버튼(`py-3`~`py-3.5`), 목록 카드는 충족. 텍스트 버튼(복사·저장·취소)은 `py-2` 이상 패딩으로 높이를 확보 |
 | 뷰포트 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">`, `theme-color #6366f1` |
-| 안전 영역 | 하단 탭에 `padding-bottom: env(safe-area-inset-bottom)`을 더해 홈 인디케이터와 겹치지 않게 한다. `main`의 하단 패딩도 같은 값을 더한다. 실기기 효과는 §12 |
+| 안전 영역 | **미구현(P11 대조).** 설계 의도는 하단 탭과 `main` 패딩에 `env(safe-area-inset-bottom)`을 더하는 것이었지만, 코드에는 그 선언이 없다 — 하단 탭은 `py-3`, `main`은 `pb-20` 고정값뿐이다. 홈 인디케이터 기기에서 탭이 가려지는지는 실기기 확인과 함께 본다(§12 U5) |
 | 높이 단위 | `dvh` 사용(`min-h-dvh`, `h-[92dvh]`) — 모바일 브라우저 주소창 변동 대응 |
 | 키보드 | Enter(온보딩 저장)·Enter/ESC(헤더 인라인 편집)·Ctrl/Cmd+Enter(분석) 단축키(§9). 모든 컨트롤은 실제 `<button>`/`<input>`/`<textarea>`/`<a>`로 만들어 탭 포커스 순서를 자연스럽게 둔다 |
 | 시맨틱 | 언어 토글 `role="group" aria-label="Language"` + `aria-pressed`; 장식 이미지 `alt=""`; 상세 모달 제목은 `h3`, 화면 제목은 `h1`(한 화면에 하나) |
@@ -783,7 +800,7 @@ P9에서 최근 대화 입력에 **텍스트 / 캡처 이미지 세그먼트**�
 
 ## 12. 미확정 항목
 
-M1 시점에 종결된 항목은 취소선과 결과만 남긴다. 나머지는 확정 시점과 함께 유지한다.
+**취소선이 그어진 항목은 종결**(결과만 남긴다), 나머지는 **남은 미확정**이며 확정 방법·시점을 함께 적는다. P11 기준으로 종결된 것은 U1·U2·U3·U17·U18·U19·U20 일곱이고, 나머지는 실사용 관찰이나 실기기 확인을 기다린다. 화면 밖 항목까지 포함한 단일 목록은 [`./PLAN.md`](./PLAN.md) §8에 있다.
 
 | # | 항목 | 현재 판단 | 확정 시점 |
 |---|---|---|---|
@@ -791,13 +808,13 @@ M1 시점에 종결된 항목은 취소선과 결과만 남긴다. 나머지는 
 | ~~U2~~ | 로고·파비콘 자산 | **확정(P1)**: `public/`의 `favicon.png`·`app-icon-192.png`·`apple-touch-icon.png`·`app-logo.png`를 사용한다. 이니셜형 플레이스홀더는 쓰지 않았다 | 완료 |
 | ~~U3~~ | Pretendard 웹폰트 로드 | **결정(P8): 로드하지 않는다.** CSP를 `default-src 'self'`로 닫았고(TRD §8.1) 폰트 CDN을 허용하려면 `font-src`·`style-src`에 외부 출처를 열어야 한다. 설치된 기기에서는 스택 선언만으로 이미 Pretendard가 쓰이고, 아닌 기기에서는 시스템 폰트로 떨어진다 — 그 차이보다 외부 출처를 여는 비용이 크다고 봤다. 웹폰트가 정말 필요해지면 **파일을 `public/`에 두고 `'self'`로 서빙**하는 쪽이 CSP를 건드리지 않는 길이다 | 완료 |
 | U4 | 생성 시트와 소프트 키보드 겹침 | `h-[92dvh]` + 내부 스크롤로 대응한다고 가정. **실기기 미확인**(A6가 미실행이라 P3 모바일 스모크에서도 확인하지 못했다) | P8 배포 후 실기기 |
-| U5 | 하단 탭 safe-area 패딩의 실효 | `env(safe-area-inset-bottom)` 적용. 홈 인디케이터 기기에서 **미실측** | P8 배포 후 실기기 |
+| U5 | 하단 탭 safe-area 패딩 | **미구현.** `env(safe-area-inset-bottom)`이 코드에 없다(P11 대조) — 하단 탭 `py-3`, `main` `pb-20` 고정값뿐이다. 홈 인디케이터 기기에서 탭 라벨이 가려지는지 먼저 보고, 가려지면 두 자리에 패딩을 더한다 | 실기기 확인 시 |
 | U6 | 오버레이 ESC 닫기 | **미구현.** 생성 시트·상세 모달은 백드롭 클릭과 X 버튼으로만 닫힌다. ESC는 헤더 인라인 키 편집에만 있다(§4.2). 모바일에서 이득이 없어 M1에서 넣지 않았다 | 실사용 후 |
 | U7 | HTTP(LAN) 접속 시 클립보드 API | `navigator.clipboard`가 제한될 수 있음 → 실패 토스트로 안내. 대체 복사 경로는 미정. M1 스모크에서 복사 클릭은 동작했으나 자동화 브라우저의 권한 대기로 **성공 토스트 문구를 확인하지 못했다** | 실사용 관찰(계속) |
 | ~~U17~~ | 상세 모달 백드롭이 최상단 약 20px를 덮지 않음 | **원인 확정(P7-3)**: `space-y-5` 부모의 margin-top 주입. 페이지 오버레이는 `createPortal(document.body)`로 렌더(§2.6 규칙) — 적용 후 top 0 실측 | 완료 |
 | U8 | 토스트 자동 닫힘 4초 | 임시값. 긴 오류 문구 가독성은 실사용 후 조정 | 실사용 관찰(계속) |
 | U9 | 기록 탭 후보 카드의 복사 버튼 | M1은 미포함(분석 탭에서 복사, PRD FR-21). 실사용에서 요구되면 추가 | 실사용 후 |
-| U10 | LLM 대기 시간 표시 | 진행률 없이 점 3개. 지연 수치 미실측(키 필요)이라 기대 시간 문구를 넣지 않음 | M1 이후 |
+| U10 | LLM 대기 시간 표시 | 진행률 없이 점 3개. 지연은 실측했지만(2.75~6.57s, 시나리오별 표본 1) **분산을 모르므로** 기대 시간 문구를 넣지 않는다. 표본이 쌓여 범위를 말할 수 있게 되면 다시 본다 | 실사용 관찰(계속) |
 | U11 | `prefers-reduced-motion` | 비목표. 모션이 짧아 우선순위 낮음 | 미정 |
 | U12 | en 문구 품질 | P1에서 초안 작성, 원어민 검수 없음 | 미정 |
 | U13 | 이니셜 규칙 | `getInitial`은 첫 글자(영문 대문자). 다국어 이름·이모지 이름은 미검토 | 실사용 후 |
@@ -820,3 +837,5 @@ M1 시점에 종결된 항목은 취소선과 결과만 남긴다. 나머지는 
 | U31 | 분석 탭 캡처 장수 상한·썸네일이 화면을 밀어내는 정도 | 상한을 두지 않고 시작한다(P10에서 종결된 U18과 같은 판단이었다). 분석 탭은 시트가 아니라 페이지라 그리드가 길어지면 의도 칩과 실행 버튼이 아래로 밀리는데, 페이지 스크롤로 닿을 수는 있다. 최근 맥락은 대개 한두 장이라 문제가 늦게 온다고 봤다 — **몇 장부터 불편한지는 미확인** | 실사용 관찰(계속) |
 | U32 | 큰 대화 파일을 첨부했을 때의 체감 | 카카오톡 대화 내보내기는 수 MB에 이를 수 있는데, `FileReader.readAsText`로 **전체를 읽은 뒤** 말미만 잘라 쓴다(TRD §3.15). 읽는 동안 로딩 표시가 없고(§8.2), **몇 MB부터 체감 지연이 생기는지 재지 않았다.** 필요가 보이면 후보는 둘 — 읽는 동안 버튼 라벨을 바꾸거나, 파일의 뒷부분만 잘라 읽는 것(`File.slice`). 후자는 멀티바이트 문자가 경계에서 깨질 수 있어 그 처리가 따라붙는다 | 실사용 후 |
 | U33 | 첨부 안내 문구가 첨부 직후에만 참이라는 점 | 사용자가 textarea를 편집하면 문구를 지우는 것으로 다룬다(§5.2). 단순하지만 **한 글자만 고쳐도 사라지므로** "얼마나 쓰였는지"를 다시 보려면 재첨부해야 한다. 대안은 문구를 남기되 "편집됨" 표시를 붙이는 것인데, 상태가 하나 늘고 화면 문구도 늘어 지금은 두지 않았다 | 실사용 후 |
+| U34 | `ErrorBoundary` 복구 화면의 i18n | **미해결.** 문구가 ko 고정 문자열이다 — §10.1에 오류 화면 영역이 없어 P7-1에서 키를 만들지 않았고, 렌더 예외를 인위적으로 주입한 적도 없어 복구 UI의 실제 동작도 확인하지 못했다. 방법: 영역을 하나 더할지(`error.*`) `common.*`에 넣을지 정해 ko/en 키를 만들고, 예외를 주입해 화면을 본다 | 후속 후보 |
+| U35 | 첨부 안내 문구가 머리말 제거와 tail 컷을 구분하지 않음 | **관찰(P10).** 1,331자 파일이 머리말 제거만으로 1,238자가 됐을 때도 `attachedInfoTrimmed`("원본 N자 중 최근 M자만 사용했어요")가 떠, 잘리지 않았는데 잘린 것처럼 읽힌다. 비교 기준이 원본 전체 길이여서 생기는 일이다(§5.2). 방법: 기준을 머리말 제거 후 길이로 바꾸거나 두 경우의 문구를 나눈다 | 후속 후보 |
