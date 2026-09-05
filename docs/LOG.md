@@ -1,8 +1,8 @@
 # LOG — Persora 변경 이력 (Changelog)
 
-> 규칙(CLAUDE.md 그라운드 룰 2): 최신 항목을 맨 위에 둔다. 각 항목은 태그(`[feat]`/`[fix]`/`[test]`/`[docs]`/`[chore]`), 절대 날짜, 변경 파일, 상태(`진행중`/`완료`/`완료(미검증)`)를 적는다. 코드 변경은 착수 전에 `진행중` 항목을 먼저 추가하고, 검증 후 `완료`로 바꾸며 실제 변경 파일을 정정한다. 검증을 돌리지 않았으면 "검증 비대상" 또는 "미실행"으로 사실대로 적는다. 원인 진단·설계 선택·수치 판단에는 그라운드 룰 1의 3단 사고(1차 사고 / 비판적 재사고 / 종합)를 남긴다.
+> 규칙(CLAUDE.md 그라운드 룰 2): 최신 항목을 맨 위에 둔다. 각 항목은 태그(`[feat]`/`[fix]`/`[test]`/`[docs]`/`[chore]`), 절대 날짜, 변경 파일, 상태(`진행중`/`완료`/`완료(미검증)`)를 적는다. 코드 변경은 착수 전에 `진행중` 항목을 먼저 추가하고, 검증 후 `완료`로 바꾸며 실제 변경 파일을 정정한다. 검증을 돌리지 않았으면 "검증 비대상" 또는 "미실행"으로 사실대로 적는다. 원인 진단·설계 선택·수치 판단에는 그라운드 룰 1의 3단 사고(1차 사고 / 비판적 재사고 / 종합)를 남긴다. 단계 번호 참조: P6-1 항목보다 아래(P1~M1)에 있는 기록의 "P6 안정화"·"P7 배포"는 재편 전 번호다(PLAN §3 재편 이후 안정화 = P7, 보안·배포 = P8). 과거 항목은 고쳐 쓰지 않는다.
 
-## 2026-09-05 — [chore] P11 마무리 — 미사용 코드 제거, README·문서 최종 동기화, 전체 검증 — 진행중
+## 2026-09-05 — [chore] P11 마무리 — 미사용 코드 제거, README·문서 최종 동기화, 전체 검증 — 완료
 
 - 배경/목적: 피벗을 거치며 남은 하위 호환 래퍼와 어긋난 서술을 정리하고, 네 문서를 코드 최종 상태와 대조해 닫는다. 그다음 전체 검증(vitest·tsc·build·브라우저 전 흐름)과 독립 리뷰(문서-코드 정합 / 변경 이력-커밋 정합 / 규칙 준수)를 거친다.
 - 변경 예정: ① `src/lib/analysis.ts`의 `analyzeMessage`(v1 하위 호환 래퍼, 앱 내 호출부 없음) 제거 — TRD §3.8 정정. ② `README.md` 최종(기능 3+설정, 실행·접속 주소, 개인정보, 프로젝트 구조, 문서 링크). ③ PRD/TRD/DESIGN/PLAN 최종 동기화(상태·미확정 목록 정리). ④ 리뷰 지적 반영.
@@ -10,6 +10,12 @@
 - ① 완료 — `analyzeMessage` 제거: `src/lib/analysis.ts`(래퍼·머리 주석), `docs/TRD.md`(§3.8·§10 #18). 호출부 grep 0건(테스트에도 없음). 검증: `npm test` → Tests 45 passed (45) / `tsc` 0 / `vite build` → js index-DqBYvWdh.js 557.70 kB │ gzip: 140.26 kB.
 - ② 완료 — README 최종: `README.md`를 코드 최종 상태 기준으로 재작성. 주요 기능 4개(페르소나 생성 — 붙여넣기 또는 카카오톡 `.txt` 첨부(말미 16,000자) / 메시지 분석 — 최근 대화 스레드(자동 타겟·수동 교정·의도 6종) 또는 캡처 이미지 / 기록 / 설정 — 백업·가져오기·전체 삭제·고지), 기술 스택 표, 실행·접속 주소(`npm run dev` → `http://localhost:4121/persora/`, `npm start` → `http://localhost:8000/persora/`), 첫 실행(키 온보딩·localStorage·키 제한 안내), 개인정보(첨부 파일 자체는 업로드하지 않는다는 문장 추가), 실제 파일 트리, 테스트 절(`npm test` 45개·파일별 대상), 배포, 문서 링크. 정정한 옛 서술: "메시지 분석 v1"·기능 3개·"앞으로 추가할 기능(캡처 이미지 입력·안정화·배포)"·탭 3개·`repos/settingsRepo(쿠키)`·`config.ts` 쿠키 상수·누락돼 있던 `SettingsPage`·`chatFile`·`thread`·`drafts`·`dataManagement`·`assets`·`image`·`ErrorBoundary`. 검증: 문서 변경이라 비대상(코드 무변경).
 - ③ 완료 — 문서 최종 동기화: `docs/PRD.md`(1.6)·`docs/TRD.md`(2.3)·`docs/DESIGN.md`(1.7)·`docs/PLAN.md`(2.5). 머리말 상태를 모두 "P11 최종 — 코드 최종 상태와 대조 완료"로 바꾸고, 미확정 표를 **종결 / 남은 미확정** 두 묶음으로 정리했다(남은 항목마다 확정 방법·시점). 남은 미확정의 단일 목록은 PLAN §8이며 PRD §11.2·TRD §10·DESIGN §12가 같은 내용을 각 문서 관점으로 담는다. 코드 대조로 찾은 정정: **(DESIGN)** §11 안전 영역·§12 U5가 `env(safe-area-inset-bottom)` 적용을 기정사실로 서술했으나 `index.css`·`tailwind.config.js`·`App.tsx` 어디에도 없어 **"미구현"으로 정정**, §10.1의 존재하지 않는 키 2개(`onboarding.saveKey` → 실제 `btn.saveKey`, `analyze.copied` → 실제 `toast.copied`), §5.2 와이어프레임의 `attachHint` 위치(textarea 위 → 실제는 아래, `attachedInfo`와 같은 자리), 완료된 정리 항목의 미래 시제 2건. **(TRD)** §3.8 코드 블록에 남아 있던 `analyzeMessage` 래퍼 주석 잔여, §5 ADR-7 종합의 "래퍼로 남긴다" 서술, §6.2 로컬 서버 코드 블록이 루트 마운트로 적혀 있던 것(실제는 `/persora` 마운트 + `/` 302), §6.3·§7·§9.4의 접속 주소에 base 경로 누락, §3.0 트리의 `vite-env.d.ts` 누락, §8 의존성 행의 "`npm audit` 미실행"과 §8.1의 "dev 충돌 미확인"(둘 다 P8에서 실행·확인됨), §10 #12의 옛 빌드 크기(544.45 kB → 557.70 kB), #23 중복 행, #29·#30의 실측 결과와 "미실측" 서술 충돌, 머리말의 "아직 코드에 없다" 서술. **(PLAN)** §2 트리 머리말의 "P10에서 만들 2개 … 아직 없는 파일"과 `analysis.ts` "래퍼 유지", §1.3 단위 테스트·UI 스모크 행의 옛 범위, §7 CSP 리스크 행의 미래 시제. **(PRD)** §6 NFR-3의 "tail 분량 지연 미실측", §10 로드맵 P10 진행중. 추가한 것: PRD §7.1 최종 Acceptance 표, TRD §9.10 최종 검증 요약(실키 14회·게이트·프로브)과 ADR-1~10 상태 표, DESIGN §0 화면 최종 상태, PLAN §5.4 M1 이후 단계 요약. 검증: 문서 변경이라 비대상(코드 무변경) — 전체 검증은 이 항목의 검증 계획대로 리뷰 뒤에 한 번에 돌린다.
+- ④ 완료 — 독립 리뷰 3렌즈(문서-코드 정합 / LOG-커밋 정합 / 규칙 준수·누출) 반영:
+  - 코드: `src/lib/i18n.ts` 설정 탭 고지 2문구 정정(ko/en) — `settings.privacyKey`가 권하던 "HTTP referrer 제한"은 앱이 `no-referrer` 정책을 쓰므로 따르면 Gemini 호출이 깨진다(PRD FR-38 ③·TRD §8.1과도 모순) → API 제한·회전 안내로; `settings.privacyGemini`는 캡처 전송 화면을 페르소나 생성으로 잘못 적고 있어(P10 이후 사실과 어긋남) 분석 탭 기준으로 정정. 앞서 사전 섹션 주석에 남아 있던 작업 단계 메모 2건도 제거.
+  - 문서: 코드 기준 정정 — 생성 시트는 닫아도 입력이 유지된다(마운트 유지, 성공 시에만 초기화; DESIGN §1.1(A)·§5.2·§9·U14, TRD §3.10), 저장 중 백드롭 닫기 가드 없음, 상세 필드 표시 순서는 응답 JSON 키 순서, `AnalyzeReplyInput`은 문서용 계약(코드는 인라인 타입), `candidates`는 3개 초과 시 앞 3개만, 프롬프트 블록 순서(TRD §3.5), `splitPersonaRaw` 사용처 2곳, `initI18n`의 초기 언어 결정, 온보딩 동의 문구 인용(PRD FR-3·TRD §3.10·DESIGN §4). 문서 이력 표 행 순서(PRD·DESIGN) 정렬. 단위 혼용(216 kB = 211 KiB) 통일. P6-2에서 미확정으로 남겼다가 P11 정리에서 빠진 항목(타겟 피커 폴백 "나" ko 고정, not-found 오류 문구 ko 고정)을 PLAN §8.2 #33·TRD §10·DESIGN U36·PRD §11.2에 복원, 설정 고지 문구 불일치는 이번 코드 정정으로 종결.
+  - 정오표(LOG 과거 항목의 기록 오류): 표시명 항목의 변경 파일에서 실제로 바뀌지 않은 `config.ts` 제거, P6-1 thread.test.ts 15→12케이스, P7-1 검증 수치의 커밋 상태/실행 상태 구분, P1·P2 변경 파일에 `docs/PLAN.md` 추가, 주석 정리 커밋의 LOG 항목 추가.
+- 최종 검증: `npm test` → Tests 45 passed (45) / `npx tsc --noEmit` → 0 에러 / `npx vite build` → js index-DxZ1SAI3.js 557.75 kB │ gzip: 140.31 kB / 주석 위생·외부 참조 grep → 0건. 브라우저 전 흐름 스모크(Playwright, dev `/persora/`, 유효 키): 포털·백드롭 4항목, 설정 탭(레거시 쿠키 이전·백업 내보내기/가져오기·전체 삭제), 분석 캡처 모드(5.17s, 마지막 상대 메시지에 답함), 페르소나 .txt 첨부(24,478자 → 15,989자, 생성 7.66s) 모두 정상, 콘솔 에러 0. 같은 종류 호출도 회차별 지연 편차가 커(예: 분석 캡처 2.75s→5.17s) 지연 수치는 자릿수 정보로만 쓴다.
+- 남은 미확정: PLAN §8.2 단일 목록(실기기 A6, Pages 배포 후 A1~A4, 의도 6종 전체, 캡처 vs 텍스트 정확도 표본, tail 상한 품질, 머리말 패턴 표본, 첨부 안내 문구, ErrorBoundary·피커 라벨 i18n, npm audit 잔여 7건, 이미지 모드 오판율, 여러 장 캡처, Gemini 품질 표본, thinking off 효과).
 
 ## 2026-09-05 — [feat] P10 페르소나 생성 입력 재평가 — 캡처 이미지 모드 제거, 카카오톡 대화 파일(.txt) 첨부 + tail 컷 — 완료
 
@@ -178,7 +184,7 @@
 - 변경 예정 파일: `src/routes/PersonaPage.tsx`, `src/components/ErrorBoundary.tsx`(신규), `src/main.tsx`, `docs/DESIGN.md` §9, `docs/TRD.md` §3.10
 - 검증 계획: 같은 드래그 시나리오 재실행 → 시트 유지·입력 보존; 백드롭에서 누르고 떼기 → 닫힘; X 닫기 정상; tsc/build/test.
 - 변경 파일(실제): `src/routes/PersonaPage.tsx`(생성 시트·상세 모달 백드롭에 `onMouseDown` 플래그 + `onClick` 판정), `src/components/ErrorBoundary.tsx`(신규), `src/main.tsx`
-- 검증: `npm test` → 4 files, 30/30 통과 / `npx tsc --noEmit` → 0 에러 / `npx vite build` → js 544.36 kB(gzip 136.33 kB), 83 modules. 브라우저(Vite dev, Playwright)에서 재현 시나리오 재실행: textarea에서 mousedown → 텍스트 선택 → 백드롭에서 mouseup → **시트 유지, 입력 27자 보존**. 백드롭에서 누르고 뗌 → 닫힘. X 닫기 정상. `main.tsx`에 ErrorBoundary 연결 확인(인위적 렌더 예외 주입 테스트는 하지 않아 실제 복구 UI 동작은 미확정).
+- 검증: `npm test` → 30/30 통과(작업 트리에 P7-2의 `id.test.ts` 4개가 함께 있던 상태 — 이 커밋 자체의 테스트는 3 files 26개) / `npx tsc --noEmit` → 0 에러 / `npx vite build` → js 544.36 kB(gzip 136.33 kB), 83 modules. 브라우저(Vite dev, Playwright)에서 재현 시나리오 재실행: textarea에서 mousedown → 텍스트 선택 → 백드롭에서 mouseup → **시트 유지, 입력 27자 보존**. 백드롭에서 누르고 뗌 → 닫힘. X 닫기 정상. `main.tsx`에 ErrorBoundary 연결 확인(인위적 렌더 예외 주입 테스트는 하지 않아 실제 복구 UI 동작은 미확정).
 - 남은 미확정: ErrorBoundary 문구는 ko 고정 문자열(DESIGN §10.1에 오류 화면 영역이 없어 키를 새로 만들지 않음) — i18n 키로 뺄지 P8 이후 판단.
 
 ## 2026-09-05 — [feat] P6-2 분석 단계 재설계(2/2) — 스레드 드래프트·타겟 수동 교정·페르소나 추가 대화 업데이트 — 완료
@@ -214,7 +220,7 @@
   - UI 스모크(Vite dev + 브라우저 자동화): 스레드 붙여넣기 → 타겟 칩 표시 → 피커로 다른 메시지 선택 → 의도 칩 전환 → 직접 입력 → 페르소나 전환 시 드래프트 복원 → 상세 모달 "추가 대화로 업데이트"
   - 실키 1회 이상: **의도 스티어링 확인** — 같은 스레드에 `decline`(정중한 거절) 의도를 주면 후보 3개의 방향이 공감 3축에서 거절 쪽으로 바뀌는지. 빈 의도로 한 번 더 돌려 v1 무회귀도 함께 본다
 
-- P6-1 변경 파일(실제): `src/lib/thread.ts`(신규), `src/lib/thread.test.ts`(신규, 15케이스), `src/lib/gemini.test.ts`(신규, extractJson 4경로), `src/lib/types.ts`(가산 필드·ReplyIntentKey·REPLY_INTENTS·AnalyzeReplyInput), `src/lib/prompts.ts`(buildAnalyzePrompt v2 + intentDirective), `src/lib/analysis.ts`(analyzeReply, analyzeMessage는 래퍼), `src/routes/AnalyzePage.tsx`(스레드 textarea·타겟 칩·의도 칩·직접 입력), `src/lib/i18n.ts`(analyze.thread*/target*, intent.*; 미사용 키 2개 제거), `package.json`·`package-lock.json`(vitest ^3.2.7, `npm test`), `vite.config.ts`(test.include를 `src/**/*.test.ts`로 한정 — 테스트 수집 범위를 `src/**`에 고정), `docs/TRD.md`(§10 #20 실측), `docs/PLAN.md`
+- P6-1 변경 파일(실제): `src/lib/thread.ts`(신규), `src/lib/thread.test.ts`(신규, 12케이스), `src/lib/gemini.test.ts`(신규, extractJson 4경로), `src/lib/types.ts`(가산 필드·ReplyIntentKey·REPLY_INTENTS·AnalyzeReplyInput), `src/lib/prompts.ts`(buildAnalyzePrompt v2 + intentDirective), `src/lib/analysis.ts`(analyzeReply, analyzeMessage는 래퍼), `src/routes/AnalyzePage.tsx`(스레드 textarea·타겟 칩·의도 칩·직접 입력), `src/lib/i18n.ts`(analyze.thread*/target*, intent.*; 미사용 키 2개 제거), `package.json`·`package-lock.json`(vitest ^3.2.7, `npm test`), `vite.config.ts`(test.include를 `src/**/*.test.ts`로 한정 — 테스트 수집 범위를 `src/**`에 고정), `docs/TRD.md`(§10 #20 실측), `docs/PLAN.md`
 - P6-1 검증:
   - `npm test` → 2 files, **16/16 통과** / `npx tsc --noEmit` → 0 에러 / `npx vite build` → index.html 0.83 kB │ gzip: 0.43 kB / index-DZpy6KgT.css 21.69 kB │ gzip: 4.85 kB / index-CAN2Ugvv.js 538.74 kB │ gzip: 134.67 kB (81 modules transformed) / 주석 위생 grep → 없음
   - 코드 리뷰: 의도가 비어 있으면 후보 축·라벨이 v1과 동일(무회귀). 타겟 = 마지막 상대 발화, 없으면 끝줄.
@@ -232,6 +238,12 @@
 - 관찰(정확도, 미확정 — 표본 1): 캡처 1장의 `vocabulary_examples` 5개 중 2개는 음식 이름("쿡밥", "설렁탕")으로 말투 지표가 아니다. 텍스트 모드(대화 38줄)에서는 6개가 모두 어미·감탄 표현이었다. 한 장 분량의 발화로는 문체 근거가 얇을 수 있다는 P5 docs의 2차 공격과 방향이 같지만, 표본이 1건이라 결론은 보류하고 실사용 관찰 항목(TRD §10 #16)으로 남긴다.
 - 발견: 코드 주석에 마일스톤 명칭(M1)이 인용되어 있어 제거(주석 규칙: 현재 동작과 TRD 참조만).
 
+## 2026-09-05 — [chore] 코드 주석 정리 — 모듈 머리 주석을 현재 동작·TRD 절 참조 기준으로 정리 — 완료
+
+- 배경/목적: M1까지 만든 모듈들의 머리 주석이 구현 당시 작업 메모 위주여서, 각 모듈이 지금 무엇을 하는지와 TRD 절 참조만 남기도록 정리했다.
+- 변경 파일: `src/lib/analysis.ts`, `src/lib/config.ts`, `src/lib/gemini.ts`, `src/lib/i18n.ts`, `src/lib/id.ts`, `src/lib/persona.ts`, `src/lib/prompts.ts`, `src/lib/store.ts`, `src/lib/types.ts`(주석만)
+- 검증: `npx tsc --noEmit` → 0 에러. 그 외 비대상(동작 변경 없음).
+- 비고: 이 항목은 P11 이력 대조 리뷰에서 대응 LOG 항목이 없음을 발견해 사후에 추가했다(사소한 변경 예외로 보았으나 9파일 규모라 기록으로 남긴다).
 ## 2026-09-05 — [docs] M1 마일스톤 — 문서 1.0, package 1.0.0 — 완료
 
 - 배경/목적: P4(메시지 분석 v1·기록)까지 구현·검증이 끝나 PLAN §5의 M1(MVP) 출구에 도달했다. PRD/TRD/DESIGN/PLAN을 실제 구현 상태로 정정해 1.0 기준선으로 올리고, README를 M1 기준으로 다시 쓰고, 패키지 버전을 1.0.0으로 맞춘다.
@@ -247,7 +259,7 @@
 - 1차 사고: 코드네임 "Persona Mirror"를 정식명으로 채택 — 뜻이 직관적(페르소나를 비추는 거울)이고 바꿀 비용이 없다.
 - 비판적 재사고(반증을 실측): ① **좁은 화면에서 잘린다.** 360px 폭(보급형 안드로이드)에서 헤더 앱명이 "Persona ···"로 말줄임 처리됨(scrollWidth 112 > clientWidth 87, `truncate`). 390px에서도 인디케이터와 여백이 21px로 빡빡하다(P3 LOG 관찰). ② 두 단어라 한국어 표기가 흔들린다("페르소나 미러"/"Persona Mirror" 혼용) — 한·영 단일 표기 원칙(DESIGN §10)과 충돌. ③ 일반명사 조합이라 고유성이 약하고 저장소명과도 다르다.
 - 종합: 한 단어 고유명 **Persora**(Persona + -ora)로 확정, 한·영 동일 표기. 교체 범위는 표시 문구(i18n 2키)·`index.html` title·서버 로그·README·패키지명으로 한정한다. 이미 만들어진 로컬 데이터와의 호환을 위해 IndexedDB 이름 `persona-mirror`와 쿠키명 `pm_gemini_key`는 유지한다(TRD §3.2).
-- 변경 파일: `index.html`, `src/lib/i18n.ts`(app.title·onboarding.welcomeTitle ko/en), `server/index.js`, `package.json`·`package-lock.json`(name persora), `README.md`, `src/lib/config.ts`(DB_NAME 주석), `docs/PRD.md`(0.3)·`TRD.md`(0.7)·`DESIGN.md`(0.3)·`PLAN.md`(0.3)·`LOG.md`(제목)
+- 변경 파일: `index.html`, `src/lib/i18n.ts`(app.title·onboarding.welcomeTitle ko/en), `server/index.js`, `package.json`·`package-lock.json`(name persora), `README.md`, `docs/PRD.md`(0.3)·`TRD.md`(0.7)·`DESIGN.md`(0.3)·`PLAN.md`(0.3)·`LOG.md`(제목)
 - 검증: `npx tsc --noEmit` 0 에러 / `npx vite build` 성공(js 529.88 kB, gzip 131.68 kB) / 브라우저 360px: 문서 제목 "Persora", 헤더 앱명 57px·말줄임 없음·인디케이터와 여백 46px(변경 전 87px 잘림·여백 16px).
 
 ## 2026-09-05 — [feat] P4 메시지 분석 v1(받은 메시지 1건)과 기록 — 완료
@@ -278,7 +290,7 @@
 ## 2026-09-05 — [feat] P2 Gemini API 키 온보딩(쿠키)과 클라이언트 — 완료
 
 - 배경/목적: 모든 도메인 기능이 사용자 소유 Gemini 키에 의존하므로 페르소나보다 먼저 키 온보딩과 호출 모듈을 만든다(PLAN §6). 계약: TRD §3.2·§3.3·§3.4·§3.9·§3.10·§4, DESIGN §4.
-- 변경 파일: `src/lib/config.ts`, `src/lib/repos/settingsRepo.ts`(쿠키 `pm_gemini_key`, max-age 1년, path=/, SameSite=Lax), `src/lib/gemini.ts`(generate/extractJson/에러 변환), `src/lib/store.ts`(apiKey 미러, setApiKey/clearApiKey, hasApiKey), `src/components/OnboardingModal.tsx`, `src/components/ApiKeyStatus.tsx`, `src/App.tsx`(온보딩 게이트·헤더 인디케이터), `src/lib/i18n.ts`(onboarding/status/err/toast/btn 키), `docs/TRD.md`(§10 #1·#3 실측 반영)
+- 변경 파일: `src/lib/config.ts`, `src/lib/repos/settingsRepo.ts`(쿠키 `pm_gemini_key`, max-age 1년, path=/, SameSite=Lax), `src/lib/gemini.ts`(generate/extractJson/에러 변환), `src/lib/store.ts`(apiKey 미러, setApiKey/clearApiKey, hasApiKey), `src/components/OnboardingModal.tsx`, `src/components/ApiKeyStatus.tsx`, `src/App.tsx`(온보딩 게이트·헤더 인디케이터), `src/lib/i18n.ts`(onboarding/status/err/toast/btn 키), `docs/TRD.md`(§10 #1·#3 실측 반영), `docs/PLAN.md`(P2 체크·상태)
 - 구현 중 결정: 스토어는 TRD §3.9대로 `setApiKey(key)`/`clearApiKey()`를 분리(`setApiKey(key|null)` 통합안도 검토했으나 TRD §3.9 계약과 달라 폐기). 온보딩 소개 문구는 이 시점에 없는 기능(이미지 입력 등)을 언급하지 않도록 조정하고, 동의 문구는 DR-4(Gemini 전송)·DR-6(복구 불가)를 함께 담았다.
 - 검증:
   - `npx tsc --noEmit` → 0 에러 / `npx vite build` → 성공: index.html 0.81 kB │ gzip: 0.42 kB / index-1V1pdAPq.css 14.64 kB │ gzip: 3.75 kB / index-Bcbch9zE.js 183.82 kB │ gzip: 60.51 kB (59 modules transformed)
@@ -290,7 +302,7 @@
 ## 2026-09-05 — [feat] P1 앱 스캐폴드와 셸 — 완료
 
 - 배경/목적: 도메인 기능 전에 빌드 파이프라인과 앱 셸(상단바·하단 탭 3개·HashRouter·i18n ko/en·토스트)을 세워 이후 단계가 화면 단위로 붙을 자리를 만든다. 계약: TRD §2·§3.9·§3.10, DESIGN §2·§3, PLAN §4 P1.
-- 변경 파일: `package.json`(persona-mirror 0.1.0, engines node>=20), `package-lock.json`, `tsconfig.json`, `vite.config.ts`(base `/` — Pages 경로는 P7), `tailwind.config.js`(토큰 brand-gradient/brand-gradient-subtle/avatar-gradient, soft/glow, slide-up/fade-in), `postcss.config.js`, `index.html`(CSP는 P7), `public/`(favicon·app-icon-192·apple-touch-icon·app-logo), `server/index.js`(Express 4, dist 서빙 + SPA 폴백, 0.0.0.0:8000), `src/main.tsx`, `src/App.tsx`, `src/index.css`, `src/vite-env.d.ts`, `src/lib/i18n.ts`(t/getLang/setLang/onLangChange/initI18n, `pm_lang`), `src/lib/useI18n.ts`, `src/lib/store.ts`(toasts만), `src/components/Toast.tsx`, `src/components/LanguageToggle.tsx`, `src/routes/PersonaPage.tsx`·`AnalyzePage.tsx`·`HistoryPage.tsx`(제목·부제 placeholder), `README.md`, `.gitignore`(브라우저 자동화 산출물 무시)
+- 변경 파일: `package.json`(persona-mirror 0.1.0, engines node>=20), `package-lock.json`, `tsconfig.json`, `vite.config.ts`(base `/` — Pages 경로는 P7), `tailwind.config.js`(토큰 brand-gradient/brand-gradient-subtle/avatar-gradient, soft/glow, slide-up/fade-in), `postcss.config.js`, `index.html`(CSP는 P7), `public/`(favicon·app-icon-192·apple-touch-icon·app-logo), `server/index.js`(Express 4, dist 서빙 + SPA 폴백, 0.0.0.0:8000), `src/main.tsx`, `src/App.tsx`, `src/index.css`, `src/vite-env.d.ts`, `src/lib/i18n.ts`(t/getLang/setLang/onLangChange/initI18n, `pm_lang`), `src/lib/useI18n.ts`, `src/lib/store.ts`(toasts만), `src/components/Toast.tsx`, `src/components/LanguageToggle.tsx`, `src/routes/PersonaPage.tsx`·`AnalyzePage.tsx`·`HistoryPage.tsx`(제목·부제 placeholder), `README.md`, `.gitignore`(브라우저 자동화 산출물 무시), `docs/PLAN.md`(P1 체크·상태)
 - 구현 중 결정: 라우트는 TRD §3.10대로 `/`→`/personas` redirect + `/personas`·`/analyze`·`/history`. 페이지 콘텐츠 폭은 DESIGN §3의 `max-w-lg`를 그대로 따랐다(실제 콘텐츠가 붙는 P3에서 재검토). i18n 사전은 P1이 실제로 쓰는 키 10개만 넣었다.
 - 검증:
   - `npm install` → up to date, 254 packages(lock 최상위 name/version persona-mirror/0.1.0 확인)

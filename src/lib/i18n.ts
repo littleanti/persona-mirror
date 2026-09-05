@@ -138,7 +138,7 @@ const MESSAGES: Record<Lang, Dict> = {
     'toast.personaUpdated': '{name} 페르소나를 업데이트했어요',
     'toast.personaUpdateFail': '페르소나 업데이트에 실패했습니다',
 
-    // 토스트 — 분석/기록 (P4)
+    // 토스트 — 분석/기록
     'toast.selectPersona': '페르소나를 선택해주세요',
     'toast.enterMessage': '메시지를 입력해주세요',
     'toast.analyzeFail': '분석에 실패했습니다. API 키 설정을 확인해주세요',
@@ -197,8 +197,8 @@ const MESSAGES: Record<Lang, Dict> = {
     'settings.privacyTitle': '개인정보와 보안',
     'settings.privacyDesc': 'Persora는 서버 계정이나 자체 데이터베이스 없이 이 브라우저에서 동작합니다.',
     'settings.privacyLocal': '페르소나, 원본 대화, 분석 기록, 작성 중인 대화는 이 브라우저의 IndexedDB/localStorage에 저장됩니다.',
-    'settings.privacyGemini': '페르소나 생성 시 대화 텍스트나 캡처 이미지가, 분석 시 페르소나와 대화 내용이 Google Gemini API로 직접 전송됩니다.',
-    'settings.privacyKey': 'Gemini API 키는 localStorage에 저장됩니다. Google Cloud에서 Gemini API만 허용하고 가능하면 HTTP referrer를 littleanti.github.io로 제한하세요.',
+    'settings.privacyGemini': '페르소나 생성 시 입력란의 대화 텍스트가, 메시지 분석 시 페르소나와 최근 대화 텍스트 또는 첨부한 캡처 이미지가 Google Gemini API로 직접 전송됩니다.',
+    'settings.privacyKey': 'Gemini API 키는 localStorage에 저장됩니다. Google Cloud에서 이 키의 사용 API를 Gemini API로 제한하고, 노출이 의심되면 즉시 회전·삭제하세요.',
     'settings.privacyLoss': '브라우저 데이터 삭제, 시크릿 모드 종료, 기기 변경 시 로컬 데이터는 복구할 수 없습니다. 필요한 데이터는 백업으로 보관하세요.',
     'settings.privacyConsent': '타인의 대화나 민감정보를 분석하기 전에는 필요한 동의를 받고, 주민번호·카드번호 같은 고위험 정보는 입력하지 마세요.',
     'settings.disclaimerTitle': '분석 결과 안내',
@@ -337,7 +337,7 @@ const MESSAGES: Record<Lang, Dict> = {
     'toast.personaUpdated': 'Updated the {name} persona',
     'toast.personaUpdateFail': 'Failed to update the persona',
 
-    // Toasts — analyze/history (P4)
+    // Toasts — analyze/history
     'toast.selectPersona': 'Please select a persona',
     'toast.enterMessage': 'Please enter a message',
     'toast.analyzeFail': 'Analysis failed. Please check your API key.',
@@ -397,8 +397,8 @@ const MESSAGES: Record<Lang, Dict> = {
     'settings.privacyTitle': 'Privacy and security',
     'settings.privacyDesc': 'Persora runs in this browser without server accounts or its own database.',
     'settings.privacyLocal': 'Personas, original conversations, analysis history, and drafts are stored in this browser IndexedDB/localStorage.',
-    'settings.privacyGemini': 'When you create a persona, your conversation text or screenshots are sent directly to the Google Gemini API; when you analyze, your persona and conversation are.',
-    'settings.privacyKey': 'Your Gemini API key is stored in localStorage. In Google Cloud, restrict it to the Gemini API and, where possible, to the littleanti.github.io HTTP referrer.',
+    'settings.privacyGemini': 'When you create a persona, the conversation text you enter is sent directly to the Google Gemini API; when you analyze, your persona plus the recent conversation text or the attached screenshots are.',
+    'settings.privacyKey': 'Your Gemini API key is stored in localStorage. In Google Cloud, restrict this key to the Gemini API, and rotate or delete it immediately if you suspect it was exposed.',
     'settings.privacyLoss': 'If browser data is cleared, private browsing ends, or you change devices, local data cannot be recovered. Export a backup when needed.',
     'settings.privacyConsent': 'Get any necessary consent before analyzing someone else’s conversation, and avoid high-risk sensitive data such as government IDs or card numbers.',
     'settings.disclaimerTitle': 'About AI results',
